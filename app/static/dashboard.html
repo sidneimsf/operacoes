@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel · operações</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div id="aviso-meus-chamados"></div>
+      <div id="aviso-confirmar-chamados"></div>
+
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="label">empresas</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">clientes ativos</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">colaboradores</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">usuários do sistema</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">chamados em aberto</div><div class="value">—</div></div>
+      </div>
+
+      <div class="section-title">Clientes por empresa</div>
+      <div id="breakdown-empresas">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>
