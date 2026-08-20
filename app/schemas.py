@@ -9,6 +9,7 @@ class LoginRequest(BaseModel):
 class ChamadoCreate(BaseModel):
     cliente_id: int
     tipo: str
+    prioridade: str = "normal"
     descricao: str
     responsavel_id: int
 
@@ -23,6 +24,11 @@ class ChamadoFinalizar(BaseModel):
     documento_enviado: bool
     documento_detalhe: str | None = None
     observacoes: str | None = None
+
+
+class AvisoCreate(BaseModel):
+    mensagem: str
+    destinatario_id: int | None = None
 
 
 class TokenResponse(BaseModel):

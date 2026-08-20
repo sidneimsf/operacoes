@@ -103,7 +103,7 @@ const Shell = (() => {
     document.getElementById('topbar-title').textContent = tituloTopbar;
     document.getElementById('topbar-title').insertAdjacentHTML(
       'afterend',
-      '<button class="btn-primary btn-topbar" id="btn-abrir-chamado">+ Abrir chamado</button>'
+      '<button class="btn-abrir-chamado" id="btn-abrir-chamado">+ Abrir chamado</button>'
     );
 
     const userInfoHtml = `
@@ -144,6 +144,10 @@ const Shell = (() => {
             <div class="field">
               <label for="chamado-tipo">Tipo de chamado</label>
               <select id="chamado-tipo" required></select>
+            </div>
+            <div class="field">
+              <label for="chamado-prioridade">Prioridade</label>
+              <select id="chamado-prioridade" required></select>
             </div>
             <div class="field">
               <label for="chamado-responsavel">Responsável</label>
@@ -205,6 +209,11 @@ const Shell = (() => {
       .map((t) => `<option value="${t.chave}">${t.label}</option>`)
       .join('');
 
+    const selectPrioridade = document.getElementById('chamado-prioridade');
+    selectPrioridade.innerHTML = tiposEStatus.prioridades
+      .map((p) => `<option value="${p.chave}"${p.chave === 'normal' ? ' selected' : ''}>${p.label}</option>`)
+      .join('');
+
     const selectResponsavel = document.getElementById('chamado-responsavel');
     selectResponsavel.innerHTML = supervisores
       .map((s) => `<option value="${s.id}">${s.nome}</option>`)
@@ -226,6 +235,7 @@ const Shell = (() => {
     const corpo = {
       cliente_id: Number(document.getElementById('chamado-cliente').value),
       tipo: document.getElementById('chamado-tipo').value,
+      prioridade: document.getElementById('chamado-prioridade').value,
       responsavel_id: Number(document.getElementById('chamado-responsavel').value),
       descricao: document.getElementById('chamado-descricao').value,
     };

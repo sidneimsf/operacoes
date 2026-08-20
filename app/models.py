@@ -29,6 +29,7 @@ class Chamado(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
     tipo: Mapped[str] = mapped_column(String(30), nullable=False)
+    prioridade: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
     descricao: Mapped[str] = mapped_column(String(1000), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="novo")
     aberto_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
@@ -55,6 +56,27 @@ class Chamado(Base):
 
     def __repr__(self) -> str:
         return f"<Chamado {self.tipo} - {self.status}>"
+
+
+class Aviso(Base):
+    """
+    Mural de avisos: qualquer usuario pode postar uma mensagem para
+    todos ou para uma pessoa especifica. Aparece na tela de Avisos
+    em formato de mural (estilo post-it).
+    """
+    __tablename__ = "avisos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mensagem: Mapped[str] = mapped_column(String(1000), nullable=False)
+    criado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    destinatario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    criado_por: Mapped["Usuario"] = relationship(foreign_keys=[criado_por_id])
+    destinatario: Mapped["Usuario | None"] = relationship(foreign_keys=[destinatario_id])
+
+    def __repr__(self) -> str:
+        return f"<Aviso de {self.criado_por_id}>"
 
 
 class Usuario(Base):

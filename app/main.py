@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 import jwt
 from database import get_db
-from models import Chamado, Cliente, Colaborador, Empresa, Usuario
-from schemas import ChamadoCreate, ChamadoFinalizar, ChamadoStatusUpdate, LoginRequest, TokenResponse
+from models import Aviso, Chamado, Cliente, Colaborador, Empresa, Usuario
+from schemas import AvisoCreate, ChamadoCreate, ChamadoFinalizar, ChamadoStatusUpdate, LoginRequest, TokenResponse
 from security import criar_token, decodificar_token, verificar_senha
 
 app = FastAPI(title="Operacoes SolarSync", version="0.1.0")
@@ -36,6 +36,13 @@ STATUS_CHAMADO = [
     {"chave": "finalizado", "label": "Finalizado"},
 ]
 CHAVES_STATUS_VALIDAS = {s["chave"] for s in STATUS_CHAMADO}
+
+PRIORIDADES_CHAMADO = [
+    {"chave": "normal", "label": "Normal"},
+    {"chave": "urgente", "label": "Urgente"},
+    {"chave": "urgentissimo", "label": "Urgentíssimo"},
+]
+CHAVES_PRIORIDADE_VALIDAS = {p["chave"] for p in PRIORIDADES_CHAMADO}
 
 
 def usuario_atual(
@@ -74,6 +81,7 @@ def serializar_chamado(c: Chamado) -> dict:
         "cliente_nome": c.cliente.nome,
         "empresa_id": c.cliente.empresa_id,
         "tipo": c.tipo,
+        "prioridade": c.prioridade,
         "descricao": c.descricao,
         "status": c.status,
         "aberto_por": c.aberto_por.nome,
@@ -156,8 +164,13 @@ def pagina_ocorrencias():
 
 
 @app.get("/avisos", include_in_schema=False)
-def pagina_em_construcao():
-    return FileResponse("static/em-breve.html")
+def pagina_avisos():
+    return FileResponse("static/avisos.html")
+
+
+@app.get("/cliente-detalhe", include_in_schema=False)
+def pagina_cliente_detalhe():
+    return FileResponse("static/cliente-detalhe.html")
 
 
 @app.get("/ponto", include_in_schema=False)
@@ -262,6 +275,24 @@ def listar_clientes(
     ]
 
 
+@app.get("/clientes-dados/{cliente_id}")
+def detalhe_cliente(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    cliente = db.get(Cliente, cliente_id)
+    if cliente is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    return {
+        "id": cliente.id,
+        "nome": cliente.nome,
+        "cnpj": cliente.cnpj,
+        "empresa_id": cliente.empresa_id,
+        "empresa_nome": cliente.empresa.nome,
+    }
+
+
 @app.get("/colaboradores-dados")
 def listar_colaboradores(
     cliente_id: int | None = None,
@@ -303,9 +334,70 @@ def listar_supervisores(db: Session = Depends(get_db), usuario: Usuario = Depend
     return [{"id": s.id, "nome": s.nome} for s in supervisores]
 
 
+@app.get("/pessoas")
+def listar_pessoas(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Lista enxuta (id + nome + papel) de todos os usuarios ativos, usada para escolher destinatario de aviso."""
+    pessoas = db.query(Usuario).filter_by(ativo=True).order_by(Usuario.nome).all()
+    return [{"id": p.id, "nome": p.nome, "papel": p.papel} for p in pessoas]
+
+
+def serializar_aviso(a: Aviso) -> dict:
+    return {
+        "id": a.id,
+        "mensagem": a.mensagem,
+        "criado_por_id": a.criado_por_id,
+        "criado_por_nome": a.criado_por.nome,
+        "destinatario_id": a.destinatario_id,
+        "destinatario_nome": a.destinatario.nome if a.destinatario else None,
+        "criado_em": a.criado_em.isoformat(),
+    }
+
+
+@app.post("/avisos-dados", status_code=status.HTTP_201_CREATED)
+def criar_aviso(
+    dados: AvisoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    mensagem = dados.mensagem.strip()
+    if not mensagem:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Escreva uma mensagem")
+
+    if dados.destinatario_id is not None:
+        destinatario = db.get(Usuario, dados.destinatario_id)
+        if destinatario is None or not destinatario.ativo:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Destinatario invalido")
+
+    aviso = Aviso(
+        mensagem=mensagem,
+        criado_por_id=usuario.id,
+        destinatario_id=dados.destinatario_id,
+    )
+    db.add(aviso)
+    db.commit()
+    db.refresh(aviso)
+    return serializar_aviso(aviso)
+
+
+@app.get("/avisos-dados")
+def listar_avisos(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Mostra avisos para todos, avisos dirigidos a mim, e avisos que eu mesmo criei."""
+    avisos = (
+        db.query(Aviso)
+        .filter(
+            (Aviso.destinatario_id.is_(None))
+            | (Aviso.destinatario_id == usuario.id)
+            | (Aviso.criado_por_id == usuario.id)
+        )
+        .order_by(Aviso.criado_em.desc())
+        .all()
+    )
+    return [serializar_aviso(a) for a in avisos]
+
+
 @app.get("/chamados-tipos")
 def tipos_e_status_chamado(usuario: Usuario = Depends(usuario_atual)):
-    return {"tipos": TIPOS_CHAMADO, "status": STATUS_CHAMADO}
+    return {"tipos": TIPOS_CHAMADO, "status": STATUS_CHAMADO, "prioridades": PRIORIDADES_CHAMADO}
 
 
 @app.post("/chamados-dados", status_code=status.HTTP_201_CREATED)
@@ -316,6 +408,9 @@ def abrir_chamado(
 ):
     if dados.tipo not in CHAVES_TIPO_VALIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de chamado invalido")
+
+    if dados.prioridade not in CHAVES_PRIORIDADE_VALIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Prioridade invalida")
 
     cliente = db.get(Cliente, dados.cliente_id)
     if cliente is None:
@@ -332,6 +427,7 @@ def abrir_chamado(
     chamado = Chamado(
         cliente_id=dados.cliente_id,
         tipo=dados.tipo,
+        prioridade=dados.prioridade,
         descricao=descricao,
         status="novo",
         aberto_por_id=usuario.id,
@@ -347,6 +443,7 @@ def abrir_chamado(
 def listar_chamados(
     status_filtro: str | None = None,
     tipo: str | None = None,
+    prioridade: str | None = None,
     cliente_id: int | None = None,
     empresa_id: int | None = None,
     responsavel_id: int | None = None,
@@ -363,6 +460,8 @@ def listar_chamados(
         query = query.filter(Chamado.status == status_filtro)
     if tipo:
         query = query.filter(Chamado.tipo == tipo)
+    if prioridade:
+        query = query.filter(Chamado.prioridade == prioridade)
     if cliente_id:
         query = query.filter(Chamado.cliente_id == cliente_id)
     if empresa_id:

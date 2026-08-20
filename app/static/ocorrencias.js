@@ -2,11 +2,13 @@ const auth = Shell.montar('ocorrencias', 'Ocorrências');
 
 let TIPOS = [];
 let STATUS = [];
+let PRIORIDADES = [];
 let empresas = [];
 
 const filtros = {
   status: null,
   tipo: '',
+  prioridade: '',
   empresa_id: '',
   cliente_id: '',
   responsavel_id: '',
@@ -18,6 +20,7 @@ function montarQueryString() {
   const params = new URLSearchParams();
   if (filtros.status) params.set('status_filtro', filtros.status);
   if (filtros.tipo) params.set('tipo', filtros.tipo);
+  if (filtros.prioridade) params.set('prioridade', filtros.prioridade);
   if (filtros.empresa_id) params.set('empresa_id', filtros.empresa_id);
   if (filtros.cliente_id) params.set('cliente_id', filtros.cliente_id);
   if (filtros.responsavel_id) params.set('responsavel_id', filtros.responsavel_id);
@@ -64,6 +67,11 @@ function formatarData(isoString) {
 
 function labelTipo(chave) {
   const encontrado = TIPOS.find((t) => t.chave === chave);
+  return encontrado ? encontrado.label : chave;
+}
+
+function labelPrioridade(chave) {
+  const encontrado = PRIORIDADES.find((p) => p.chave === chave);
   return encontrado ? encontrado.label : chave;
 }
 
@@ -214,8 +222,9 @@ function renderizarTabela(chamados) {
       (c) => `
       <tr>
         <td>${formatarData(c.criado_em)}</td>
-        <td>${c.cliente_nome}</td>
+        <td><a href="/cliente-detalhe?id=${c.cliente_id}">${c.cliente_nome}</a></td>
         <td>${labelTipo(c.tipo)}</td>
+        <td><span class="priority-badge ${c.prioridade}">${labelPrioridade(c.prioridade)}</span></td>
         <td class="chamado-descricao" title="${c.descricao}">${c.descricao}</td>
         <td>${c.responsavel_nome || '—'}</td>
         <td><span class="status-badge ${c.status}">${STATUS.find((s) => s.chave === c.status)?.label || c.status}</span></td>
@@ -232,7 +241,7 @@ function renderizarTabela(chamados) {
   container.innerHTML = `
     <table class="table-list">
       <thead>
-        <tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Descrição</th><th>Responsável</th><th>Status</th><th>Alterar</th></tr>
+        <tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Prioridade</th><th>Descrição</th><th>Responsável</th><th>Status</th><th>Alterar</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
@@ -274,9 +283,13 @@ async function iniciar() {
   if (tiposEStatus === null) return;
   TIPOS = tiposEStatus.tipos;
   STATUS = tiposEStatus.status;
+  PRIORIDADES = tiposEStatus.prioridades;
 
   document.getElementById('filtro-tipo').innerHTML =
     '<option value="">Todos</option>' + TIPOS.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
+
+  document.getElementById('filtro-prioridade').innerHTML =
+    '<option value="">Todas</option>' + PRIORIDADES.map((p) => `<option value="${p.chave}">${p.label}</option>`).join('');
 
   empresas = await Shell.chamarApi('/empresas');
   if (empresas === null) return;
@@ -306,6 +319,11 @@ async function iniciar() {
 
   document.getElementById('filtro-tipo').addEventListener('change', (evento) => {
     filtros.tipo = evento.target.value;
+    carregarChamados();
+  });
+
+  document.getElementById('filtro-prioridade').addEventListener('change', (evento) => {
+    filtros.prioridade = evento.target.value;
     carregarChamados();
   });
 

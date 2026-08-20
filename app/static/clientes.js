@@ -45,8 +45,9 @@ function renderizarClientes() {
 
   container.innerHTML = '';
   listaFiltrada.forEach((cliente) => {
-    const linha = document.createElement('div');
+    const linha = document.createElement('a');
     linha.className = 'cliente-row';
+    linha.href = `/cliente-detalhe?id=${cliente.id}`;
     linha.innerHTML = `
       <span>${cliente.nome}</span>
       <span class="cnpj">${cliente.cnpj ?? '—'}</span>

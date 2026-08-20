@@ -326,6 +326,13 @@ button {
   padding: 13px 4px;
   border-bottom: 1px solid var(--border);
   font-size: 14.5px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cliente-row:hover {
+  background: var(--surface-2);
 }
 
 .cliente-row .cnpj {
@@ -622,8 +629,21 @@ button {
 
 /* ---------- Modal (abrir chamado) ---------- */
 
-.btn-topbar {
+.btn-abrir-chamado {
+  background: var(--accent);
+  color: #1a1206;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
+  box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.18);
+}
+
+.btn-abrir-chamado:hover {
+  background: var(--accent-dark);
+  box-shadow: 0 0 0 4px rgba(232, 163, 61, 0.22);
 }
 
 .modal-overlay {
@@ -873,4 +893,222 @@ button {
 .btn-confirmar {
   margin-top: 10px;
   width: 100%;
+}
+
+/* ---------- Prioridade do chamado ---------- */
+
+.priority-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.priority-badge.normal {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.priority-badge.urgente {
+  background: rgba(232, 163, 61, 0.15);
+  color: var(--accent);
+}
+
+.priority-badge.urgentissimo {
+  background: rgba(226, 87, 76, 0.15);
+  color: var(--danger);
+}
+
+/* ---------- Histórico do cliente (timeline) ---------- */
+
+.cliente-header {
+  margin-bottom: 28px;
+}
+
+.cliente-header .empresa-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cliente-header h2 {
+  margin: 6px 0 4px;
+  font-size: 23px;
+}
+
+.cliente-header .cnpj {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+
+.back-link:hover {
+  color: var(--text);
+}
+
+.timeline-item {
+  display: flex;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.timeline-item .data-col {
+  width: 84px;
+  flex-shrink: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+
+.timeline-item .conteudo {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-item .linha-topo {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.timeline-item .linha-topo .tipo-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.timeline-item .descricao {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.timeline-item .meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---------- Mural de avisos ---------- */
+
+.avisos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.avisos-header .btn-primary {
+  width: auto;
+  padding: 10px 18px;
+}
+
+.mural-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 22px;
+  margin-top: 24px;
+}
+
+.postit {
+  border-radius: 4px;
+  padding: 20px 16px 16px;
+  position: relative;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.postit:hover {
+  transform: rotate(0deg) scale(1.02);
+}
+
+.postit:nth-child(4n+1) {
+  transform: rotate(-1.5deg);
+  background: rgba(232, 163, 61, 0.10);
+  border: 1px solid rgba(232, 163, 61, 0.28);
+}
+
+.postit:nth-child(4n+2) {
+  transform: rotate(1deg);
+  background: rgba(140, 170, 220, 0.09);
+  border: 1px solid rgba(140, 170, 220, 0.26);
+}
+
+.postit:nth-child(4n+3) {
+  transform: rotate(-0.8deg);
+  background: rgba(92, 184, 138, 0.09);
+  border: 1px solid rgba(92, 184, 138, 0.26);
+}
+
+.postit:nth-child(4n+4) {
+  transform: rotate(1.3deg);
+  background: rgba(196, 140, 220, 0.09);
+  border: 1px solid rgba(196, 140, 220, 0.26);
+}
+
+.postit .pin {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+}
+
+.postit .mensagem {
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.postit .rodape {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.postit .destinatario-tag {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.radio-group {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
 }
