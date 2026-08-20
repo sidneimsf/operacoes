@@ -420,6 +420,23 @@ button {
   color: var(--accent);
 }
 
+.nav-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  flex-shrink: 0;
+}
+
 .main-area {
   flex: 1;
   display: flex;

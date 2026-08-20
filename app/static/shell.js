@@ -118,8 +118,31 @@ const Shell = (() => {
 
     montarModalChamado();
     document.getElementById('btn-abrir-chamado').addEventListener('click', abrirModalChamado);
+    atualizarBadgeAvisos();
 
     return auth;
+  }
+
+  async function atualizarBadgeAvisos() {
+    try {
+      const resultado = await chamarApi('/avisos-dados/nao-lidos');
+      if (!resultado) return;
+
+      const linkAvisos = document.querySelector('.nav-item[href="/avisos"]');
+      if (!linkAvisos) return;
+
+      const badgeExistente = linkAvisos.querySelector('.nav-badge');
+      if (badgeExistente) badgeExistente.remove();
+
+      if (resultado.total > 0) {
+        linkAvisos.insertAdjacentHTML(
+          'beforeend',
+          `<span class="nav-badge">${resultado.total > 9 ? '9+' : resultado.total}</span>`
+        );
+      }
+    } catch (erro) {
+      // silencioso: o balaozinho e' um extra, nao pode quebrar a navegacao
+    }
   }
 
   function montarModalChamado() {
@@ -254,5 +277,5 @@ const Shell = (() => {
     }
   }
 
-  return { montar, chamarApi, sair, autenticacao, icone };
+  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos };
 })();

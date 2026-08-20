@@ -353,6 +353,25 @@ def serializar_aviso(a: Aviso) -> dict:
     }
 
 
+@app.get("/avisos-dados/nao-lidos")
+def contar_avisos_nao_lidos(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    query = (
+        db.query(Aviso)
+        .filter((Aviso.destinatario_id.is_(None)) | (Aviso.destinatario_id == usuario.id))
+        .filter(Aviso.criado_por_id != usuario.id)
+    )
+    if usuario.avisos_vistos_em is not None:
+        query = query.filter(Aviso.criado_em > usuario.avisos_vistos_em)
+    return {"total": query.count()}
+
+
+@app.post("/avisos-dados/marcar-vistos")
+def marcar_avisos_vistos(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    usuario.avisos_vistos_em = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
+
+
 @app.post("/avisos-dados", status_code=status.HTTP_201_CREATED)
 def criar_aviso(
     dados: AvisoCreate,

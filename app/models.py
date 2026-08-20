@@ -93,6 +93,7 @@ class Usuario(Base):
     senha_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     papel: Mapped[str] = mapped_column(String(20), nullable=False)  # "supervisor" ou "escritorio"
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    avisos_vistos_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     def __repr__(self) -> str:

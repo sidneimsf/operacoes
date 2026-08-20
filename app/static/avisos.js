@@ -142,6 +142,16 @@ async function carregarAvisos() {
   }
 }
 
+async function marcarAvisosComoVistos() {
+  try {
+    await Shell.chamarApi('/avisos-dados/marcar-vistos', { method: 'POST' });
+    Shell.atualizarBadgeAvisos();
+  } catch (erro) {
+    // silencioso - nao impede o uso da tela
+  }
+}
+
 montarModalAviso();
 document.getElementById('btn-novo-aviso').addEventListener('click', abrirModalAviso);
 carregarAvisos();
+marcarAvisosComoVistos();
