@@ -30,10 +30,12 @@ const DIAS_LABEL = {
   sexta: 'Sexta', sabado: 'Sábado', domingo: 'Domingo',
 };
 
-function celulaHorarioHtml(registro, campoNome) {
-  if (!registro) return '<td><span class="horario-celula-vazia">—</span></td>';
+function celulaHorarioHtml(registro, campoNome, dia, turno) {
+  if (!registro) {
+    return `<td data-dia="${dia}" data-turno="${turno}"><span class="horario-celula-vazia">+</span></td>`;
+  }
   return `
-    <td>
+    <td data-dia="${dia}" data-turno="${turno}" data-horario-id="${registro.id}">
       <div class="horario-celula">
         <span class="nome">${registro[campoNome]}</span>
         <span class="hora">${registro.hora_inicio}-${registro.hora_fim}</span>
@@ -43,10 +45,6 @@ function celulaHorarioHtml(registro, campoNome) {
 }
 
 function montarGradeSemanal(horarios, campoNome) {
-  if (horarios.length === 0) {
-    return '<div class="empty-state">Nenhum horário cadastrado ainda.</div>';
-  }
-
   const diasComDados = new Set(horarios.map((h) => h.dia_semana));
   const dias = [...DIAS_PADRAO];
   if (diasComDados.has('domingo')) dias.push('domingo');
@@ -57,8 +55,8 @@ function montarGradeSemanal(horarios, campoNome) {
   });
 
   const headerCols = dias.map((d) => `<th>${DIAS_LABEL[d]}</th>`).join('');
-  const linhaManha = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_manha`], campoNome)).join('');
-  const linhaTarde = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_tarde`], campoNome)).join('');
+  const linhaManha = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_manha`], campoNome, d, 'manha')).join('');
+  const linhaTarde = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_tarde`], campoNome, d, 'tarde')).join('');
 
   return `
     <table class="horario-grid">
@@ -71,11 +69,152 @@ function montarGradeSemanal(horarios, campoNome) {
   `;
 }
 
+let horariosAtuais = [];
+let clientesAgrupadosCache = null;
+let celulaEmEdicao = null;
+
+async function carregarClientesAgrupados() {
+  if (clientesAgrupadosCache) return clientesAgrupadosCache;
+  const [empresas, clientes] = await Promise.all([
+    Shell.chamarApi('/empresas'),
+    Shell.chamarApi('/clientes-dados?incluir_inativos=false'),
+  ]);
+  clientesAgrupadosCache = empresas.map((e) => ({
+    empresa: e.nome,
+    clientes: clientes.filter((c) => c.empresa_id === e.id),
+  }));
+  return clientesAgrupadosCache;
+}
+
+function montarModalHorario() {
+  const html = `
+    <div class="modal-overlay" id="horario-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="horario-modal-titulo">Horário</h3>
+          <button class="modal-close" id="horario-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="horario-form">
+          <div class="field">
+            <label for="horario-cliente">Cliente</label>
+            <select id="horario-cliente" required></select>
+          </div>
+          <div class="field">
+            <label for="horario-hora-inicio">Início</label>
+            <input type="time" id="horario-hora-inicio" required>
+          </div>
+          <div class="field">
+            <label for="horario-hora-fim">Fim</label>
+            <input type="time" id="horario-hora-fim" required>
+          </div>
+          <div class="error-message" id="horario-modal-erro"></div>
+          <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn-primary" id="horario-modal-enviar" style="flex: 1;">Salvar</button>
+            <button type="button" class="btn-ghost" id="horario-modal-remover" hidden>Remover</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('horario-modal-fechar').addEventListener('click', fecharModalHorario);
+  document.getElementById('horario-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'horario-modal-overlay') fecharModalHorario();
+  });
+  document.getElementById('horario-form').addEventListener('submit', salvarHorario);
+  document.getElementById('horario-modal-remover').addEventListener('click', removerHorarioAtual);
+}
+
+async function abrirModalHorario(dia, turno, horarioId) {
+  celulaEmEdicao = { dia, turno, horarioId: horarioId ? Number(horarioId) : null };
+
+  const erroBox = document.getElementById('horario-modal-erro');
+  erroBox.classList.remove('visible');
+  document.getElementById('horario-modal-titulo').textContent = `${DIAS_LABEL[dia]} · ${turno === 'manha' ? 'Manhã' : 'Tarde'}`;
+
+  const grupos = await carregarClientesAgrupados();
+  const selectCliente = document.getElementById('horario-cliente');
+  selectCliente.innerHTML = grupos
+    .map(
+      (g) =>
+        `<optgroup label="${g.empresa}">${g.clientes.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('')}</optgroup>`
+    )
+    .join('');
+
+  const botaoRemover = document.getElementById('horario-modal-remover');
+
+  if (celulaEmEdicao.horarioId) {
+    const registro = horariosAtuais.find((h) => h.id === celulaEmEdicao.horarioId);
+    selectCliente.value = registro.cliente_id;
+    document.getElementById('horario-hora-inicio').value = registro.hora_inicio;
+    document.getElementById('horario-hora-fim').value = registro.hora_fim;
+    botaoRemover.hidden = false;
+  } else {
+    document.getElementById('horario-hora-inicio').value = '';
+    document.getElementById('horario-hora-fim').value = '';
+    botaoRemover.hidden = true;
+  }
+
+  document.getElementById('horario-modal-overlay').hidden = false;
+}
+
+function fecharModalHorario() {
+  document.getElementById('horario-modal-overlay').hidden = true;
+}
+
+async function salvarHorario(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('horario-modal-erro');
+  erroBox.classList.remove('visible');
+
+  const corpo = {
+    cliente_id: Number(document.getElementById('horario-cliente').value),
+    hora_inicio: document.getElementById('horario-hora-inicio').value,
+    hora_fim: document.getElementById('horario-hora-fim').value,
+  };
+
+  try {
+    if (celulaEmEdicao.horarioId) {
+      await Shell.chamarApi(`/horarios-servico/${celulaEmEdicao.horarioId}`, { method: 'PATCH', body: corpo });
+    } else {
+      await Shell.chamarApi('/horarios-servico', {
+        method: 'POST',
+        body: {
+          colaborador_id: Number(colaboradorId),
+          dia_semana: celulaEmEdicao.dia,
+          turno: celulaEmEdicao.turno,
+          ...corpo,
+        },
+      });
+    }
+    fecharModalHorario();
+    carregarMapaServicos();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  }
+}
+
+async function removerHorarioAtual() {
+  if (!celulaEmEdicao.horarioId) return;
+  if (!confirm('Remover esse horário da agenda?')) return;
+
+  try {
+    await Shell.chamarApi(`/horarios-servico/${celulaEmEdicao.horarioId}`, { method: 'DELETE' });
+    fecharModalHorario();
+    carregarMapaServicos();
+  } catch (erro) {
+    alert('Não foi possível remover agora.');
+  }
+}
+
 async function carregarMapaServicos() {
   const container = document.getElementById('mapa-servicos');
   try {
     const horarios = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/horarios`);
     if (horarios === null) return;
+    horariosAtuais = horarios;
     container.innerHTML = montarGradeSemanal(horarios, 'cliente_nome');
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar o mapa de serviços agora.</div>';
@@ -478,6 +617,13 @@ async function iniciar() {
 
     montarModalEditarColaborador();
     document.getElementById('btn-editar-colaborador').addEventListener('click', abrirModalEditarColaborador);
+
+    montarModalHorario();
+    document.getElementById('mapa-servicos').addEventListener('click', (evento) => {
+      const celula = evento.target.closest('td[data-dia]');
+      if (!celula) return;
+      abrirModalHorario(celula.dataset.dia, celula.dataset.turno, celula.dataset.horarioId);
+    });
 
     document.getElementById('timeline').addEventListener('click', (evento) => {
       const link = evento.target.closest('.evento-arquivo-link');

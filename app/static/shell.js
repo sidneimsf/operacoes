@@ -65,6 +65,10 @@ const Shell = (() => {
       throw erro;
     }
 
+    if (resposta.status === 204) {
+      return true;
+    }
+
     return resposta.json();
   }
 

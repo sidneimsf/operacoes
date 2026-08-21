@@ -714,6 +714,18 @@ button {
   font-size: 12px;
 }
 
+.horario-grid td {
+  cursor: pointer;
+}
+
+.horario-grid td:hover .horario-celula {
+  outline: 1px solid var(--accent);
+}
+
+.horario-grid td:hover .horario-celula-vazia {
+  color: var(--accent);
+}
+
 .badge-papel {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;

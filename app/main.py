@@ -21,6 +21,8 @@ from schemas import (
     ClienteUpdate,
     ColaboradorCreate,
     ColaboradorUpdate,
+    HorarioServicoCreate,
+    HorarioServicoUpdate,
     LoginRequest,
     TokenResponse,
 )
@@ -799,6 +801,117 @@ def horarios_do_cliente(
     )
     registros.sort(key=lambda h: (DIAS_SEMANA_ORDEM.index(h.dia_semana), h.turno))
     return [serializar_horario(h) for h in registros]
+
+
+TURNOS_VALIDOS = {"manha", "tarde"}
+
+
+def _checar_conflito_horario(
+    db: Session, colaborador_id: int, dia_semana: str, turno: str, ignorar_id: int | None = None
+) -> None:
+    """Um colaborador nao pode estar em dois lugares no mesmo dia/turno."""
+    query = db.query(HorarioServico).filter(
+        HorarioServico.colaborador_id == colaborador_id,
+        HorarioServico.dia_semana == dia_semana,
+        HorarioServico.turno == turno,
+    )
+    if ignorar_id is not None:
+        query = query.filter(HorarioServico.id != ignorar_id)
+    if query.first() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Esse colaborador ja tem um horario nesse dia/turno. Edite o horario existente em vez de criar um novo.",
+        )
+
+
+@app.post("/horarios-servico", status_code=status.HTTP_201_CREATED)
+def criar_horario(
+    dados: HorarioServicoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if dados.dia_semana not in DIAS_SEMANA_ORDEM:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dia da semana invalido")
+    if dados.turno not in TURNOS_VALIDOS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Turno invalido")
+    if db.get(Colaborador, dados.colaborador_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
+    if db.get(Cliente, dados.cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+
+    _checar_conflito_horario(db, dados.colaborador_id, dados.dia_semana, dados.turno)
+
+    horario = HorarioServico(
+        colaborador_id=dados.colaborador_id,
+        cliente_id=dados.cliente_id,
+        dia_semana=dados.dia_semana,
+        turno=dados.turno,
+        hora_inicio=dados.hora_inicio,
+        hora_fim=dados.hora_fim,
+    )
+    db.add(horario)
+    db.commit()
+    db.refresh(horario)
+    return serializar_horario(horario)
+
+
+@app.patch("/horarios-servico/{horario_id}")
+def editar_horario(
+    horario_id: int,
+    dados: HorarioServicoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    horario = db.get(HorarioServico, horario_id)
+    if horario is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario nao encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+
+    novo_colaborador_id = campos.get("colaborador_id", horario.colaborador_id)
+    novo_dia = campos.get("dia_semana", horario.dia_semana)
+    novo_turno = campos.get("turno", horario.turno)
+
+    if "colaborador_id" in campos or "dia_semana" in campos or "turno" in campos:
+        if novo_dia not in DIAS_SEMANA_ORDEM:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dia da semana invalido")
+        if novo_turno not in TURNOS_VALIDOS:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Turno invalido")
+        _checar_conflito_horario(db, novo_colaborador_id, novo_dia, novo_turno, ignorar_id=horario_id)
+
+    if "colaborador_id" in campos:
+        if db.get(Colaborador, campos["colaborador_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
+        horario.colaborador_id = campos["colaborador_id"]
+    if "cliente_id" in campos:
+        if db.get(Cliente, campos["cliente_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+        horario.cliente_id = campos["cliente_id"]
+    if "dia_semana" in campos:
+        horario.dia_semana = campos["dia_semana"]
+    if "turno" in campos:
+        horario.turno = campos["turno"]
+    if "hora_inicio" in campos:
+        horario.hora_inicio = campos["hora_inicio"]
+    if "hora_fim" in campos:
+        horario.hora_fim = campos["hora_fim"]
+
+    db.commit()
+    db.refresh(horario)
+    return serializar_horario(horario)
+
+
+@app.delete("/horarios-servico/{horario_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remover_horario(
+    horario_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    horario = db.get(HorarioServico, horario_id)
+    if horario is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario nao encontrado")
+    db.delete(horario)
+    db.commit()
 
 
 @app.get("/usuarios-dados")

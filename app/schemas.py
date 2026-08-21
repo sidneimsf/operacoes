@@ -68,6 +68,24 @@ class ColaboradorUpdate(BaseModel):
     status: str | None = None
 
 
+class HorarioServicoCreate(BaseModel):
+    colaborador_id: int
+    cliente_id: int
+    dia_semana: str
+    turno: str
+    hora_inicio: str
+    hora_fim: str
+
+
+class HorarioServicoUpdate(BaseModel):
+    colaborador_id: int | None = None
+    cliente_id: int | None = None
+    dia_semana: str | None = None
+    turno: str | None = None
+    hora_inicio: str | None = None
+    hora_fim: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
