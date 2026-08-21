@@ -1,6 +1,8 @@
+import uuid
 from datetime import date, datetime, time, timezone
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +11,7 @@ from sqlalchemy.orm import Session
 
 import jwt
 from database import get_db
-from models import Aviso, Chamado, Cliente, Colaborador, Empresa, Usuario
+from models import Aviso, Chamado, Cliente, Colaborador, ColaboradorEvento, Empresa, Usuario
 from schemas import AvisoCreate, ChamadoCreate, ChamadoFinalizar, ChamadoStatusUpdate, LoginRequest, TokenResponse
 from security import criar_token, decodificar_token, verificar_senha
 
@@ -17,6 +19,24 @@ app = FastAPI(title="Operacoes SolarSync", version="0.1.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 seguranca = HTTPBearer()
+
+PASTA_UPLOADS = Path("uploads/colaboradores")
+PASTA_UPLOADS.mkdir(parents=True, exist_ok=True)
+
+EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
+TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024  # 10 MB
+
+TIPOS_EVENTO_COLABORADOR = [
+    {"chave": "anotacao", "label": "Anotação"},
+    {"chave": "documento", "label": "Documento"},
+    {"chave": "atestado", "label": "Atestado médico"},
+    {"chave": "falta", "label": "Falta"},
+    {"chave": "cobertura", "label": "Cobriu falta"},
+    {"chave": "ferias", "label": "Férias"},
+    {"chave": "advertencia", "label": "Advertência"},
+    {"chave": "outros", "label": "Outros"},
+]
+CHAVES_TIPO_EVENTO_VALIDAS = {t["chave"] for t in TIPOS_EVENTO_COLABORADOR}
 
 TIPOS_CHAMADO = [
     {"chave": "manutencao", "label": "Manutenção corretiva"},
@@ -172,6 +192,11 @@ def pagina_avisos():
 @app.get("/cliente-detalhe", include_in_schema=False)
 def pagina_cliente_detalhe():
     return FileResponse("static/cliente-detalhe.html")
+
+
+@app.get("/colaborador-detalhe", include_in_schema=False)
+def pagina_colaborador_detalhe():
+    return FileResponse("static/colaborador-detalhe.html")
 
 
 @app.get("/ponto", include_in_schema=False)
@@ -369,15 +394,192 @@ def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depen
     )
     por_cargo = [{"cargo": cargo or "Não informado", "total": total} for cargo, total in cargos_query]
 
+    eventos_atestado_ativos = (
+        db.query(ColaboradorEvento)
+        .filter(
+            ColaboradorEvento.tipo == "atestado",
+            ColaboradorEvento.data_inicio <= hoje,
+            (ColaboradorEvento.data_fim >= hoje) | (ColaboradorEvento.data_fim.is_(None)),
+        )
+        .all()
+    )
+    lista_atestado = [
+        {
+            "colaborador_id": e.colaborador_id,
+            "nome": e.colaborador.nome,
+            "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+        }
+        for e in eventos_atestado_ativos
+    ]
+
+    eventos_falta_hoje = (
+        db.query(ColaboradorEvento)
+        .filter(ColaboradorEvento.tipo == "falta", ColaboradorEvento.data_inicio == hoje)
+        .all()
+    )
+    lista_faltantes = [
+        {"colaborador_id": e.colaborador_id, "nome": e.colaborador.nome}
+        for e in eventos_falta_hoje
+    ]
+
     return {
         "total": total,
         "ativos": ativos,
         "afastados": afastados,
         "admitidos_mes": admitidos_mes,
+        "em_atestado": len(lista_atestado),
+        "faltantes_hoje": len(lista_faltantes),
+        "lista_atestado": lista_atestado,
+        "lista_faltantes": lista_faltantes,
         "por_empresa": por_empresa,
         "por_supervisor": por_supervisor,
         "por_cargo": por_cargo,
     }
+
+
+@app.get("/colaboradores-dados/eventos-tipos")
+def tipos_evento_colaborador(usuario: Usuario = Depends(usuario_atual)):
+    # "cobertura" nao aparece como opcao selecionavel - e' gerado automaticamente
+    # quando alguem registra uma falta apontando quem cobriu.
+    return {"tipos": [t for t in TIPOS_EVENTO_COLABORADOR if t["chave"] != "cobertura"]}
+
+
+def serializar_evento_colaborador(e: ColaboradorEvento) -> dict:
+    return {
+        "id": e.id,
+        "colaborador_id": e.colaborador_id,
+        "tipo": e.tipo,
+        "descricao": e.descricao,
+        "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None,
+        "data_fim": e.data_fim.isoformat() if e.data_fim else None,
+        "colaborador_relacionado_id": e.colaborador_relacionado_id,
+        "colaborador_relacionado_nome": e.colaborador_relacionado.nome if e.colaborador_relacionado else None,
+        "tem_arquivo": e.arquivo_path is not None,
+        "arquivo_nome_original": e.arquivo_nome_original,
+        "registrado_por": e.registrado_por.nome,
+        "criado_em": e.criado_em.isoformat(),
+    }
+
+
+@app.get("/colaboradores-dados/{colaborador_id}")
+def detalhe_colaborador(
+    colaborador_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    c = db.get(Colaborador, colaborador_id)
+    if c is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    return serializar_colaborador(c)
+
+
+@app.get("/colaboradores-dados/{colaborador_id}/eventos")
+def listar_eventos_colaborador(
+    colaborador_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    eventos = (
+        db.query(ColaboradorEvento)
+        .filter(ColaboradorEvento.colaborador_id == colaborador_id)
+        .order_by(ColaboradorEvento.criado_em.desc())
+        .all()
+    )
+    return [serializar_evento_colaborador(e) for e in eventos]
+
+
+@app.post("/colaboradores-dados/{colaborador_id}/eventos", status_code=status.HTTP_201_CREATED)
+def criar_evento_colaborador(
+    colaborador_id: int,
+    tipo: str = Form(...),
+    descricao: str | None = Form(None),
+    data_inicio: str | None = Form(None),
+    data_fim: str | None = Form(None),
+    colaborador_relacionado_id: int | None = Form(None),
+    arquivo: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    colaborador = db.get(Colaborador, colaborador_id)
+    if colaborador is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+
+    if tipo not in CHAVES_TIPO_EVENTO_VALIDAS or tipo == "cobertura":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de evento invalido")
+
+    if tipo in ("atestado", "falta", "ferias") and not data_inicio:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data")
+
+    data_inicio_obj = date.fromisoformat(data_inicio) if data_inicio else None
+    data_fim_obj = date.fromisoformat(data_fim) if data_fim else None
+
+    relacionado = None
+    if colaborador_relacionado_id is not None:
+        relacionado = db.get(Colaborador, colaborador_relacionado_id)
+        if relacionado is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador relacionado invalido")
+
+    arquivo_path_salvo = None
+    arquivo_nome_original = None
+    if arquivo is not None and arquivo.filename:
+        extensao = Path(arquivo.filename).suffix.lower()
+        if extensao not in EXTENSOES_PERMITIDAS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF"
+            )
+        conteudo = arquivo.file.read()
+        if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+
+        pasta_colaborador = PASTA_UPLOADS / str(colaborador_id)
+        pasta_colaborador.mkdir(parents=True, exist_ok=True)
+        nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+        caminho_completo = pasta_colaborador / nome_arquivo
+        caminho_completo.write_bytes(conteudo)
+        arquivo_path_salvo = str(caminho_completo)
+        arquivo_nome_original = arquivo.filename
+
+    evento = ColaboradorEvento(
+        colaborador_id=colaborador_id,
+        tipo=tipo,
+        descricao=descricao.strip() if descricao else None,
+        data_inicio=data_inicio_obj,
+        data_fim=data_fim_obj,
+        colaborador_relacionado_id=colaborador_relacionado_id,
+        arquivo_path=arquivo_path_salvo,
+        arquivo_nome_original=arquivo_nome_original,
+        registrado_por_id=usuario.id,
+    )
+    db.add(evento)
+
+    # Falta com indicacao de quem cobriu: registra o par tambem no substituto.
+    if tipo == "falta" and relacionado is not None:
+        evento_cobertura = ColaboradorEvento(
+            colaborador_id=relacionado.id,
+            tipo="cobertura",
+            descricao=f"Cobriu a falta de {colaborador.nome}",
+            data_inicio=data_inicio_obj,
+            data_fim=data_fim_obj,
+            colaborador_relacionado_id=colaborador_id,
+            registrado_por_id=usuario.id,
+        )
+        db.add(evento_cobertura)
+
+    db.commit()
+    db.refresh(evento)
+    return serializar_evento_colaborador(evento)
+
+
+@app.get("/colaboradores-dados/eventos/{evento_id}/arquivo")
+def baixar_arquivo_evento(
+    evento_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    evento = db.get(ColaboradorEvento, evento_id)
+    if evento is None or not evento.arquivo_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arquivo nao encontrado")
+    return FileResponse(evento.arquivo_path, filename=evento.arquivo_nome_original or "documento")
 
 
 @app.get("/usuarios-dados")

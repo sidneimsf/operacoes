@@ -591,6 +591,63 @@ button {
   font-size: 14px;
 }
 
+.table-list td a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.table-list td a:hover {
+  text-decoration: underline;
+}
+
+.field input[type="file"] {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.evento-tipo-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.evento-tipo-badge.atestado { background: rgba(232, 163, 61, 0.15); color: var(--accent); }
+.evento-tipo-badge.falta { background: rgba(226, 87, 76, 0.15); color: var(--danger); }
+.evento-tipo-badge.cobertura { background: rgba(92, 184, 138, 0.15); color: var(--success); }
+.evento-tipo-badge.documento { background: rgba(140, 170, 220, 0.15); color: #8caadc; }
+.evento-tipo-badge.ferias { background: rgba(196, 140, 220, 0.15); color: #c88cdc; }
+
+.evento-arquivo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--accent);
+  text-decoration: none;
+  margin-top: 6px;
+}
+
+.evento-arquivo-link:hover {
+  text-decoration: underline;
+}
+
+.evento-relacionado {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
 .badge-papel {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;

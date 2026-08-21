@@ -19,6 +19,9 @@ services:
       - db
     ports:
       - "127.0.0.1:8002:8000"
+    volumes:
+      - uploads_data:/app/uploads
 
 volumes:
   db_data:
+  uploads_data:

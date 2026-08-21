@@ -39,6 +39,8 @@ async function carregarResumo() {
     cards[1].textContent = resumo.ativos;
     cards[2].textContent = resumo.afastados;
     cards[3].textContent = resumo.admitidos_mes;
+    cards[4].textContent = resumo.em_atestado;
+    cards[5].textContent = resumo.faltantes_hoje;
 
     montarBarras(document.getElementById('breakdown-empresa'), resumo.por_empresa, 'empresa');
     montarBarras(document.getElementById('breakdown-supervisor'), resumo.por_supervisor, 'supervisor');
@@ -76,7 +78,7 @@ function renderizarTabela(colaboradores) {
       (c) => `
       <tr>
         <td>${c.registro || '—'}</td>
-        <td>${c.nome}</td>
+        <td><a href="/colaborador-detalhe?id=${c.id}">${c.nome}</a></td>
         <td>${c.cargo || '—'}</td>
         <td>${c.contato || '—'}</td>
         <td>${formatarData(c.data_admissao)}</td>

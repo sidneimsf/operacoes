@@ -174,3 +174,35 @@ class Colaborador(Base):
 
     def __repr__(self) -> str:
         return f"<Colaborador {self.nome}>"
+
+
+class ColaboradorEvento(Base):
+    """
+    Linha do tempo do colaborador: anotacao, documento anexado (RG,
+    exame, ASO...), atestado medico, falta (com quem cobriu), ferias,
+    advertencia, etc. Tudo fica sempre vinculado a um colaborador.
+    """
+    __tablename__ = "colaborador_eventos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    colaborador_id: Mapped[int] = mapped_column(ForeignKey("colaboradores.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    data_inicio: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_fim: Mapped[date | None] = mapped_column(Date, nullable=True)
+    colaborador_relacionado_id: Mapped[int | None] = mapped_column(
+        ForeignKey("colaboradores.id"), nullable=True
+    )
+    arquivo_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    arquivo_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    colaborador: Mapped["Colaborador"] = relationship(foreign_keys=[colaborador_id])
+    colaborador_relacionado: Mapped["Colaborador | None"] = relationship(
+        foreign_keys=[colaborador_relacionado_id]
+    )
+    registrado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<ColaboradorEvento {self.tipo} - colaborador {self.colaborador_id}>"

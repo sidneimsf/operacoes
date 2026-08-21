@@ -725,10 +725,12 @@ EMPRESAS_COLABORADORES = {
 }
 
 def main():
-    print("Recriando a tabela colaboradores com o novo formato...")
+    print("Recriando as tabelas colaboradores e colaborador_eventos com o novo formato...")
+    models.ColaboradorEvento.__table__.drop(engine, checkfirst=True)
     models.Colaborador.__table__.drop(engine, checkfirst=True)
     models.Colaborador.__table__.create(engine, checkfirst=True)
-    print("Tabela recriada.")
+    models.ColaboradorEvento.__table__.create(engine, checkfirst=True)
+    print("Tabelas recriadas.")
 
     db = SessionLocal()
     try:
