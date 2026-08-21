@@ -35,7 +35,10 @@
         </div>
       </div>
 
-      <div class="section-title" style="margin-top: 30px;">Lista de colaboradores</div>
+      <div class="avisos-header" style="margin-top: 30px;">
+        <span class="section-title" style="margin: 0;">Lista de colaboradores</span>
+        <button class="btn-primary" id="btn-novo-colaborador">+ Novo colaborador</button>
+      </div>
 
       <div class="filter-row">
         <div class="field">
@@ -49,9 +52,10 @@
         <div class="field">
           <label for="filtro-status">Status</label>
           <select id="filtro-status">
-            <option value="">Todos</option>
+            <option value="">Todos (exceto desligados)</option>
             <option value="ativo">Ativo</option>
             <option value="afastado">Afastado</option>
+            <option value="desligado">Desligado</option>
           </select>
         </div>
         <div class="field">

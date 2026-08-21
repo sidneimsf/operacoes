@@ -11,8 +11,19 @@ from sqlalchemy.orm import Session
 
 import jwt
 from database import get_db
-from models import Aviso, Chamado, Cliente, Colaborador, ColaboradorEvento, Empresa, Usuario
-from schemas import AvisoCreate, ChamadoCreate, ChamadoFinalizar, ChamadoStatusUpdate, LoginRequest, TokenResponse
+from models import Aviso, Chamado, Cliente, Colaborador, ColaboradorEvento, Empresa, HorarioServico, Usuario
+from schemas import (
+    AvisoCreate,
+    ChamadoCreate,
+    ChamadoFinalizar,
+    ChamadoStatusUpdate,
+    ClienteCreate,
+    ClienteUpdate,
+    ColaboradorCreate,
+    ColaboradorUpdate,
+    LoginRequest,
+    TokenResponse,
+)
 from security import criar_token, decodificar_token, verificar_senha
 
 app = FastAPI(title="Operacoes SolarSync", version="0.1.0")
@@ -285,20 +296,61 @@ def listar_empresas(db: Session = Depends(get_db), usuario: Usuario = Depends(us
     return [{"id": e.id, "nome": e.nome} for e in empresas]
 
 
+def serializar_cliente(c: Cliente) -> dict:
+    return {
+        "id": c.id,
+        "nome": c.nome,
+        "cnpj": c.cnpj,
+        "municipio": c.municipio,
+        "empresa_id": c.empresa_id,
+        "empresa_nome": c.empresa.nome,
+        "ativo": c.ativo,
+    }
+
+
 @app.get("/clientes-dados")
 def listar_clientes(
     empresa_id: int | None = None,
+    incluir_inativos: bool = False,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
     query = db.query(Cliente)
     if empresa_id is not None:
         query = query.filter(Cliente.empresa_id == empresa_id)
+    if not incluir_inativos:
+        query = query.filter(Cliente.ativo.is_(True))
     clientes = query.order_by(Cliente.nome).all()
     return [
-        {"id": c.id, "nome": c.nome, "empresa_id": c.empresa_id, "cnpj": c.cnpj}
+        {"id": c.id, "nome": c.nome, "empresa_id": c.empresa_id, "cnpj": c.cnpj, "ativo": c.ativo}
         for c in clientes
     ]
+
+
+@app.post("/clientes-dados", status_code=status.HTTP_201_CREATED)
+def criar_cliente(
+    dados: ClienteCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    empresa = db.get(Empresa, dados.empresa_id)
+    if empresa is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa invalida")
+
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do cliente")
+
+    cliente = Cliente(
+        empresa_id=dados.empresa_id,
+        nome=nome,
+        cnpj=dados.cnpj.strip() if dados.cnpj else None,
+        municipio=dados.municipio.strip() if dados.municipio else None,
+    )
+    db.add(cliente)
+    db.commit()
+    db.refresh(cliente)
+    return serializar_cliente(cliente)
 
 
 @app.get("/clientes-dados/{cliente_id}")
@@ -310,13 +362,41 @@ def detalhe_cliente(
     cliente = db.get(Cliente, cliente_id)
     if cliente is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
-    return {
-        "id": cliente.id,
-        "nome": cliente.nome,
-        "cnpj": cliente.cnpj,
-        "empresa_id": cliente.empresa_id,
-        "empresa_nome": cliente.empresa.nome,
-    }
+    return serializar_cliente(cliente)
+
+
+@app.patch("/clientes-dados/{cliente_id}")
+def editar_cliente(
+    cliente_id: int,
+    dados: ClienteUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    cliente = db.get(Cliente, cliente_id)
+    if cliente is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+
+    if "empresa_id" in campos:
+        if db.get(Empresa, campos["empresa_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa invalida")
+        cliente.empresa_id = campos["empresa_id"]
+    if "nome" in campos:
+        nome = (campos["nome"] or "").strip()
+        if not nome:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome nao pode ficar vazio")
+        cliente.nome = nome
+    if "cnpj" in campos:
+        cliente.cnpj = campos["cnpj"].strip() if campos["cnpj"] else None
+    if "municipio" in campos:
+        cliente.municipio = campos["municipio"].strip() if campos["municipio"] else None
+    if "ativo" in campos:
+        cliente.ativo = campos["ativo"]
+
+    db.commit()
+    db.refresh(cliente)
+    return serializar_cliente(cliente)
 
 
 def serializar_colaborador(c: Colaborador) -> dict:
@@ -342,6 +422,7 @@ def listar_colaboradores(
     status_filtro: str | None = None,
     cargo: str | None = None,
     busca: str | None = None,
+    incluir_desligados: bool = False,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
@@ -352,6 +433,8 @@ def listar_colaboradores(
         query = query.filter(Colaborador.supervisor_id == supervisor_id)
     if status_filtro:
         query = query.filter(Colaborador.status == status_filtro)
+    elif not incluir_desligados:
+        query = query.filter(Colaborador.status != "desligado")
     if cargo:
         query = query.filter(Colaborador.cargo == cargo)
     if busca:
@@ -360,12 +443,51 @@ def listar_colaboradores(
     return [serializar_colaborador(c) for c in colaboradores]
 
 
+@app.post("/colaboradores-dados", status_code=status.HTTP_201_CREATED)
+def criar_colaborador(
+    dados: ColaboradorCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    empresa = db.get(Empresa, dados.empresa_id)
+    if empresa is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa invalida")
+
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do colaborador")
+
+    if dados.status not in ("ativo", "afastado", "desligado"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
+
+    if dados.supervisor_id is not None and db.get(Usuario, dados.supervisor_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
+
+    admissao = date.fromisoformat(dados.data_admissao) if dados.data_admissao else None
+
+    colaborador = Colaborador(
+        empresa_id=dados.empresa_id,
+        registro=dados.registro.strip() if dados.registro else None,
+        nome=nome,
+        cargo=dados.cargo.strip() if dados.cargo else None,
+        contato=dados.contato.strip() if dados.contato else None,
+        data_admissao=admissao,
+        supervisor_id=dados.supervisor_id,
+        status=dados.status,
+    )
+    db.add(colaborador)
+    db.commit()
+    db.refresh(colaborador)
+    return serializar_colaborador(colaborador)
+
+
 @app.get("/colaboradores-dados/resumo")
 def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     """Indicadores executivos: total, ativos, afastados, admitidos no mes, e quebras por empresa/supervisor/cargo."""
     total = db.query(Colaborador).count()
     ativos = db.query(Colaborador).filter_by(status="ativo").count()
     afastados = db.query(Colaborador).filter_by(status="afastado").count()
+    desligados = db.query(Colaborador).filter_by(status="desligado").count()
 
     hoje = date.today()
     inicio_mes = date(hoje.year, hoje.month, 1)
@@ -426,6 +548,7 @@ def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depen
         "total": total,
         "ativos": ativos,
         "afastados": afastados,
+        "desligados": desligados,
         "admitidos_mes": admitidos_mes,
         "em_atestado": len(lista_atestado),
         "faltantes_hoje": len(lista_faltantes),
@@ -471,6 +594,50 @@ def detalhe_colaborador(
     if c is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
     return serializar_colaborador(c)
+
+
+@app.patch("/colaboradores-dados/{colaborador_id}")
+def editar_colaborador(
+    colaborador_id: int,
+    dados: ColaboradorUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    colaborador = db.get(Colaborador, colaborador_id)
+    if colaborador is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+
+    if "empresa_id" in campos:
+        if db.get(Empresa, campos["empresa_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa invalida")
+        colaborador.empresa_id = campos["empresa_id"]
+    if "nome" in campos:
+        nome = (campos["nome"] or "").strip()
+        if not nome:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome nao pode ficar vazio")
+        colaborador.nome = nome
+    if "registro" in campos:
+        colaborador.registro = campos["registro"].strip() if campos["registro"] else None
+    if "cargo" in campos:
+        colaborador.cargo = campos["cargo"].strip() if campos["cargo"] else None
+    if "contato" in campos:
+        colaborador.contato = campos["contato"].strip() if campos["contato"] else None
+    if "data_admissao" in campos:
+        colaborador.data_admissao = date.fromisoformat(campos["data_admissao"]) if campos["data_admissao"] else None
+    if "supervisor_id" in campos:
+        if campos["supervisor_id"] is not None and db.get(Usuario, campos["supervisor_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
+        colaborador.supervisor_id = campos["supervisor_id"]
+    if "status" in campos:
+        if campos["status"] not in ("ativo", "afastado", "desligado"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
+        colaborador.status = campos["status"]
+
+    db.commit()
+    db.refresh(colaborador)
+    return serializar_colaborador(colaborador)
 
 
 @app.get("/colaboradores-dados/{colaborador_id}/eventos")
@@ -580,6 +747,58 @@ def baixar_arquivo_evento(
     if evento is None or not evento.arquivo_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arquivo nao encontrado")
     return FileResponse(evento.arquivo_path, filename=evento.arquivo_nome_original or "documento")
+
+
+DIAS_SEMANA_ORDEM = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo"]
+DIAS_SEMANA_LABEL = {
+    "segunda": "Segunda", "terca": "Terça", "quarta": "Quarta", "quinta": "Quinta",
+    "sexta": "Sexta", "sabado": "Sábado", "domingo": "Domingo",
+}
+
+
+def serializar_horario(h: HorarioServico) -> dict:
+    return {
+        "id": h.id,
+        "colaborador_id": h.colaborador_id,
+        "colaborador_nome": h.colaborador.nome,
+        "cliente_id": h.cliente_id,
+        "cliente_nome": h.cliente.nome,
+        "dia_semana": h.dia_semana,
+        "dia_semana_label": DIAS_SEMANA_LABEL.get(h.dia_semana, h.dia_semana),
+        "turno": h.turno,
+        "hora_inicio": h.hora_inicio,
+        "hora_fim": h.hora_fim,
+    }
+
+
+@app.get("/colaboradores-dados/{colaborador_id}/horarios")
+def horarios_do_colaborador(
+    colaborador_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    registros = (
+        db.query(HorarioServico)
+        .filter(HorarioServico.colaborador_id == colaborador_id)
+        .all()
+    )
+    registros.sort(key=lambda h: (DIAS_SEMANA_ORDEM.index(h.dia_semana), h.turno))
+    return [serializar_horario(h) for h in registros]
+
+
+@app.get("/clientes-dados/{cliente_id}/horarios")
+def horarios_do_cliente(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    registros = (
+        db.query(HorarioServico)
+        .filter(HorarioServico.cliente_id == cliente_id)
+        .all()
+    )
+    registros.sort(key=lambda h: (DIAS_SEMANA_ORDEM.index(h.dia_semana), h.turno))
+    return [serializar_horario(h) for h in registros]
 
 
 @app.get("/usuarios-dados")

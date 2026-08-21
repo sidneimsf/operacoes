@@ -726,6 +726,8 @@ EMPRESAS_COLABORADORES = {
 
 def main():
     print("Recriando as tabelas colaboradores e colaborador_eventos com o novo formato...")
+    if engine.dialect.has_table(engine.connect(), "horarios_servico"):
+        models.HorarioServico.__table__.drop(engine, checkfirst=True)
     models.ColaboradorEvento.__table__.drop(engine, checkfirst=True)
     models.Colaborador.__table__.drop(engine, checkfirst=True)
     models.Colaborador.__table__.create(engine, checkfirst=True)

@@ -56,6 +56,88 @@ function renderizarClientes() {
   });
 }
 
+function montarModalCliente() {
+  const html = `
+    <div class="modal-overlay" id="cliente-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Novo cliente</h3>
+          <button class="modal-close" id="cliente-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="cliente-form">
+          <div class="field">
+            <label for="cliente-form-empresa">Empresa</label>
+            <select id="cliente-form-empresa" required></select>
+          </div>
+          <div class="field">
+            <label for="cliente-form-nome">Nome do cliente</label>
+            <input type="text" id="cliente-form-nome" required>
+          </div>
+          <div class="field">
+            <label for="cliente-form-cnpj">CNPJ (opcional)</label>
+            <input type="text" id="cliente-form-cnpj" placeholder="00.000.000/0001-00">
+          </div>
+          <div class="field">
+            <label for="cliente-form-municipio">Município (opcional)</label>
+            <input type="text" id="cliente-form-municipio">
+          </div>
+          <div class="error-message" id="cliente-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="cliente-modal-enviar">Criar cliente</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('cliente-modal-fechar').addEventListener('click', fecharModalCliente);
+  document.getElementById('cliente-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'cliente-modal-overlay') fecharModalCliente();
+  });
+  document.getElementById('cliente-form').addEventListener('submit', enviarNovoCliente);
+}
+
+function abrirModalCliente() {
+  document.getElementById('cliente-form').reset();
+  document.getElementById('cliente-modal-erro').classList.remove('visible');
+  document.getElementById('cliente-form-empresa').innerHTML = empresas
+    .map((e) => `<option value="${e.id}">${e.nome}</option>`)
+    .join('');
+  document.getElementById('cliente-modal-overlay').hidden = false;
+}
+
+function fecharModalCliente() {
+  document.getElementById('cliente-modal-overlay').hidden = true;
+}
+
+async function enviarNovoCliente(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('cliente-modal-erro');
+  const botao = document.getElementById('cliente-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const corpo = {
+    empresa_id: Number(document.getElementById('cliente-form-empresa').value),
+    nome: document.getElementById('cliente-form-nome').value,
+    cnpj: document.getElementById('cliente-form-cnpj').value || null,
+    municipio: document.getElementById('cliente-form-municipio').value || null,
+  };
+
+  botao.disabled = true;
+  botao.textContent = 'Criando...';
+
+  try {
+    await Shell.chamarApi('/clientes-dados', { method: 'POST', body: corpo });
+    fecharModalCliente();
+    iniciar();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível criar o cliente agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Criar cliente';
+  }
+}
+
 async function iniciar() {
   try {
     empresas = await Shell.chamarApi('/empresas');
@@ -71,5 +153,8 @@ async function iniciar() {
       '<div class="empty-state">Não foi possível carregar os dados agora.</div>';
   }
 }
+
+montarModalCliente();
+document.getElementById('btn-novo-cliente').addEventListener('click', abrirModalCliente);
 
 iniciar();

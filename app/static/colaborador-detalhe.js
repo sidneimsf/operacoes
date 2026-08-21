@@ -24,6 +24,205 @@ function formatarDataHora(isoString) {
   return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const DIAS_PADRAO = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+const DIAS_LABEL = {
+  segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta',
+  sexta: 'Sexta', sabado: 'Sábado', domingo: 'Domingo',
+};
+
+function celulaHorarioHtml(registro, campoNome) {
+  if (!registro) return '<td><span class="horario-celula-vazia">—</span></td>';
+  return `
+    <td>
+      <div class="horario-celula">
+        <span class="nome">${registro[campoNome]}</span>
+        <span class="hora">${registro.hora_inicio}-${registro.hora_fim}</span>
+      </div>
+    </td>
+  `;
+}
+
+function montarGradeSemanal(horarios, campoNome) {
+  if (horarios.length === 0) {
+    return '<div class="empty-state">Nenhum horário cadastrado ainda.</div>';
+  }
+
+  const diasComDados = new Set(horarios.map((h) => h.dia_semana));
+  const dias = [...DIAS_PADRAO];
+  if (diasComDados.has('domingo')) dias.push('domingo');
+
+  const porDiaTurno = {};
+  horarios.forEach((h) => {
+    porDiaTurno[`${h.dia_semana}_${h.turno}`] = h;
+  });
+
+  const headerCols = dias.map((d) => `<th>${DIAS_LABEL[d]}</th>`).join('');
+  const linhaManha = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_manha`], campoNome)).join('');
+  const linhaTarde = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_tarde`], campoNome)).join('');
+
+  return `
+    <table class="horario-grid">
+      <thead><tr><th></th>${headerCols}</tr></thead>
+      <tbody>
+        <tr><td>Manhã</td>${linhaManha}</tr>
+        <tr><td>Tarde</td>${linhaTarde}</tr>
+      </tbody>
+    </table>
+  `;
+}
+
+async function carregarMapaServicos() {
+  const container = document.getElementById('mapa-servicos');
+  try {
+    const horarios = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/horarios`);
+    if (horarios === null) return;
+    container.innerHTML = montarGradeSemanal(horarios, 'cliente_nome');
+  } catch (erro) {
+    container.innerHTML = '<div class="empty-state">Não foi possível carregar o mapa de serviços agora.</div>';
+  }
+}
+
+function montarModalEditarColaborador() {
+  const html = `
+    <div class="modal-overlay" id="editar-colab-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Editar colaborador</h3>
+          <button class="modal-close" id="editar-colab-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="editar-colab-form">
+          <div class="field">
+            <label for="editar-colab-empresa">Empresa</label>
+            <select id="editar-colab-empresa" required></select>
+          </div>
+          <div class="field">
+            <label for="editar-colab-nome">Nome</label>
+            <input type="text" id="editar-colab-nome" required>
+          </div>
+          <div class="field">
+            <label for="editar-colab-registro">Registro</label>
+            <input type="text" id="editar-colab-registro">
+          </div>
+          <div class="field">
+            <label for="editar-colab-cargo">Cargo</label>
+            <input type="text" id="editar-colab-cargo">
+          </div>
+          <div class="field">
+            <label for="editar-colab-contato">Contato</label>
+            <input type="text" id="editar-colab-contato">
+          </div>
+          <div class="field">
+            <label for="editar-colab-admissao">Data de admissão</label>
+            <input type="date" id="editar-colab-admissao">
+          </div>
+          <div class="field">
+            <label for="editar-colab-supervisor">Supervisor</label>
+            <select id="editar-colab-supervisor"><option value="">Administrativo / sem supervisor</option></select>
+          </div>
+          <div class="field">
+            <label for="editar-colab-status">Status</label>
+            <select id="editar-colab-status">
+              <option value="ativo">Ativo</option>
+              <option value="afastado">Afastado</option>
+              <option value="desligado">Desligado</option>
+            </select>
+          </div>
+          <div class="error-message" id="editar-colab-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="editar-colab-modal-enviar">Salvar alterações</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('editar-colab-modal-fechar').addEventListener('click', () => {
+    document.getElementById('editar-colab-modal-overlay').hidden = true;
+  });
+  document.getElementById('editar-colab-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'editar-colab-modal-overlay') {
+      document.getElementById('editar-colab-modal-overlay').hidden = true;
+    }
+  });
+  document.getElementById('editar-colab-form').addEventListener('submit', salvarEdicaoColaborador);
+}
+
+async function abrirModalEditarColaborador() {
+  document.getElementById('editar-colab-modal-erro').classList.remove('visible');
+
+  const [empresas, supervisores] = await Promise.all([
+    Shell.chamarApi('/empresas'),
+    Shell.chamarApi('/supervisores'),
+  ]);
+
+  document.getElementById('editar-colab-empresa').innerHTML = empresas
+    .map((e) => `<option value="${e.id}" ${e.id === colaboradorAtual.empresa_id ? 'selected' : ''}>${e.nome}</option>`)
+    .join('');
+  document.getElementById('editar-colab-supervisor').innerHTML =
+    '<option value="">Administrativo / sem supervisor</option>' +
+    supervisores
+      .map((s) => `<option value="${s.id}" ${s.id === colaboradorAtual.supervisor_id ? 'selected' : ''}>${s.nome}</option>`)
+      .join('');
+
+  document.getElementById('editar-colab-nome').value = colaboradorAtual.nome;
+  document.getElementById('editar-colab-registro').value = colaboradorAtual.registro || '';
+  document.getElementById('editar-colab-cargo').value = colaboradorAtual.cargo || '';
+  document.getElementById('editar-colab-contato').value = colaboradorAtual.contato || '';
+  document.getElementById('editar-colab-admissao').value = colaboradorAtual.data_admissao || '';
+  document.getElementById('editar-colab-status').value = colaboradorAtual.status;
+
+  document.getElementById('editar-colab-modal-overlay').hidden = false;
+}
+
+async function salvarEdicaoColaborador(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('editar-colab-modal-erro');
+  const botao = document.getElementById('editar-colab-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const supervisorValor = document.getElementById('editar-colab-supervisor').value;
+  const corpo = {
+    empresa_id: Number(document.getElementById('editar-colab-empresa').value),
+    nome: document.getElementById('editar-colab-nome').value,
+    registro: document.getElementById('editar-colab-registro').value || null,
+    cargo: document.getElementById('editar-colab-cargo').value || null,
+    contato: document.getElementById('editar-colab-contato').value || null,
+    data_admissao: document.getElementById('editar-colab-admissao').value || null,
+    supervisor_id: supervisorValor ? Number(supervisorValor) : null,
+    status: document.getElementById('editar-colab-status').value,
+  };
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+
+  try {
+    colaboradorAtual = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}`, {
+      method: 'PATCH',
+      body: corpo,
+    });
+    document.getElementById('editar-colab-modal-overlay').hidden = true;
+    renderizarHeaderColaborador();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar alterações';
+  }
+}
+
+function renderizarHeaderColaborador() {
+  const c = colaboradorAtual;
+  document.getElementById('topbar-title').textContent = c.nome;
+  document.getElementById('colaborador-header').innerHTML = `
+    <span class="empresa-tag">${c.empresa_nome} · ${c.status === 'ativo' ? 'Ativo' : c.status === 'afastado' ? 'Afastado' : 'Desligado'}</span>
+    <h2>${c.nome}</h2>
+    <span class="cnpj">${c.cargo || 'Cargo não informado'} · Registro ${c.registro || '—'}</span>
+    <div class="meta" style="margin-top: 8px;">
+      Contato: ${c.contato || '—'} · Admissão: ${formatarData(c.data_admissao)} · Supervisor: ${c.supervisor_nome || 'Administrativo'}
+    </div>
+  `;
+}
+
 async function enviarFormData(caminho, formData) {
   const autenticacao = Shell.autenticacao();
   if (!autenticacao) return null;
@@ -272,18 +471,13 @@ async function iniciar() {
     colaboradorAtual = colaborador;
     TIPOS_EVENTO = tiposEvento.tipos;
 
-    document.getElementById('topbar-title').textContent = colaborador.nome;
-    document.getElementById('colaborador-header').innerHTML = `
-      <span class="empresa-tag">${colaborador.empresa_nome} · ${colaborador.status === 'ativo' ? 'Ativo' : 'Afastado'}</span>
-      <h2>${colaborador.nome}</h2>
-      <span class="cnpj">${colaborador.cargo || 'Cargo não informado'} · Registro ${colaborador.registro || '—'}</span>
-      <div class="meta" style="margin-top: 8px;">
-        Contato: ${colaborador.contato || '—'} · Admissão: ${formatarData(colaborador.data_admissao)} · Supervisor: ${colaborador.supervisor_nome || 'Administrativo'}
-      </div>
-    `;
+    renderizarHeaderColaborador();
 
     montarModalRegistro();
     document.getElementById('btn-novo-registro').addEventListener('click', abrirModalRegistro);
+
+    montarModalEditarColaborador();
+    document.getElementById('btn-editar-colaborador').addEventListener('click', abrirModalEditarColaborador);
 
     document.getElementById('timeline').addEventListener('click', (evento) => {
       const link = evento.target.closest('.evento-arquivo-link');
@@ -292,6 +486,7 @@ async function iniciar() {
       abrirArquivoEvento(link.dataset.eventoId);
     });
 
+    carregarMapaServicos();
     carregarTimeline();
   } catch (erro) {
     document.getElementById('colaborador-header').innerHTML =

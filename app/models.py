@@ -206,3 +206,26 @@ class ColaboradorEvento(Base):
 
     def __repr__(self) -> str:
         return f"<ColaboradorEvento {self.tipo} - colaborador {self.colaborador_id}>"
+
+
+class HorarioServico(Base):
+    """
+    Mapa de servicos: em qual cliente um colaborador trabalha, em cada
+    dia da semana e turno (manha/tarde), com o horario exato. Um
+    colaborador pode atender varios clientes ao longo da semana.
+    """
+    __tablename__ = "horarios_servico"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    colaborador_id: Mapped[int] = mapped_column(ForeignKey("colaboradores.id"), nullable=False)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    dia_semana: Mapped[str] = mapped_column(String(10), nullable=False)
+    turno: Mapped[str] = mapped_column(String(10), nullable=False)  # manha | tarde
+    hora_inicio: Mapped[str] = mapped_column(String(5), nullable=False)
+    hora_fim: Mapped[str] = mapped_column(String(5), nullable=False)
+
+    colaborador: Mapped["Colaborador"] = relationship()
+    cliente: Mapped["Cliente"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<HorarioServico colaborador={self.colaborador_id} cliente={self.cliente_id} {self.dia_semana}/{self.turno}>"
