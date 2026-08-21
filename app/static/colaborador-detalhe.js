@@ -196,7 +196,7 @@ function renderizarTimeline(eventos) {
       }
 
       const linhaArquivo = e.tem_arquivo
-        ? `<a class="evento-arquivo-link" href="/colaboradores-dados/eventos/${e.id}/arquivo" target="_blank">📎 ${e.arquivo_nome_original || 'Baixar arquivo'}</a>`
+        ? `<a class="evento-arquivo-link" href="#" data-evento-id="${e.id}">📎 ${e.arquivo_nome_original || 'Baixar arquivo'}</a>`
         : '';
 
       const periodo = e.data_fim && e.data_fim !== e.data_inicio
@@ -220,6 +220,28 @@ function renderizarTimeline(eventos) {
       `;
     })
     .join('');
+}
+
+async function abrirArquivoEvento(eventoId) {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return;
+
+  try {
+    const resposta = await fetch(`/colaboradores-dados/eventos/${eventoId}/arquivo`, {
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    });
+    if (resposta.status === 401) {
+      Shell.sair();
+      return;
+    }
+    if (!resposta.ok) throw new Error('Falha ao baixar arquivo');
+
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (erro) {
+    alert('Não foi possível abrir o arquivo agora.');
+  }
 }
 
 async function carregarTimeline() {
@@ -262,6 +284,13 @@ async function iniciar() {
 
     montarModalRegistro();
     document.getElementById('btn-novo-registro').addEventListener('click', abrirModalRegistro);
+
+    document.getElementById('timeline').addEventListener('click', (evento) => {
+      const link = evento.target.closest('.evento-arquivo-link');
+      if (!link) return;
+      evento.preventDefault();
+      abrirArquivoEvento(link.dataset.eventoId);
+    });
 
     carregarTimeline();
   } catch (erro) {
