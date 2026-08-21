@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import jwt
@@ -293,26 +294,90 @@ def detalhe_cliente(
     }
 
 
+def serializar_colaborador(c: Colaborador) -> dict:
+    return {
+        "id": c.id,
+        "registro": c.registro,
+        "nome": c.nome,
+        "cargo": c.cargo,
+        "contato": c.contato,
+        "data_admissao": c.data_admissao.isoformat() if c.data_admissao else None,
+        "empresa_id": c.empresa_id,
+        "empresa_nome": c.empresa.nome,
+        "supervisor_id": c.supervisor_id,
+        "supervisor_nome": c.supervisor.nome if c.supervisor else None,
+        "status": c.status,
+    }
+
+
 @app.get("/colaboradores-dados")
 def listar_colaboradores(
-    cliente_id: int | None = None,
+    empresa_id: int | None = None,
+    supervisor_id: int | None = None,
+    status_filtro: str | None = None,
+    cargo: str | None = None,
+    busca: str | None = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    query = db.query(Colaborador).join(Cliente)
-    if cliente_id is not None:
-        query = query.filter(Colaborador.cliente_id == cliente_id)
+    query = db.query(Colaborador)
+    if empresa_id is not None:
+        query = query.filter(Colaborador.empresa_id == empresa_id)
+    if supervisor_id is not None:
+        query = query.filter(Colaborador.supervisor_id == supervisor_id)
+    if status_filtro:
+        query = query.filter(Colaborador.status == status_filtro)
+    if cargo:
+        query = query.filter(Colaborador.cargo == cargo)
+    if busca:
+        query = query.filter(Colaborador.nome.ilike(f"%{busca}%"))
     colaboradores = query.order_by(Colaborador.nome).all()
-    return [
-        {
-            "id": c.id,
-            "nome": c.nome,
-            "cliente_id": c.cliente_id,
-            "cliente_nome": c.cliente.nome,
-            "ativo": c.ativo,
-        }
-        for c in colaboradores
+    return [serializar_colaborador(c) for c in colaboradores]
+
+
+@app.get("/colaboradores-dados/resumo")
+def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Indicadores executivos: total, ativos, afastados, admitidos no mes, e quebras por empresa/supervisor/cargo."""
+    total = db.query(Colaborador).count()
+    ativos = db.query(Colaborador).filter_by(status="ativo").count()
+    afastados = db.query(Colaborador).filter_by(status="afastado").count()
+
+    hoje = date.today()
+    inicio_mes = date(hoje.year, hoje.month, 1)
+    admitidos_mes = db.query(Colaborador).filter(Colaborador.data_admissao >= inicio_mes).count()
+
+    empresas = db.query(Empresa).order_by(Empresa.nome).all()
+    por_empresa = [
+        {"empresa": e.nome, "total": db.query(Colaborador).filter_by(empresa_id=e.id).count()}
+        for e in empresas
     ]
+
+    supervisores = db.query(Usuario).filter_by(papel="supervisor", ativo=True).order_by(Usuario.nome).all()
+    por_supervisor = [
+        {"supervisor": s.nome, "total": db.query(Colaborador).filter_by(supervisor_id=s.id).count()}
+        for s in supervisores
+    ]
+    sem_supervisor = db.query(Colaborador).filter(Colaborador.supervisor_id.is_(None)).count()
+    if sem_supervisor:
+        por_supervisor.append({"supervisor": "Administrativo / sem supervisor", "total": sem_supervisor})
+
+    cargos_query = (
+        db.query(Colaborador.cargo, func.count(Colaborador.id))
+        .group_by(Colaborador.cargo)
+        .order_by(func.count(Colaborador.id).desc())
+        .all()
+    )
+    por_cargo = [{"cargo": cargo or "Não informado", "total": total} for cargo, total in cargos_query]
+
+    return {
+        "total": total,
+        "ativos": ativos,
+        "afastados": afastados,
+        "admitidos_mes": admitidos_mes,
+        "por_empresa": por_empresa,
+        "por_supervisor": por_supervisor,
+        "por_cargo": por_cargo,
+    }
 
 
 @app.get("/usuarios-dados")

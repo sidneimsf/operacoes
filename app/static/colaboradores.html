@@ -14,9 +14,54 @@
       <h1 id="topbar-title"></h1>
     </div>
     <div class="content">
+
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="label">total</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">ativos</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">afastados</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">admitidos este mês</div><div class="value">—</div></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 8px;">
+        <div>
+          <div class="section-title">Por empresa</div>
+          <div id="breakdown-empresa"><div class="loading-state">Carregando...</div></div>
+        </div>
+        <div>
+          <div class="section-title">Por supervisor</div>
+          <div id="breakdown-supervisor"><div class="loading-state">Carregando...</div></div>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top: 30px;">Lista de colaboradores</div>
+
+      <div class="filter-row">
+        <div class="field">
+          <label for="filtro-empresa">Empresa</label>
+          <select id="filtro-empresa"><option value="">Todas</option></select>
+        </div>
+        <div class="field">
+          <label for="filtro-supervisor">Supervisor</label>
+          <select id="filtro-supervisor"><option value="">Todos</option></select>
+        </div>
+        <div class="field">
+          <label for="filtro-status">Status</label>
+          <select id="filtro-status">
+            <option value="">Todos</option>
+            <option value="ativo">Ativo</option>
+            <option value="afastado">Afastado</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="filtro-busca">Buscar nome</label>
+          <input type="text" id="filtro-busca" placeholder="Digite um nome...">
+        </div>
+      </div>
+
       <div id="lista-colaboradores">
         <div class="loading-state">Carregando colaboradores...</div>
       </div>
+
     </div>
   </div>
 </div>

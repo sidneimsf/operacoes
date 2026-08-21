@@ -1,7 +1,8 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -140,9 +141,6 @@ class Cliente(Base):
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     empresa: Mapped["Empresa"] = relationship(back_populates="clientes")
-    colaboradores: Mapped[list["Colaborador"]] = relationship(
-        back_populates="cliente", cascade="all, delete-orphan"
-    )
 
     def __repr__(self) -> str:
         return f"<Cliente {self.nome}>"
@@ -150,19 +148,29 @@ class Cliente(Base):
 
 class Colaborador(Base):
     """
-    Funcionario operacional (zeladoria, limpeza, etc.) vinculado a um
-    cliente. Nao acessa o app - existe aqui so como registro, para
-    o supervisor associar folha de ponto e documentos a alguem.
+    Funcionario operacional (zeladoria, limpeza, manutencao, etc).
+    Vinculado a empresa e opcionalmente a um supervisor responsavel.
+    O vinculo com cliente e opcional (nao vem da planilha oficial de
+    funcionarios, mas fica disponivel para uso futuro).
+    Nao acessa o app - existe aqui so como registro.
     """
     __tablename__ = "colaboradores"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas.id"), nullable=False)
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
+    registro: Mapped[str | None] = mapped_column(String(20), nullable=True)
     nome: Mapped[str] = mapped_column(String(200), nullable=False)
-    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    cargo: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contato: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    data_admissao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo")  # ativo | afastado
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
-    cliente: Mapped["Cliente"] = relationship(back_populates="colaboradores")
+    empresa: Mapped["Empresa"] = relationship()
+    cliente: Mapped["Cliente | None"] = relationship()
+    supervisor: Mapped["Usuario | None"] = relationship()
 
     def __repr__(self) -> str:
         return f"<Colaborador {self.nome}>"
