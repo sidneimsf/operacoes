@@ -81,6 +81,26 @@ function montarModalCliente() {
             <label for="cliente-form-municipio">Município (opcional)</label>
             <input type="text" id="cliente-form-municipio">
           </div>
+          <div class="field">
+            <label for="cliente-form-endereco">Endereço (opcional)</label>
+            <input type="text" id="cliente-form-endereco">
+          </div>
+          <div class="field">
+            <label for="cliente-form-bairro">Bairro (opcional)</label>
+            <input type="text" id="cliente-form-bairro">
+          </div>
+          <div class="field">
+            <label for="cliente-form-cidade">Cidade (opcional)</label>
+            <input type="text" id="cliente-form-cidade">
+          </div>
+          <div class="field">
+            <label for="cliente-form-responsavel-nome">Responsável no local (opcional)</label>
+            <input type="text" id="cliente-form-responsavel-nome">
+          </div>
+          <div class="field">
+            <label for="cliente-form-responsavel-telefone">Telefone do responsável (opcional)</label>
+            <input type="text" id="cliente-form-responsavel-telefone">
+          </div>
           <div class="error-message" id="cliente-modal-erro"></div>
           <button type="submit" class="btn-primary" id="cliente-modal-enviar">Criar cliente</button>
         </form>
@@ -120,6 +140,11 @@ async function enviarNovoCliente(evento) {
     nome: document.getElementById('cliente-form-nome').value,
     cnpj: document.getElementById('cliente-form-cnpj').value || null,
     municipio: document.getElementById('cliente-form-municipio').value || null,
+    endereco: document.getElementById('cliente-form-endereco').value || null,
+    bairro: document.getElementById('cliente-form-bairro').value || null,
+    cidade: document.getElementById('cliente-form-cidade').value || null,
+    responsavel_nome: document.getElementById('cliente-form-responsavel-nome').value || null,
+    responsavel_telefone: document.getElementById('cliente-form-responsavel-telefone').value || null,
   };
 
   botao.disabled = true;
@@ -156,5 +181,8 @@ async function iniciar() {
 
 montarModalCliente();
 document.getElementById('btn-novo-cliente').addEventListener('click', abrirModalCliente);
+if (auth.papel !== 'escritorio') {
+  document.getElementById('btn-novo-cliente').hidden = true;
+}
 
 iniciar();

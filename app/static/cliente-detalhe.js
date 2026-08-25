@@ -75,19 +75,26 @@ const DIAS_LABEL = {
   segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta',
   sexta: 'Sexta', sabado: 'Sábado', domingo: 'Domingo',
 };
+const TURNOS_LABEL = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
 
-function celulaHorarioHtml(registro, campoNome, dia, turno) {
-  if (!registro) {
-    return `<td data-dia="${dia}" data-turno="${turno}"><span class="horario-celula-vazia">+</span></td>`;
-  }
-  return `
-    <td data-dia="${dia}" data-turno="${turno}" data-horario-id="${registro.id}">
-      <div class="horario-celula">
+function celulaHorarioHtml(registros, campoNome, dia, turno) {
+  const lista = registros || [];
+  const itensHtml = lista
+    .map(
+      (registro) => `
+      <div class="horario-celula" data-horario-id="${registro.id}">
         <span class="nome">${registro[campoNome]}</span>
         <span class="hora">${registro.hora_inicio}-${registro.hora_fim}</span>
       </div>
-    </td>
-  `;
+    `
+    )
+    .join('');
+
+  const dicaAdicionar = lista.length === 0
+    ? '<span class="horario-celula-vazia">+</span>'
+    : '<span class="horario-add-mais">+ adicionar outro</span>';
+
+  return `<td data-dia="${dia}" data-turno="${turno}">${itensHtml}${dicaAdicionar}</td>`;
 }
 
 function montarGradeSemanal(horarios, campoNome) {
@@ -97,12 +104,15 @@ function montarGradeSemanal(horarios, campoNome) {
 
   const porDiaTurno = {};
   horarios.forEach((h) => {
-    porDiaTurno[`${h.dia_semana}_${h.turno}`] = h;
+    const chave = `${h.dia_semana}_${h.turno}`;
+    if (!porDiaTurno[chave]) porDiaTurno[chave] = [];
+    porDiaTurno[chave].push(h);
   });
 
   const headerCols = dias.map((d) => `<th>${DIAS_LABEL[d]}</th>`).join('');
   const linhaManha = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_manha`], campoNome, d, 'manha')).join('');
   const linhaTarde = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_tarde`], campoNome, d, 'tarde')).join('');
+  const linhaNoite = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_noite`], campoNome, d, 'noite')).join('');
 
   return `
     <table class="horario-grid">
@@ -110,6 +120,7 @@ function montarGradeSemanal(horarios, campoNome) {
       <tbody>
         <tr><td>Manhã</td>${linhaManha}</tr>
         <tr><td>Tarde</td>${linhaTarde}</tr>
+        <tr><td>Noite</td>${linhaNoite}</tr>
       </tbody>
     </table>
   `;
@@ -177,7 +188,7 @@ async function abrirModalHorario(dia, turno, horarioId) {
 
   const erroBox = document.getElementById('horario-modal-erro');
   erroBox.classList.remove('visible');
-  document.getElementById('horario-modal-titulo').textContent = `${DIAS_LABEL[dia]} · ${turno === 'manha' ? 'Manhã' : 'Tarde'}`;
+  document.getElementById('horario-modal-titulo').textContent = `${DIAS_LABEL[dia]} · ${TURNOS_LABEL[turno]}`;
 
   const grupos = await carregarColaboradoresAgrupados();
   const selectColaborador = document.getElementById('horario-colaborador');
@@ -295,6 +306,26 @@ function montarModalEditarCliente() {
             <label for="editar-cliente-municipio">Município</label>
             <input type="text" id="editar-cliente-municipio">
           </div>
+          <div class="field">
+            <label for="editar-cliente-endereco">Endereço</label>
+            <input type="text" id="editar-cliente-endereco">
+          </div>
+          <div class="field">
+            <label for="editar-cliente-bairro">Bairro</label>
+            <input type="text" id="editar-cliente-bairro">
+          </div>
+          <div class="field">
+            <label for="editar-cliente-cidade">Cidade</label>
+            <input type="text" id="editar-cliente-cidade">
+          </div>
+          <div class="field">
+            <label for="editar-cliente-responsavel-nome">Responsável no local</label>
+            <input type="text" id="editar-cliente-responsavel-nome">
+          </div>
+          <div class="field">
+            <label for="editar-cliente-responsavel-telefone">Telefone do responsável</label>
+            <input type="text" id="editar-cliente-responsavel-telefone">
+          </div>
           <div class="error-message" id="editar-cliente-modal-erro"></div>
           <button type="submit" class="btn-primary" id="editar-cliente-modal-enviar">Salvar alterações</button>
         </form>
@@ -322,6 +353,11 @@ async function abrirModalEditarCliente() {
   document.getElementById('editar-cliente-nome').value = clienteAtual.nome;
   document.getElementById('editar-cliente-cnpj').value = clienteAtual.cnpj || '';
   document.getElementById('editar-cliente-municipio').value = clienteAtual.municipio || '';
+  document.getElementById('editar-cliente-endereco').value = clienteAtual.endereco || '';
+  document.getElementById('editar-cliente-bairro').value = clienteAtual.bairro || '';
+  document.getElementById('editar-cliente-cidade').value = clienteAtual.cidade || '';
+  document.getElementById('editar-cliente-responsavel-nome').value = clienteAtual.responsavel_nome || '';
+  document.getElementById('editar-cliente-responsavel-telefone').value = clienteAtual.responsavel_telefone || '';
   document.getElementById('editar-cliente-modal-overlay').hidden = false;
 }
 
@@ -336,6 +372,11 @@ async function salvarEdicaoCliente(evento) {
     nome: document.getElementById('editar-cliente-nome').value,
     cnpj: document.getElementById('editar-cliente-cnpj').value || null,
     municipio: document.getElementById('editar-cliente-municipio').value || null,
+    endereco: document.getElementById('editar-cliente-endereco').value || null,
+    bairro: document.getElementById('editar-cliente-bairro').value || null,
+    cidade: document.getElementById('editar-cliente-cidade').value || null,
+    responsavel_nome: document.getElementById('editar-cliente-responsavel-nome').value || null,
+    responsavel_telefone: document.getElementById('editar-cliente-responsavel-telefone').value || null,
   };
 
   botao.disabled = true;
@@ -355,14 +396,26 @@ async function salvarEdicaoCliente(evento) {
 }
 
 function renderizarHeaderCliente() {
-  document.getElementById('topbar-title').textContent = clienteAtual.nome;
+  const c = clienteAtual;
+  document.getElementById('topbar-title').textContent = c.nome;
+
+  const enderecoCompleto = [c.endereco, c.bairro, c.cidade].filter(Boolean).join(', ');
+  const linhaEndereco = enderecoCompleto
+    ? `<div class="meta" style="margin-top: 8px;">📍 ${enderecoCompleto}</div>`
+    : '';
+  const linhaResponsavel = c.responsavel_nome || c.responsavel_telefone
+    ? `<div class="meta" style="margin-top: 4px;">Responsável no local: ${c.responsavel_nome || '—'}${c.responsavel_telefone ? ` · ${c.responsavel_telefone}` : ''}</div>`
+    : '';
+
   document.getElementById('cliente-header').innerHTML = `
-    <span class="empresa-tag">${clienteAtual.empresa_nome}${clienteAtual.ativo ? '' : ' · INATIVO'}</span>
-    <h2>${clienteAtual.nome}</h2>
-    <span class="cnpj">${clienteAtual.cnpj || 'CNPJ não informado'}</span>
+    <span class="empresa-tag">${c.empresa_nome}${c.ativo ? '' : ' · INATIVO'}</span>
+    <h2>${c.nome}</h2>
+    <span class="cnpj">${c.cnpj || 'CNPJ não informado'}</span>
+    ${linhaEndereco}
+    ${linhaResponsavel}
   `;
   const btnToggle = document.getElementById('btn-toggle-cliente');
-  btnToggle.textContent = clienteAtual.ativo ? 'Remover cliente' : 'Reativar cliente';
+  btnToggle.textContent = c.ativo ? 'Remover cliente' : 'Reativar cliente';
 }
 
 async function alternarStatusCliente() {
@@ -409,9 +462,15 @@ async function iniciar() {
 
     montarModalHorario();
     document.getElementById('mapa-servicos').addEventListener('click', (evento) => {
-      const celula = evento.target.closest('td[data-dia]');
-      if (!celula) return;
-      abrirModalHorario(celula.dataset.dia, celula.dataset.turno, celula.dataset.horarioId);
+      const itemExistente = evento.target.closest('.horario-celula[data-horario-id]');
+      const td = evento.target.closest('td[data-dia]');
+      if (!td) return;
+
+      if (itemExistente) {
+        abrirModalHorario(td.dataset.dia, td.dataset.turno, itemExistente.dataset.horarioId);
+      } else {
+        abrirModalHorario(td.dataset.dia, td.dataset.turno, null);
+      }
     });
 
     const chamados = await Shell.chamarApi(`/chamados-dados?cliente_id=${clienteId}`);

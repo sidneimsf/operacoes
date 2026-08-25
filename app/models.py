@@ -137,6 +137,11 @@ class Cliente(Base):
     nome: Mapped[str] = mapped_column(String(200), nullable=False)
     cnpj: Mapped[str | None] = mapped_column(String(20), nullable=True)
     municipio: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    endereco: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    bairro: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cidade: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    responsavel_nome: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    responsavel_telefone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 

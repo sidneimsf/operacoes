@@ -115,19 +115,31 @@ function renderizarMural(avisos) {
   }
 
   container.innerHTML = avisos
-    .map(
-      (a) => `
+    .map((a) => {
+      const podeExcluir = a.criado_por_id === auth.id || auth.papel === 'escritorio';
+      return `
       <div class="postit">
         <div class="pin"></div>
+        ${podeExcluir ? `<button class="postit-excluir" data-aviso-id="${a.id}" aria-label="Excluir aviso" title="Excluir">&times;</button>` : ''}
         <div class="mensagem">${escaparHtml(a.mensagem)}</div>
         <div class="rodape">
           <span>${a.criado_por_nome} · ${formatarData(a.criado_em)}</span>
           ${a.destinatario_nome ? `<span class="destinatario-tag">Para: ${a.destinatario_nome}</span>` : ''}
         </div>
       </div>
-    `
-    )
+    `;
+    })
     .join('');
+}
+
+async function excluirAviso(avisoId) {
+  if (!confirm('Excluir este aviso do mural?')) return;
+  try {
+    await Shell.chamarApi(`/avisos-dados/${avisoId}`, { method: 'DELETE' });
+    carregarAvisos();
+  } catch (erro) {
+    alert('Não foi possível excluir o aviso agora.');
+  }
 }
 
 async function carregarAvisos() {
@@ -153,5 +165,12 @@ async function marcarAvisosComoVistos() {
 
 montarModalAviso();
 document.getElementById('btn-novo-aviso').addEventListener('click', abrirModalAviso);
+
+document.getElementById('mural').addEventListener('click', (evento) => {
+  const botao = evento.target.closest('.postit-excluir');
+  if (!botao) return;
+  excluirAviso(botao.dataset.avisoId);
+});
+
 carregarAvisos();
 marcarAvisosComoVistos();

@@ -36,6 +36,11 @@ class ClienteCreate(BaseModel):
     nome: str
     cnpj: str | None = None
     municipio: str | None = None
+    endereco: str | None = None
+    bairro: str | None = None
+    cidade: str | None = None
+    responsavel_nome: str | None = None
+    responsavel_telefone: str | None = None
 
 
 class ClienteUpdate(BaseModel):
@@ -43,6 +48,11 @@ class ClienteUpdate(BaseModel):
     nome: str | None = None
     cnpj: str | None = None
     municipio: str | None = None
+    endereco: str | None = None
+    bairro: str | None = None
+    cidade: str | None = None
+    responsavel_nome: str | None = None
+    responsavel_telefone: str | None = None
     ativo: bool | None = None
 
 

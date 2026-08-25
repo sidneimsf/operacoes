@@ -1,0 +1,1163 @@
+[
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "ADOTESC",
+    "responsavel": "Andrea",
+    "telefone": "48 98406-1280",
+    "endereco": "R. Kurt Rantour, 163",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ARC",
+    "responsavel": "Angélica",
+    "telefone": "11 94049-7558",
+    "endereco": "R. Domingos Jalmeno Costa, 152 – Galpão 07",
+    "bairro": "Fazenda Santo Antônio",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "BOING AVIAMENTOS LTDA",
+    "responsavel": "Roberto",
+    "telefone": "47 8832-4584",
+    "endereco": "R. José de Araújo, 236",
+    "bairro": "Barreiros",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "BUSCO",
+    "responsavel": "Alessandra",
+    "telefone": "48 99170-2332",
+    "endereco": "R. Luiz Tadeu Gandolfi Dutra, 112",
+    "bairro": "Brejaru",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CASA DO POVO",
+    "responsavel": "Valesca",
+    "telefone": "48 9925-0120",
+    "endereco": "R. Gen. Liberato Bittencourt, 1704",
+    "bairro": "Canto",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CASA DO POVO",
+    "responsavel": "Valesca",
+    "telefone": "48 9925-0120",
+    "endereco": "Av. Barão do Rio Branco, 102",
+    "bairro": "Centro",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CASA DO POVO",
+    "responsavel": "Karina",
+    "telefone": "48 98461-4453",
+    "endereco": "R. Pedro Cota de Castro, 1993",
+    "bairro": "Picadas do Sul",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "EDIFICIO ALBATROZ",
+    "responsavel": "Mario",
+    "telefone": "48 99846-6633",
+    "endereco": "R. Jaú Guedes da Fonseca, 105",
+    "bairro": "Coqueiros",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL ALVORADA",
+    "responsavel": "Alaci",
+    "telefone": "48 99669-3626",
+    "endereco": "R. Pedro de Andrade Garcia, 205",
+    "bairro": "Itaguaçu",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO EDIFICIO RESIDENCIAL ARAUCARIA",
+    "responsavel": "Maria Cristina",
+    "telefone": "48 99992-8377",
+    "endereco": "R. Afrisio de Senna Vaz, 580",
+    "bairro": "Serraria",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ATLANTIC GARDEN",
+    "responsavel": "Tania",
+    "telefone": "48 9119-3428",
+    "endereco": "R. Eleutério da Silva Furtado, 120",
+    "bairro": "Barreiros",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "PAULO (AUSTRIA)",
+    "responsavel": "Simone",
+    "telefone": "48 99162-2529",
+    "endereco": "R. Nossa Sra. do Rosário, 1099",
+    "bairro": "Jardim Atlântico",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "DONA ROSA",
+    "responsavel": "Adriano",
+    "telefone": "48 8433-5340",
+    "endereco": "R. Célio Veiga, 243",
+    "bairro": "Jardim Cidade de Florianopolis",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "CONDOMINIO EDIFICIO RESIDENCIAL VIDEIRA",
+    "responsavel": "Rodrigo",
+    "telefone": "48 9918-3952",
+    "endereco": "Av. Santa Catarina, 254",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO EDIFICIO DANIELA",
+    "responsavel": "Daniela",
+    "telefone": "47 99617-7494",
+    "endereco": "Rua João Meirelles, 185",
+    "bairro": "Itaguaçu",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "RES. ELDORADO",
+    "responsavel": "Raphael",
+    "telefone": "48 8414-3905",
+    "endereco": "R. Nossa Sra. Aparecida, 983",
+    "bairro": "Jardim Eldorado",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VALDEMAR SEBASTIAO Res GESSER",
+    "responsavel": "Valdemar",
+    "telefone": "48 984345382",
+    "endereco": "R. Dona Leonildes Coelho, 443",
+    "bairro": "Praia Comprida",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ED. GIRASSOL",
+    "responsavel": "Eliane",
+    "telefone": "48 99624-5455",
+    "endereco": "R. José Francisco Goulart, 652",
+    "bairro": "Praia João Rosa",
+    "cidade": "Biguaçu"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SELMA (Ed. Grasiela)",
+    "responsavel": "Selma",
+    "telefone": "99982-0587",
+    "endereco": "Av. Lédio João Martins, 1006",
+    "bairro": "Kobrasol",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL GUATTARI",
+    "responsavel": "André",
+    "telefone": "48 98439-2520",
+    "endereco": "R. Araci Vaz Callado, 850",
+    "bairro": "Canto",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VALDEMAR SEBASTIAO Res JANAINA",
+    "responsavel": "Valdemar",
+    "telefone": "48 984345382",
+    "endereco": "R. Dona Leonildes Coelho, 530",
+    "bairro": "Praia Comprida",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL LOURDES LIMA",
+    "responsavel": "Cel.Caminha",
+    "telefone": "48 7400-6789",
+    "endereco": "Av. Santa Catarina, 245",
+    "bairro": "Canto",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "RES. MARACAIBO",
+    "responsavel": "Felipe",
+    "telefone": "48 9157-6123",
+    "endereco": "R. Cmte. José Ricardo Nunes, 183",
+    "bairro": "Capoeiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "MARES DO SUL",
+    "responsavel": "Paulo",
+    "telefone": "48 99127-3755",
+    "endereco": "R. Manoel Domingos do Nascimento, 85",
+    "bairro": "Serraria",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "MONACO",
+    "responsavel": "Valimar",
+    "telefone": "48 99184-6230",
+    "endereco": "R. Santos Saraiva, 1546",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO RESIDENCIAL OLAVO BILAC",
+    "responsavel": "Daniel",
+    "telefone": "48 98461-7279",
+    "endereco": "R. Olavo Bilac, 230",
+    "bairro": "Canto",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "RES PALMEIRAS",
+    "responsavel": "Fabio",
+    "telefone": "48 9982-6206",
+    "endereco": "R. Otávio do Patrocínio Medeiros, 60",
+    "bairro": "Nossa Sra. do Rosario",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND PRAIA COMPRIDA",
+    "responsavel": "Angela",
+    "telefone": "48 98452-7379",
+    "endereco": "R. do Expedicionário, 186",
+    "bairro": "Praia Comprida",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CONDOMINIO EDIFICIO PRAIA DO RISO",
+    "responsavel": "Rogério",
+    "telefone": "48 9603-3950",
+    "endereco": "R. Jaú Guedes da Fonseca, 360",
+    "bairro": "Coqueiros",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VALDEMAR SEBASTIAO Res SOLANGE",
+    "responsavel": "Valdemar",
+    "telefone": "48 984345382",
+    "endereco": "R. Monte Carmelo, 115",
+    "bairro": "Picadas do Sul",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND. TRIANON",
+    "responsavel": "Marcia",
+    "telefone": "48 991488710",
+    "endereco": "R. Moura, 80",
+    "bairro": "Barreiros",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "VILLA BORGHESE",
+    "responsavel": "Nei",
+    "telefone": "48 9973-7363",
+    "endereco": "R. Waldemar Ouríques, 895",
+    "bairro": "Capoeiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "DESBRAVADOR",
+    "responsavel": "Amanda",
+    "telefone": "48 9904-7485",
+    "endereco": "R. Padre Marcelino Champagnat, 71",
+    "bairro": "Jardim Atlântico",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "DMI",
+    "responsavel": "Simone",
+    "telefone": "48 988505921",
+    "endereco": "R. Constancio Krumel, 1968",
+    "bairro": "Praia Comprida",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND ED GRANITO",
+    "responsavel": "Janice",
+    "telefone": "48 98808-8631",
+    "endereco": "Av. Lédio João Martins, 1127",
+    "bairro": "Kobrasol",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ESCAMAX",
+    "responsavel": "Guilherme",
+    "telefone": "11 98292-7256",
+    "endereco": "R. Souza Dutra, 228",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "FUFA-SC COMERCIO E REPRESENTACAO LTDA",
+    "responsavel": "Thaís",
+    "telefone": "48 99126-6856",
+    "endereco": "R. Joaquim Nabuco, 1595",
+    "bairro": "Capoeiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "IGREJA METODISTA",
+    "responsavel": "Francisco",
+    "telefone": "51 80258675",
+    "endereco": "R. Pedro Cunha, 457",
+    "bairro": "Capoeiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "INOVA ANDAIMES",
+    "responsavel": "Deise",
+    "telefone": "3240-3190",
+    "endereco": "R. Cecilia do Rego Almeida, 195",
+    "bairro": "Brejaru",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "INTERIP",
+    "responsavel": "Renato",
+    "telefone": "48 3220-0011",
+    "endereco": "Av. Santa Catarina, 1197 - sala 908",
+    "bairro": "Balneario",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "KONICA",
+    "responsavel": "Victoria",
+    "telefone": "11 97173-6826",
+    "endereco": "R. São José, 77",
+    "bairro": "Balneario",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "LPS CONTABILIDADE LTDA",
+    "responsavel": "Luis",
+    "telefone": "48 3246-0545",
+    "endereco": "Av. Leoberto Leal, 1006",
+    "bairro": "Barreiros",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "LUMIX HEALTHCARE LTDA",
+    "responsavel": "Karla / Denise",
+    "telefone": "48 9915-7557 / 41 9111-5584",
+    "endereco": "R. Victor Rocha da Silva, s/nº, lote 03 e 04",
+    "bairro": "Jardim Eldorado",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "LWART SOLUÇÕES AMBIENTAIS S.A.",
+    "responsavel": "Renan",
+    "telefone": "(48) 992100965",
+    "endereco": "R. Gercino Machado, 340 - Lote 12 Quadra B",
+    "bairro": "Bairro Beira Rio",
+    "cidade": "Biguaçu"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "MAKERHERO LTDA",
+    "responsavel": "Daiane",
+    "telefone": "48 98830-1788",
+    "endereco": "R. Dália, 72",
+    "bairro": "Jardim Eldorado",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "MAZER",
+    "responsavel": "Mara",
+    "telefone": null,
+    "endereco": "R. das Camélias, 345 - salas 503, 506 e 508",
+    "bairro": "Kobrasol",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RENTEQ",
+    "responsavel": "Micheli",
+    "telefone": "48 9690-0832",
+    "endereco": "R. Valdir João Sell, 110",
+    "bairro": "Fazenda Santo Antônio",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ROBOX",
+    "responsavel": "Marina",
+    "telefone": "48 8812-6685",
+    "endereco": "R. da Pedra, 347 - Bloco B Sala 402",
+    "bairro": "Pedra Branca",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "SAFE CONSIG TECNOLOGIA DA INFORMACAO LTDA",
+    "responsavel": "Cindy",
+    "telefone": "85 9811-0051",
+    "endereco": "R. Manoel de Oliveira Ramos 205 - salas 402 e 403",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SCITEC",
+    "responsavel": "Cris",
+    "telefone": "(48) 9170-9162",
+    "endereco": "Av. Thiago Antunes Teixeira, 359 - Quadra E Lote 1 e 2",
+    "bairro": "Bela Vista",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SEGWARE",
+    "responsavel": "Renato / Gênesis",
+    "telefone": "48 8828-0465 / 81 9825-8638",
+    "endereco": "R. General Liberato Bittencourt, 1475 - sala 714 - Ed. Comercial Globo Tower",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SICREDI ESTREITO",
+    "responsavel": "Line",
+    "telefone": "48 3380-3921",
+    "endereco": "R. Dr. Heitor Blum, 214",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SKAYLINK LTDA",
+    "responsavel": "Marcio",
+    "telefone": "48 99634-0990",
+    "endereco": "R. Manoel de Oliveira Ramos, 205 - Sala 201 - ed. André Maykot office",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SUPERLEGAL ITAGUAÇU",
+    "responsavel": "Bel",
+    "telefone": "48 98505-5963",
+    "endereco": "Shopping Itaguaçu",
+    "bairro": "Barreiros",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SUPERLEGAL VIACATARINA",
+    "responsavel": "Bia",
+    "telefone": "51 9933-5152",
+    "endereco": "Shopping ViaCatarina",
+    "bairro": "Passa Vinte",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "TDSA",
+    "responsavel": "Priscila",
+    "telefone": "48 9802-5134",
+    "endereco": "Av. Presidente Kennedy, 179 - Sala 204",
+    "bairro": "Campinas",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VOX",
+    "responsavel": "Thaynara",
+    "telefone": "48 98804-9581",
+    "endereco": "R. Fúlvio Aducci, 627 - Salas 205 e 206 - Ed. Ceu empresarial",
+    "bairro": "Estreito",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "XPTI",
+    "responsavel": "Leticia",
+    "telefone": "48 9642-6569",
+    "endereco": "R. São Pedro, 549",
+    "bairro": "Areias",
+    "cidade": "São José"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "ACRONEX",
+    "responsavel": "Mariana",
+    "telefone": "54 9 3408 67-4518",
+    "endereco": "R. Prof. Marcos Cardoso Filho, 111 - Loja 01",
+    "bairro": "Córrego Grande",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "AGORA SOU MAE LTDA",
+    "responsavel": "Isabella",
+    "telefone": "48 9811-6762",
+    "endereco": "Av. Rio Branco, 380",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ALKASOFT",
+    "responsavel": "Bruna",
+    "telefone": "48 98458-2374",
+    "endereco": "Av. Rio Branco 533 3 andar / predio m  frente ao angeloni",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "EMPRESA DE CINEMAS ARCOPLEX S.A.",
+    "responsavel": "Vanessa",
+    "telefone": "49 9901-5361",
+    "endereco": "R. Cristóvão Nunes Pires, 110 - sala 703",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ARMAZEM ITACORUBI - MINI MERCADO ITACORUBI LTDA",
+    "responsavel": "Ednei",
+    "telefone": "48 99540599",
+    "endereco": "R. Jornalista Manoel de Menezes 115",
+    "bairro": "Itacorubi",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ARMAZEM JURERE - 3B MINI MERCADO E PADARIA LTDA",
+    "responsavel": "Ednei",
+    "telefone": "48 99540599",
+    "endereco": "Rod. Mauricio Sirotsky Sobrinho 5757",
+    "bairro": "Jurerê",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ARMAZEM TRINDADE - B&S MINI MERCADO E PADARIA LTDA",
+    "responsavel": "Ednei",
+    "telefone": "48 99540599",
+    "endereco": "R. Lauro Linhares 688 Ed. Trindade sl 03,04 e 05",
+    "bairro": "Trindade",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "BDO",
+    "responsavel": "Bianca",
+    "telefone": "11 3848-5880",
+    "endereco": "R. Cristóvão Nunes Píres, 110 - Sala 603",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "BENEVIX",
+    "responsavel": "Camilla/ Carlos",
+    "telefone": "48 99824-5126 / 48 9981-6861",
+    "endereco": "Av. Rio Branco, 354 - Sala 905",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "BOTHOME ADVOGADOS",
+    "responsavel": "Mariana",
+    "telefone": "48 30281801",
+    "endereco": "Av. Mauro Ramos, 1450 - Sala 702 Platinum Tower",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "BROGNOLI",
+    "responsavel": "Mariana",
+    "telefone": "48 99943-0278",
+    "endereco": "Av. Pequeno Príncipe, 1629",
+    "bairro": "Campeche",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CAFÉ DO MERCADO",
+    "responsavel": "Michelle",
+    "telefone": "51 9218-3903",
+    "endereco": "R. Vera Linhares de Andrade, 2124",
+    "bairro": "Córrego Grande",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CASA DO POVO",
+    "responsavel": "Karina",
+    "telefone": "48 98461-4453",
+    "endereco": "R. Conselheiro Mafra, 65",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "AREIAS BRANCAS",
+    "responsavel": "Ricardo",
+    "telefone": "41 8817-8556",
+    "endereco": "R. André Leal, 138",
+    "bairro": "Cachoeira do Bom Jesus",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "EDIFICIO RESIDENCIAL E COMERCIAL BELMAR",
+    "responsavel": "Ana Paula",
+    "telefone": "48 9663-9565",
+    "endereco": "R. Fernando Osvaldo de Oliveira, 35",
+    "bairro": "Cachoeira do Bom Jesus",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CANTO DE CANASVIEIRAS",
+    "responsavel": "Gustavo",
+    "telefone": "48 98857-1816",
+    "endereco": "R. Prof. Teodósio Maurício Wanderley, 120",
+    "bairro": "Canasvieiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COSTA AZUL",
+    "responsavel": "Cristiano",
+    "telefone": "48 99945-3517",
+    "endereco": "R. Vasco de Oliveira Gondin, 605",
+    "bairro": "Canasvieiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "DONA DALMA",
+    "responsavel": "Carlos",
+    "telefone": "48 98408-0801",
+    "endereco": "R. Procópio Manoel Píres, 153",
+    "bairro": "Trindade",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CONDOMINIO RESIDENCIAL ITAPOA",
+    "responsavel": "Carlos/Julia",
+    "telefone": "11 99974-4346 / 48 9924-4722",
+    "endereco": "Av. dos Búzios, 250",
+    "bairro": "Jurerê Internacional",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "PORTONOVO",
+    "responsavel": "Kely",
+    "telefone": "48 9151-0611",
+    "endereco": "Estr. Cristóvão Machado de Campos, 1028",
+    "bairro": "Vargem Grande",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO ROSANA",
+    "responsavel": "Paola",
+    "telefone": "92 98164-4144",
+    "endereco": "Rua Douglas Seabra Levier, 109",
+    "bairro": "Carvoeira",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "COND. SÃO RAFAEL",
+    "responsavel": "Amanda",
+    "telefone": "48 9954-4966",
+    "endereco": "R. Madalena Barbi, 30",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL SARAH",
+    "responsavel": "Ana Paula",
+    "telefone": "48 9663-9565",
+    "endereco": "R. Ranulpho José de Souza Sobrinho, 171",
+    "bairro": "Canasvieiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SOLAR DAS AMENDOEIRAS",
+    "responsavel": "Paulo",
+    "telefone": "48 99961-1211",
+    "endereco": "R. das Flores, 410",
+    "bairro": "Canasvieiras",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "TRINIDAD E TOBAGO",
+    "responsavel": "João Paulo",
+    "telefone": "48 9623-2133",
+    "endereco": "R. Procópio Manoel Píres, 83",
+    "bairro": "Trindade",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND VENEZIA",
+    "responsavel": "Helio zelador",
+    "telefone": "48 8813-0386",
+    "endereco": "R. Cap. Romualdo de Barros, 611",
+    "bairro": "Carvoeira",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CONFIDENCE TRAVELEX - BEIRAMAR",
+    "responsavel": null,
+    "telefone": "48 99611248",
+    "endereco": "Shopping Beiramar",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CREFONO - CONSELHO REGIONAL DE FONOAUDIOLOGIA",
+    "responsavel": "Sirlei",
+    "telefone": "48 30248952",
+    "endereco": "R. Álvaro de Carvalho, 267 - sala 401",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CRESCER DESENVOLVIMENTO INFANTIL LTDA",
+    "responsavel": "Camila",
+    "telefone": "48 98824-5769",
+    "endereco": "Av. Pequeno Príncipe, 665 - sala 02",
+    "bairro": "Campeche",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CRTR - CONSELHO REGIONAL DE TECNICOS EM RADIOLOGIA DE SC",
+    "responsavel": "Tiago",
+    "telefone": "48 98809-1679",
+    "endereco": "R. Conselheiro Mafra, 758 - 3º andar",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "DESBRAVADOR",
+    "responsavel": "Amanda",
+    "telefone": "48 99904-7485",
+    "endereco": "Av. Mauro Ramos, 1970",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "DUFRY",
+    "responsavel": "Keasha/Ederson",
+    "telefone": "9647-8505 / 51 8579-7168",
+    "endereco": "Floripa Airport",
+    "bairro": "Carianos",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "EBP",
+    "responsavel": "Cleci",
+    "telefone": "48 99933-2338",
+    "endereco": "R. Prof. Ayrton Roberto de Oliveira, 32",
+    "bairro": "Itacorubi",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "EDP",
+    "responsavel": "Diego",
+    "telefone": "11 99657-0001",
+    "endereco": "Av. Trompowsky, 346 - sala 201",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "FRACTAL",
+    "responsavel": "Fernanda",
+    "telefone": "48 9908-4867",
+    "endereco": "R. Lauro Linhares, 2055 - Sala 303",
+    "bairro": "Trindade",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "GMC",
+    "responsavel": "Gerson",
+    "telefone": "48 99982-7449",
+    "endereco": "R. Particular, 899",
+    "bairro": "Campeche - Pedrita",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "GRALHA IMOVEIS - CAMPECHE",
+    "responsavel": "Cristiane",
+    "telefone": "48 99186-8291",
+    "endereco": "Rod. SC 405, 2757 - loja 01",
+    "bairro": "Campeche",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "GRALHA IMOVEIS - JURERE",
+    "responsavel": "Fabiana",
+    "telefone": "48 9969-8528",
+    "endereco": "Alameda Cesar Nascimento 549",
+    "bairro": "Jurerê",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "HOYA",
+    "responsavel": "Matheus",
+    "telefone": "3223 2202",
+    "endereco": "R. Felipe Schmidt, 249 - Sala 311 Centro Comercial ARS",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ICPOL",
+    "responsavel": null,
+    "telefone": "48 9179-1128",
+    "endereco": "R. Prof. Ayrton Roberto de Oliveira, 32",
+    "bairro": "Itacorubi",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "JOVI - V TECH MOBILE COMMUNICATION LTDA",
+    "responsavel": "Marina",
+    "telefone": "48 9105-8493",
+    "endereco": "Av. Rio Branco, 380, sala 902 - Centro Executivo Barra Sul",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "KIKOS - KW FITNESS",
+    "responsavel": "Fabrício",
+    "telefone": "51 9213-8291",
+    "endereco": "Av. Madre Benvenuta, 1260",
+    "bairro": "Santa Mônica",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "LEITURA VILLA ROMANA LIVRARIA E PAPELARIA LTDA",
+    "responsavel": "Bárbara",
+    "telefone": "48 98808-6058",
+    "endereco": "Shopping Villa Romana L2",
+    "bairro": "Santa Mônica",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "LIDER AVIAÇÃO",
+    "responsavel": "Juliana",
+    "telefone": "48 9845-2286",
+    "endereco": "R. Thereza Augusta Ramos Rizzo, s/n (ao lado do hangar da PF)",
+    "bairro": "Vargem Pequena",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "LUMMER ODONTOLOGIA",
+    "responsavel": "Luisa",
+    "telefone": "48 9987-0826",
+    "endereco": "Shopping Beiramar",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "MANAGER CONSULTORIA EM INFORMATICA LTDA",
+    "responsavel": "Fernando",
+    "telefone": "48 99144-0067",
+    "endereco": "Praça Pereira Oliveira, 64 - sala 301",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "MONTVERT RESIDENCIAL",
+    "responsavel": "Caíque",
+    "telefone": "11 95398-7383",
+    "endereco": "R. da Quaresmeira Roxa, 475",
+    "bairro": "Cachoeira do Bom Jesus",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "MOUT’S SOLUÇÕES",
+    "responsavel": "Jonata",
+    "telefone": "47 8844-8736",
+    "endereco": "Rua Paschoal Apóstolo Pítsica, 4876 - Sala 102 Torre 4 - Edificio Luis Elias Daux",
+    "bairro": "Agronômica",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "MOVAMI",
+    "responsavel": "Fabiana / Fernanda",
+    "telefone": "47 98402-7071 / 47 98841-0045",
+    "endereco": "Av. Deputado Diomício Freitas, 3285",
+    "bairro": "Carianos",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "MPB SANEAMENTOS LTDA",
+    "responsavel": "Bianca",
+    "telefone": "47 9166-2164",
+    "endereco": "R. Felipe Schmidt, 649 - sala 304",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "NATURA",
+    "responsavel": "Juliana",
+    "telefone": "48 99027888",
+    "endereco": "Shopping Beiramar",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "NEC PLUS ULTRA GESTAO & TECNOLOGIA LTDA",
+    "responsavel": "Jalusa",
+    "telefone": "48 98415-3332",
+    "endereco": "Av. Luiz Boiteux, 1302 - sala 17",
+    "bairro": "Cachoeira do Bom Jesus",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "NEW HOTEL",
+    "responsavel": "Lucimara",
+    "telefone": "48 9911-9073",
+    "endereco": "Rod. José Carlos Daux, 500 Techno Towers - Torre I - Sala 403",
+    "bairro": "João Paulo",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "NULEUM LTDA",
+    "responsavel": "Alisa",
+    "telefone": "11 95688-3324",
+    "endereco": "R. Orlando Philippi, 100, sala 201",
+    "bairro": "Saco Grande",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "PHOTONITA LTDA",
+    "responsavel": "Luana",
+    "telefone": "48 9190-5055",
+    "endereco": "Rod. José Carlos Daux, 500 Techno Towers - Sala 1001",
+    "bairro": "João Paulo",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "RESIDENCIAL WAVE",
+    "responsavel": "Jonatan / Emanuela",
+    "telefone": "48 9996-1160 / 48 998211413",
+    "endereco": "Rodovia Francisco Thomaz dos Santos, 9060",
+    "bairro": "Pantano do Sul",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SECOVI",
+    "responsavel": "Alessandra",
+    "telefone": "48 99653-1881",
+    "endereco": "R. Araújo Figueiredo, 119 - Centro Executivo Velloso",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SICOOB (COOPERATIVA DE CREDITO)",
+    "responsavel": "Ana Paula",
+    "telefone": "61 98285-6784",
+    "endereco": "R. Alm. Lamego, 1389",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SICREDI INGLESES",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Rod. João Gualberto Soares, 56 - Open Shopping",
+    "bairro": "Ingleses",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SONITEC",
+    "responsavel": "Michelle",
+    "telefone": "48 98842-5991",
+    "endereco": "R. Barão de Batovi, 551",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SONITEC MULHER",
+    "responsavel": "Michelle",
+    "telefone": "48 98842-5991",
+    "endereco": "R. Nereu Ramos, 19",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "SUA CIRURGIA",
+    "responsavel": "Henrique",
+    "telefone": "48 9911-8825",
+    "endereco": "Rod. Jose Carlos Daux SC 401, 500 - sala 501 e 502",
+    "bairro": "João Paulo",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SUPER RIO - A3 SUPERMERCADO LTDA",
+    "responsavel": "Marcos",
+    "telefone": "48 98422-1018",
+    "endereco": "Rod. João Gualberto Soares, 7251",
+    "bairro": "Rio Vermelho",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SUPERLEGAL BEIRAMAR",
+    "responsavel": "Bruna",
+    "telefone": "48 99163-7320",
+    "endereco": "Shopping Beiramar",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SUPERMERCADO FLORIPA - 3B MINI MERCADO E PADARIA LTDA",
+    "responsavel": "Fabiana",
+    "telefone": "48 98462-9446",
+    "endereco": "Estrada Vereador Onildo Lemos, 775",
+    "bairro": "Santinho",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "TNS",
+    "responsavel": null,
+    "telefone": "48 9119-6216",
+    "endereco": "Rod. José Carlos Daux, 600 Ed. Alfama - Sala 506",
+    "bairro": "João Paulo",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "UNIFAEL",
+    "responsavel": "Juliana",
+    "telefone": "48 9867-6969",
+    "endereco": "Floripa Shopping - Rod. SC 401, 3116",
+    "bairro": "Saco Grande",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "UNO CLINICA",
+    "responsavel": "Rita",
+    "telefone": "48 9130-2752",
+    "endereco": "R. Pres. Nereu Ramos, 146 - Salas 404, 405 e 406",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "VAEES",
+    "responsavel": "Priscila",
+    "telefone": "48 9914-4012",
+    "endereco": "R. Tenente Silveira, 225, sala 603",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "WAVETECH",
+    "responsavel": "Ronaldo",
+    "telefone": "48 9636-5346",
+    "endereco": "Rod. José Carlos Daux, 600 Ed. Celta - G1 salas 1 e 2",
+    "bairro": "João Paulo",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ZUCCHETTI SOFTWARE E SISTEMAS LTDA",
+    "responsavel": "Adriana",
+    "telefone": "49 3442-0122",
+    "endereco": "Rod. José Carlos Daux, 4150 – sala 104 e 105  Prédio do Passeio Primavera",
+    "bairro": "Saco Grande",
+    "cidade": "Florianópolis"
+  }
+]

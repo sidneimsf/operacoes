@@ -266,5 +266,8 @@ async function iniciar() {
 
 montarModalColaborador();
 document.getElementById('btn-novo-colaborador').addEventListener('click', abrirModalColaborador);
+if (auth.papel !== 'escritorio') {
+  document.getElementById('btn-novo-colaborador').hidden = true;
+}
 
 iniciar();

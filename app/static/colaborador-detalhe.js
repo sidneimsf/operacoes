@@ -29,6 +29,7 @@ const DIAS_LABEL = {
   segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta',
   sexta: 'Sexta', sabado: 'Sábado', domingo: 'Domingo',
 };
+const TURNOS_LABEL = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
 
 function celulaHorarioHtml(registro, campoNome, dia, turno) {
   if (!registro) {
@@ -57,6 +58,7 @@ function montarGradeSemanal(horarios, campoNome) {
   const headerCols = dias.map((d) => `<th>${DIAS_LABEL[d]}</th>`).join('');
   const linhaManha = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_manha`], campoNome, d, 'manha')).join('');
   const linhaTarde = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_tarde`], campoNome, d, 'tarde')).join('');
+  const linhaNoite = dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_noite`], campoNome, d, 'noite')).join('');
 
   return `
     <table class="horario-grid">
@@ -64,6 +66,7 @@ function montarGradeSemanal(horarios, campoNome) {
       <tbody>
         <tr><td>Manhã</td>${linhaManha}</tr>
         <tr><td>Tarde</td>${linhaTarde}</tr>
+        <tr><td>Noite</td>${linhaNoite}</tr>
       </tbody>
     </table>
   `;
@@ -131,7 +134,7 @@ async function abrirModalHorario(dia, turno, horarioId) {
 
   const erroBox = document.getElementById('horario-modal-erro');
   erroBox.classList.remove('visible');
-  document.getElementById('horario-modal-titulo').textContent = `${DIAS_LABEL[dia]} · ${turno === 'manha' ? 'Manhã' : 'Tarde'}`;
+  document.getElementById('horario-modal-titulo').textContent = `${DIAS_LABEL[dia]} · ${TURNOS_LABEL[turno]}`;
 
   const grupos = await carregarClientesAgrupados();
   const selectCliente = document.getElementById('horario-cliente');

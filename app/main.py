@@ -304,6 +304,11 @@ def serializar_cliente(c: Cliente) -> dict:
         "nome": c.nome,
         "cnpj": c.cnpj,
         "municipio": c.municipio,
+        "endereco": c.endereco,
+        "bairro": c.bairro,
+        "cidade": c.cidade,
+        "responsavel_nome": c.responsavel_nome,
+        "responsavel_telefone": c.responsavel_telefone,
         "empresa_id": c.empresa_id,
         "empresa_nome": c.empresa.nome,
         "ativo": c.ativo,
@@ -333,7 +338,7 @@ def listar_clientes(
 def criar_cliente(
     dados: ClienteCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     empresa = db.get(Empresa, dados.empresa_id)
     if empresa is None:
@@ -348,6 +353,11 @@ def criar_cliente(
         nome=nome,
         cnpj=dados.cnpj.strip() if dados.cnpj else None,
         municipio=dados.municipio.strip() if dados.municipio else None,
+        endereco=dados.endereco.strip() if dados.endereco else None,
+        bairro=dados.bairro.strip() if dados.bairro else None,
+        cidade=dados.cidade.strip() if dados.cidade else None,
+        responsavel_nome=dados.responsavel_nome.strip() if dados.responsavel_nome else None,
+        responsavel_telefone=dados.responsavel_telefone.strip() if dados.responsavel_telefone else None,
     )
     db.add(cliente)
     db.commit()
@@ -393,6 +403,16 @@ def editar_cliente(
         cliente.cnpj = campos["cnpj"].strip() if campos["cnpj"] else None
     if "municipio" in campos:
         cliente.municipio = campos["municipio"].strip() if campos["municipio"] else None
+    if "endereco" in campos:
+        cliente.endereco = campos["endereco"].strip() if campos["endereco"] else None
+    if "bairro" in campos:
+        cliente.bairro = campos["bairro"].strip() if campos["bairro"] else None
+    if "cidade" in campos:
+        cliente.cidade = campos["cidade"].strip() if campos["cidade"] else None
+    if "responsavel_nome" in campos:
+        cliente.responsavel_nome = campos["responsavel_nome"].strip() if campos["responsavel_nome"] else None
+    if "responsavel_telefone" in campos:
+        cliente.responsavel_telefone = campos["responsavel_telefone"].strip() if campos["responsavel_telefone"] else None
     if "ativo" in campos:
         cliente.ativo = campos["ativo"]
 
@@ -449,7 +469,7 @@ def listar_colaboradores(
 def criar_colaborador(
     dados: ColaboradorCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     empresa = db.get(Empresa, dados.empresa_id)
     if empresa is None:
@@ -803,7 +823,7 @@ def horarios_do_cliente(
     return [serializar_horario(h) for h in registros]
 
 
-TURNOS_VALIDOS = {"manha", "tarde"}
+TURNOS_VALIDOS = {"manha", "tarde", "noite"}
 
 
 def _checar_conflito_horario(
@@ -1011,6 +1031,26 @@ def listar_avisos(db: Session = Depends(get_db), usuario: Usuario = Depends(usua
         .all()
     )
     return [serializar_aviso(a) for a in avisos]
+
+
+@app.delete("/avisos-dados/{aviso_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_aviso(
+    aviso_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    aviso = db.get(Aviso, aviso_id)
+    if aviso is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aviso nao encontrado")
+
+    if aviso.criado_por_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Voce so pode excluir avisos que voce mesmo criou",
+        )
+
+    db.delete(aviso)
+    db.commit()
 
 
 @app.get("/chamados-tipos")

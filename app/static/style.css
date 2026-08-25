@@ -693,6 +693,12 @@ button {
   background: var(--surface-2);
   border-radius: 6px;
   padding: 6px 8px;
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+
+.horario-celula:hover {
+  outline: 1px solid var(--accent);
 }
 
 .horario-celula .nome {
@@ -712,18 +718,24 @@ button {
 .horario-celula-vazia {
   color: var(--text-muted);
   font-size: 12px;
-}
-
-.horario-grid td {
   cursor: pointer;
 }
 
-.horario-grid td:hover .horario-celula {
-  outline: 1px solid var(--accent);
+.horario-add-mais {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  cursor: pointer;
+  margin-top: 2px;
 }
 
-.horario-grid td:hover .horario-celula-vazia {
+.horario-add-mais:hover,
+.horario-celula-vazia:hover {
   color: var(--accent);
+}
+
+.horario-grid td {
+  vertical-align: top;
 }
 
 .badge-papel {
@@ -1224,6 +1236,24 @@ button {
   border-radius: 50%;
   background: var(--surface);
   border: 2px solid var(--border);
+}
+
+.postit-excluir {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.postit-excluir:hover {
+  color: var(--danger);
+  background: rgba(226, 87, 76, 0.12);
 }
 
 .postit .mensagem {
