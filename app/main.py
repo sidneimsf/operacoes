@@ -10,7 +10,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import jwt
-from database import get_db
+from alertas_aso import verificar_e_enviar_alertas
+from apscheduler.schedulers.background import BackgroundScheduler
+from database import SessionLocal, get_db
 from models import Aviso, Chamado, Cliente, Colaborador, ColaboradorEvento, Empresa, HorarioServico, Usuario
 from schemas import (
     AvisoCreate,
@@ -33,6 +35,23 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 seguranca = HTTPBearer()
 
+
+def job_verificar_asos():
+    """Roda em background, uma vez por dia - usa sua propria sessao de banco."""
+    db = SessionLocal()
+    try:
+        resultado = verificar_e_enviar_alertas(db)
+        print("[alerta-aso]", resultado)
+    except Exception as erro:
+        print("[alerta-aso] erro ao verificar/enviar:", erro)
+    finally:
+        db.close()
+
+
+agendador = BackgroundScheduler()
+agendador.add_job(job_verificar_asos, "cron", hour=8, minute=0)
+agendador.start()
+
 PASTA_UPLOADS = Path("uploads/colaboradores")
 PASTA_UPLOADS.mkdir(parents=True, exist_ok=True)
 
@@ -43,6 +62,7 @@ TIPOS_EVENTO_COLABORADOR = [
     {"chave": "anotacao", "label": "Anotação"},
     {"chave": "documento", "label": "Documento"},
     {"chave": "atestado", "label": "Atestado médico"},
+    {"chave": "aso", "label": "ASO (exame ocupacional)"},
     {"chave": "falta", "label": "Falta"},
     {"chave": "cobertura", "label": "Cobriu falta"},
     {"chave": "ferias", "label": "Férias"},
@@ -190,6 +210,11 @@ def pagina_colaboradores():
 @app.get("/usuarios", include_in_schema=False)
 def pagina_usuarios():
     return FileResponse("static/usuarios.html")
+
+
+@app.get("/asos", include_in_schema=False)
+def pagina_asos():
+    return FileResponse("static/asos.html")
 
 
 @app.get("/ocorrencias", include_in_schema=False)
@@ -698,6 +723,12 @@ def criar_evento_colaborador(
 
     if tipo in ("atestado", "falta", "ferias") and not data_inicio:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data")
+
+    if tipo == "aso" and (not data_inicio or not data_fim):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Informe a data do exame e a data de vencimento do ASO",
+        )
 
     data_inicio_obj = date.fromisoformat(data_inicio) if data_inicio else None
     data_fim_obj = date.fromisoformat(data_fim) if data_fim else None
@@ -1215,3 +1246,74 @@ def confirmar_chamado_finalizado(
 
 # Estrutura prevista para os proximos modulos:
 #   /avisos-dados      -> mural de avisos entre escritorio e supervisores
+
+
+@app.get("/asos-dados")
+def listar_asos(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
+):
+    """Painel de controle de ASOs - o ASO mais recente de cada colaborador ativo, com status de vencimento."""
+    subquery = (
+        db.query(
+            ColaboradorEvento.colaborador_id,
+            func.max(ColaboradorEvento.data_fim).label("data_fim_max"),
+        )
+        .filter(ColaboradorEvento.tipo == "aso", ColaboradorEvento.data_fim.isnot(None))
+        .group_by(ColaboradorEvento.colaborador_id)
+        .subquery()
+    )
+
+    eventos = (
+        db.query(ColaboradorEvento)
+        .join(
+            subquery,
+            (ColaboradorEvento.colaborador_id == subquery.c.colaborador_id)
+            & (ColaboradorEvento.data_fim == subquery.c.data_fim_max),
+        )
+        .filter(ColaboradorEvento.tipo == "aso")
+        .all()
+    )
+
+    hoje = date.today()
+    resultado = []
+    for e in eventos:
+        colaborador = db.get(Colaborador, e.colaborador_id)
+        if colaborador is None or colaborador.status == "desligado":
+            continue
+        dias_restantes = (e.data_fim - hoje).days
+        if dias_restantes < 0:
+            situacao = "vencido"
+        elif dias_restantes <= 7:
+            situacao = "proximo"
+        else:
+            situacao = "ok"
+        resultado.append(
+            {
+                "colaborador_id": colaborador.id,
+                "colaborador_nome": colaborador.nome,
+                "cargo": colaborador.cargo,
+                "empresa_nome": colaborador.empresa.nome,
+                "data_exame": e.data_inicio.isoformat() if e.data_inicio else None,
+                "data_vencimento": e.data_fim.isoformat() if e.data_fim else None,
+                "dias_restantes": dias_restantes,
+                "situacao": situacao,
+            }
+        )
+
+    resultado.sort(key=lambda x: x["dias_restantes"])
+    return resultado
+
+
+@app.post("/asos-dados/testar-email")
+def testar_email_aso(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
+):
+    """Dispara a checagem de ASOs e o envio do e-mail na hora, para teste."""
+    try:
+        resultado = verificar_e_enviar_alertas(db)
+        return resultado
+    except RuntimeError as erro:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erro))
+

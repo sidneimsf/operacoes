@@ -1085,6 +1085,30 @@ button {
   color: var(--danger);
 }
 
+.aso-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.aso-badge.vencido {
+  background: rgba(226, 87, 76, 0.15);
+  color: var(--danger);
+}
+
+.aso-badge.proximo {
+  background: rgba(232, 163, 61, 0.15);
+  color: var(--accent);
+}
+
+.aso-badge.ok {
+  background: rgba(92, 184, 138, 0.15);
+  color: var(--success);
+}
+
 /* ---------- Histórico do cliente (timeline) ---------- */
 
 .cliente-header {

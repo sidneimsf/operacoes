@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASOs · operações</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="label">vencidos</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">vencendo em 7 dias</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">em dia</div><div class="value">—</div></div>
+      </div>
+
+      <div class="avisos-header">
+        <span class="section-title" style="margin: 0;">Controle de ASOs</span>
+        <button class="btn-ghost" id="btn-testar-email">Testar envio de e-mail</button>
+      </div>
+
+      <div id="resultado-teste-email"></div>
+
+      <div id="lista-asos">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/asos.js"></script>
+</body>
+</html>
