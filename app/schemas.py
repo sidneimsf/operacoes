@@ -78,6 +78,12 @@ class ColaboradorUpdate(BaseModel):
     status: str | None = None
 
 
+class ColaboradorEventoUpdate(BaseModel):
+    descricao: str | None = None
+    data_inicio: str | None = None
+    data_fim: str | None = None
+
+
 class HorarioServicoCreate(BaseModel):
     colaborador_id: int
     cliente_id: int

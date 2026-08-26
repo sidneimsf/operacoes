@@ -39,6 +39,10 @@ function renderizarLista(asos) {
         <td>${formatarData(a.data_exame)}</td>
         <td>${formatarData(a.data_vencimento)}</td>
         <td><span class="aso-badge ${a.situacao}">${labelSituacao(a.situacao, a.dias_restantes)}</span></td>
+        <td>
+          <button class="btn-ghost btn-aso-editar" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" data-exame="${a.data_exame || ''}" data-vencimento="${a.data_vencimento || ''}" style="padding: 5px 10px; font-size: 12px;">Editar</button>
+          <button class="btn-ghost btn-aso-excluir" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" style="padding: 5px 10px; font-size: 12px;">Excluir</button>
+        </td>
       </tr>
     `
     )
@@ -47,7 +51,7 @@ function renderizarLista(asos) {
   container.innerHTML = `
     <table class="table-list">
       <thead>
-        <tr><th>Colaborador</th><th>Cargo</th><th>Empresa</th><th>Data do exame</th><th>Vencimento</th><th>Situação</th></tr>
+        <tr><th>Colaborador</th><th>Cargo</th><th>Empresa</th><th>Data do exame</th><th>Vencimento</th><th>Situação</th><th>Ações</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
@@ -67,6 +71,220 @@ async function carregarAsos() {
       return;
     }
     container.innerHTML = '<div class="empty-state">Não foi possível carregar os dados agora.</div>';
+  }
+}
+
+// ---------- Adicionar novo ASO ----------
+
+let colaboradoresAgrupadosCache = null;
+
+async function carregarColaboradoresAgrupados() {
+  if (colaboradoresAgrupadosCache) return colaboradoresAgrupadosCache;
+  const [empresas, colaboradores] = await Promise.all([
+    Shell.chamarApi('/empresas'),
+    Shell.chamarApi('/colaboradores-dados'),
+  ]);
+  colaboradoresAgrupadosCache = empresas.map((e) => ({
+    empresa: e.nome,
+    colaboradores: colaboradores.filter((c) => c.empresa_id === e.id),
+  }));
+  return colaboradoresAgrupadosCache;
+}
+
+function montarModalNovoAso() {
+  const html = `
+    <div class="modal-overlay" id="novo-aso-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Adicionar ASO</h3>
+          <button class="modal-close" id="novo-aso-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="novo-aso-form">
+          <div class="field">
+            <label for="novo-aso-colaborador">Colaborador</label>
+            <select id="novo-aso-colaborador" required></select>
+          </div>
+          <div class="field">
+            <label for="novo-aso-exame">Data do exame</label>
+            <input type="date" id="novo-aso-exame" required>
+          </div>
+          <div class="field">
+            <label for="novo-aso-vencimento">Data de vencimento</label>
+            <input type="date" id="novo-aso-vencimento" required>
+          </div>
+          <div class="error-message" id="novo-aso-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="novo-aso-modal-enviar">Adicionar ASO</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('novo-aso-modal-fechar').addEventListener('click', () => {
+    document.getElementById('novo-aso-modal-overlay').hidden = true;
+  });
+  document.getElementById('novo-aso-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'novo-aso-modal-overlay') {
+      document.getElementById('novo-aso-modal-overlay').hidden = true;
+    }
+  });
+  document.getElementById('novo-aso-form').addEventListener('submit', enviarNovoAso);
+}
+
+async function abrirModalNovoAso() {
+  document.getElementById('novo-aso-form').reset();
+  document.getElementById('novo-aso-modal-erro').classList.remove('visible');
+
+  const grupos = await carregarColaboradoresAgrupados();
+  document.getElementById('novo-aso-colaborador').innerHTML = grupos
+    .map(
+      (g) =>
+        `<optgroup label="${g.empresa}">${g.colaboradores.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('')}</optgroup>`
+    )
+    .join('');
+
+  document.getElementById('novo-aso-modal-overlay').hidden = false;
+}
+
+async function enviarFormData(caminho, formData) {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return null;
+
+  const resposta = await fetch(caminho, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    body: formData,
+  });
+
+  if (resposta.status === 401) {
+    Shell.sair();
+    return null;
+  }
+  if (!resposta.ok) {
+    const erro = new Error(`Falha ao chamar ${caminho}: ${resposta.status}`);
+    try {
+      erro.detalhe = (await resposta.json()).detail;
+    } catch (_) {
+      // sem corpo JSON, sem problema
+    }
+    throw erro;
+  }
+  return resposta.json();
+}
+
+async function enviarNovoAso(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('novo-aso-modal-erro');
+  const botao = document.getElementById('novo-aso-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const colaboradorId = document.getElementById('novo-aso-colaborador').value;
+  const formData = new FormData();
+  formData.append('tipo', 'aso');
+  formData.append('data_inicio', document.getElementById('novo-aso-exame').value);
+  formData.append('data_fim', document.getElementById('novo-aso-vencimento').value);
+
+  botao.disabled = true;
+  botao.textContent = 'Adicionando...';
+
+  try {
+    await enviarFormData(`/colaboradores-dados/${colaboradorId}/eventos`, formData);
+    document.getElementById('novo-aso-modal-overlay').hidden = true;
+    carregarAsos();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível adicionar o ASO agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Adicionar ASO';
+  }
+}
+
+// ---------- Editar ASO existente ----------
+
+function montarModalEditarAso() {
+  const html = `
+    <div class="modal-overlay" id="editar-aso-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="editar-aso-modal-titulo">Editar ASO</h3>
+          <button class="modal-close" id="editar-aso-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="editar-aso-form">
+          <div class="field">
+            <label for="editar-aso-exame">Data do exame</label>
+            <input type="date" id="editar-aso-exame" required>
+          </div>
+          <div class="field">
+            <label for="editar-aso-vencimento">Data de vencimento</label>
+            <input type="date" id="editar-aso-vencimento" required>
+          </div>
+          <div class="error-message" id="editar-aso-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="editar-aso-modal-enviar">Salvar alterações</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('editar-aso-modal-fechar').addEventListener('click', () => {
+    document.getElementById('editar-aso-modal-overlay').hidden = true;
+  });
+  document.getElementById('editar-aso-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'editar-aso-modal-overlay') {
+      document.getElementById('editar-aso-modal-overlay').hidden = true;
+    }
+  });
+  document.getElementById('editar-aso-form').addEventListener('submit', salvarEdicaoAso);
+}
+
+let eventoIdEmEdicao = null;
+
+function abrirModalEditarAso(eventoId, colaboradorNome, dataExame, dataVencimento) {
+  eventoIdEmEdicao = eventoId;
+  document.getElementById('editar-aso-modal-titulo').textContent = `Editar ASO · ${colaboradorNome}`;
+  document.getElementById('editar-aso-exame').value = dataExame;
+  document.getElementById('editar-aso-vencimento').value = dataVencimento;
+  document.getElementById('editar-aso-modal-erro').classList.remove('visible');
+  document.getElementById('editar-aso-modal-overlay').hidden = false;
+}
+
+async function salvarEdicaoAso(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('editar-aso-modal-erro');
+  const botao = document.getElementById('editar-aso-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const corpo = {
+    data_inicio: document.getElementById('editar-aso-exame').value,
+    data_fim: document.getElementById('editar-aso-vencimento').value,
+  };
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoIdEmEdicao}`, { method: 'PATCH', body: corpo });
+    document.getElementById('editar-aso-modal-overlay').hidden = true;
+    carregarAsos();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar alterações';
+  }
+}
+
+// ---------- Excluir ASO ----------
+
+async function excluirAso(eventoId, colaboradorNome) {
+  if (!confirm(`Excluir o registro de ASO de ${colaboradorNome}?`)) return;
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoId}`, { method: 'DELETE' });
+    carregarAsos();
+  } catch (erro) {
+    alert('Não foi possível excluir agora.');
   }
 }
 
@@ -95,4 +313,26 @@ async function testarEnvioEmail() {
 }
 
 document.getElementById('btn-testar-email').addEventListener('click', testarEnvioEmail);
+
+montarModalNovoAso();
+document.getElementById('btn-novo-aso').addEventListener('click', abrirModalNovoAso);
+
+montarModalEditarAso();
+document.getElementById('lista-asos').addEventListener('click', (evento) => {
+  const botaoEditar = evento.target.closest('.btn-aso-editar');
+  if (botaoEditar) {
+    abrirModalEditarAso(
+      botaoEditar.dataset.eventoId,
+      botaoEditar.dataset.colaborador,
+      botaoEditar.dataset.exame,
+      botaoEditar.dataset.vencimento
+    );
+    return;
+  }
+  const botaoExcluir = evento.target.closest('.btn-aso-excluir');
+  if (botaoExcluir) {
+    excluirAso(botaoExcluir.dataset.eventoId, botaoExcluir.dataset.colaborador);
+  }
+});
+
 carregarAsos();

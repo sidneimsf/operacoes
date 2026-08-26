@@ -1,3 +1,4 @@
+import os
 import uuid
 from datetime import date, datetime, time, timezone
 from pathlib import Path
@@ -22,6 +23,7 @@ from schemas import (
     ClienteCreate,
     ClienteUpdate,
     ColaboradorCreate,
+    ColaboradorEventoUpdate,
     ColaboradorUpdate,
     HorarioServicoCreate,
     HorarioServicoUpdate,
@@ -802,6 +804,48 @@ def baixar_arquivo_evento(
     return FileResponse(evento.arquivo_path, filename=evento.arquivo_nome_original or "documento")
 
 
+@app.patch("/colaboradores-dados/eventos/{evento_id}")
+def editar_evento_colaborador(
+    evento_id: int,
+    dados: ColaboradorEventoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    evento = db.get(ColaboradorEvento, evento_id)
+    if evento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro nao encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+
+    if "descricao" in campos:
+        evento.descricao = campos["descricao"].strip() if campos["descricao"] else None
+    if "data_inicio" in campos:
+        evento.data_inicio = date.fromisoformat(campos["data_inicio"]) if campos["data_inicio"] else None
+    if "data_fim" in campos:
+        evento.data_fim = date.fromisoformat(campos["data_fim"]) if campos["data_fim"] else None
+
+    db.commit()
+    db.refresh(evento)
+    return serializar_evento_colaborador(evento)
+
+
+@app.delete("/colaboradores-dados/eventos/{evento_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_evento_colaborador(
+    evento_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    evento = db.get(ColaboradorEvento, evento_id)
+    if evento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro nao encontrado")
+
+    if evento.arquivo_path and os.path.exists(evento.arquivo_path):
+        os.remove(evento.arquivo_path)
+
+    db.delete(evento)
+    db.commit()
+
+
 DIAS_SEMANA_ORDEM = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo"]
 DIAS_SEMANA_LABEL = {
     "segunda": "Segunda", "terca": "Terça", "quarta": "Quarta", "quinta": "Quinta",
@@ -1290,6 +1334,7 @@ def listar_asos(
             situacao = "ok"
         resultado.append(
             {
+                "evento_id": e.id,
                 "colaborador_id": colaborador.id,
                 "colaborador_nome": colaborador.nome,
                 "cargo": colaborador.cargo,
