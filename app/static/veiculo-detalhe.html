@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veículo · operações</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title">Veículo</h1>
+    </div>
+    <div class="content">
+
+      <a href="/veiculos" class="back-link">← Voltar para Veículos</a>
+
+      <div class="cliente-header" id="veiculo-header">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 24px;">
+        <button class="btn-ghost" id="btn-editar-veiculo">Editar</button>
+        <button class="btn-ghost" id="btn-toggle-veiculo"></button>
+      </div>
+
+      <div class="section-title">Plano de manutenção sugerido</div>
+      <div class="meta" style="margin-bottom: 14px;">
+        Referência baseada em fontes públicas — sempre prevalece a cadência do manual do proprietário (geralmente 10.000 km ou 12 meses).
+      </div>
+      <div id="plano-manutencao">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+      <div class="avisos-header" style="margin-top: 30px;">
+        <span class="section-title" style="margin: 0;">Histórico de manutenções</span>
+        <button class="btn-primary" id="btn-nova-manutencao">+ Nova manutenção</button>
+      </div>
+      <div id="lista-manutencoes">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/veiculo-detalhe.js"></script>
+</body>
+</html>

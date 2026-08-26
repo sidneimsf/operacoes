@@ -110,6 +110,39 @@ class HorarioServicoUpdate(BaseModel):
     hora_fim: str | None = None
 
 
+class VeiculoCreate(BaseModel):
+    placa: str
+    modelo: str = "Fiat Mobi"
+    ano: int | None = None
+    apelido: str | None = None
+    km_atual: int = 0
+
+
+class VeiculoUpdate(BaseModel):
+    placa: str | None = None
+    modelo: str | None = None
+    ano: int | None = None
+    apelido: str | None = None
+    km_atual: int | None = None
+    ativo: bool | None = None
+
+
+class ManutencaoVeiculoCreate(BaseModel):
+    tipo: str
+    data: str
+    km: int
+    descricao: str
+    custo: float | None = None
+
+
+class ManutencaoVeiculoUpdate(BaseModel):
+    tipo: str | None = None
+    data: str | None = None
+    km: int | None = None
+    descricao: str | None = None
+    custo: float | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

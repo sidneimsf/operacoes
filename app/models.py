@@ -4,6 +4,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -238,3 +239,41 @@ class HorarioServico(Base):
 
     def __repr__(self) -> str:
         return f"<HorarioServico colaborador={self.colaborador_id} cliente={self.cliente_id} {self.dia_semana}/{self.turno}>"
+
+
+class Veiculo(Base):
+    """Veiculo da frota da empresa (ex: Fiat Mobi usado pelos supervisores)."""
+    __tablename__ = "veiculos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    placa: Mapped[str] = mapped_column(String(10), nullable=False, unique=True)
+    modelo: Mapped[str] = mapped_column(String(100), nullable=False)
+    ano: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    apelido: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    km_atual: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    def __repr__(self) -> str:
+        return f"<Veiculo {self.placa}>"
+
+
+class ManutencaoVeiculo(Base):
+    """Registro de manutencao (preventiva ou corretiva) de um veiculo."""
+    __tablename__ = "manutencoes_veiculo"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    veiculo_id: Mapped[int] = mapped_column(ForeignKey("veiculos.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(20), nullable=False)  # preventiva | corretiva
+    data: Mapped[date] = mapped_column(Date, nullable=False)
+    km: Mapped[int] = mapped_column(Integer, nullable=False)
+    descricao: Mapped[str] = mapped_column(String(500), nullable=False)
+    custo: Mapped[float | None] = mapped_column(Float, nullable=True)
+    registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    veiculo: Mapped["Veiculo"] = relationship()
+    registrado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<ManutencaoVeiculo {self.tipo} - veiculo {self.veiculo_id}>"

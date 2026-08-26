@@ -14,7 +14,18 @@ import jwt
 from alertas_aso import verificar_e_enviar_alertas
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import SessionLocal, get_db
-from models import Aviso, Chamado, Cliente, Colaborador, ColaboradorEvento, Empresa, HorarioServico, Usuario
+from models import (
+    Aviso,
+    Chamado,
+    Cliente,
+    Colaborador,
+    ColaboradorEvento,
+    Empresa,
+    HorarioServico,
+    ManutencaoVeiculo,
+    Usuario,
+    Veiculo,
+)
 from schemas import (
     AvisoCreate,
     ChamadoCreate,
@@ -28,7 +39,11 @@ from schemas import (
     HorarioServicoCreate,
     HorarioServicoUpdate,
     LoginRequest,
+    ManutencaoVeiculoCreate,
+    ManutencaoVeiculoUpdate,
     TokenResponse,
+    VeiculoCreate,
+    VeiculoUpdate,
 )
 from security import criar_token, decodificar_token, verificar_senha
 
@@ -217,6 +232,16 @@ def pagina_usuarios():
 @app.get("/asos", include_in_schema=False)
 def pagina_asos():
     return FileResponse("static/asos.html")
+
+
+@app.get("/veiculos", include_in_schema=False)
+def pagina_veiculos():
+    return FileResponse("static/veiculos.html")
+
+
+@app.get("/veiculo-detalhe", include_in_schema=False)
+def pagina_veiculo_detalhe():
+    return FileResponse("static/veiculo-detalhe.html")
 
 
 @app.get("/ocorrencias", include_in_schema=False)
@@ -1443,4 +1468,301 @@ def testar_email_aso(
         return resultado
     except RuntimeError as erro:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erro))
+
+
+# ---------------------------------------------------------------------------
+# Veiculos e manutencao
+# ---------------------------------------------------------------------------
+
+# Plano de manutencao de REFERENCIA para o Fiat Mobi 1.0, baseado em fontes
+# publicas (nao e' o manual oficial do veiculo - sempre vale mais a cadencia
+# oficial de 10.000 km / 12 meses prevista no manual do proprietario).
+PLANO_MANUTENCAO_FIAT_MOBI = [
+    {"item": "Troca de óleo do motor + filtro de óleo", "intervalo_km": 7500, "critico": False},
+    {"item": "Filtro de cabine (ar-condicionado)", "intervalo_km": 15000, "critico": False},
+    {"item": "Filtro de ar do motor", "intervalo_km": 20000, "critico": False},
+    {"item": "Velas de ignição", "intervalo_km": 25000, "critico": False},
+    {"item": "Fluido de freio", "intervalo_km": 24000, "critico": False},
+    {"item": "Pastilhas de freio (verificar desgaste)", "intervalo_km": 30000, "critico": False},
+    {"item": "Filtro de combustível", "intervalo_km": 30000, "critico": False},
+    {"item": "Óleo do câmbio manual", "intervalo_km": 80000, "critico": False},
+    {"item": "Correia dentada (crítico)", "intervalo_km": 60000, "critico": True},
+]
+
+
+def _calcular_plano_sugerido(km_atual: int, baseline_km: int = 0) -> list[dict]:
+    """
+    Calcula o proximo ponto de manutencao de cada item, a partir de uma
+    base conhecida (o km da ultima manutencao PREVENTIVA registrada, ou
+    0 se nunca houve nenhuma). Isso evita assumir, sem nenhuma evidencia,
+    que intervalos anteriores foram cumpridos - se o carro esta em
+    32.000 km e nunca teve manutencao registrada, um item com intervalo
+    de 7.500 km ja esta vencido, nao "em dia".
+    """
+    itens = []
+    for referencia in PLANO_MANUTENCAO_FIAT_MOBI:
+        intervalo = referencia["intervalo_km"]
+        proximo_km = baseline_km + intervalo
+        km_restantes = proximo_km - km_atual
+        margem_aviso = 3000 if referencia["critico"] else 1000
+        if km_restantes <= 0:
+            situacao = "vencido"
+        elif km_restantes <= margem_aviso:
+            situacao = "proximo"
+        else:
+            situacao = "ok"
+        itens.append(
+            {
+                "item": referencia["item"],
+                "intervalo_km": intervalo,
+                "critico": referencia["critico"],
+                "proximo_km": proximo_km,
+                "km_restantes": km_restantes,
+                "situacao": situacao,
+            }
+        )
+    itens.sort(key=lambda x: x["km_restantes"])
+    return itens
+
+
+def serializar_veiculo(v: Veiculo, db: Session | None = None, incluir_plano: bool = False) -> dict:
+    dados = {
+        "id": v.id,
+        "placa": v.placa,
+        "modelo": v.modelo,
+        "ano": v.ano,
+        "apelido": v.apelido,
+        "km_atual": v.km_atual,
+        "ativo": v.ativo,
+    }
+    if incluir_plano:
+        baseline_km = 0
+        if db is not None:
+            ultima_preventiva = (
+                db.query(ManutencaoVeiculo)
+                .filter_by(veiculo_id=v.id, tipo="preventiva")
+                .order_by(ManutencaoVeiculo.km.desc())
+                .first()
+            )
+            if ultima_preventiva is not None:
+                baseline_km = ultima_preventiva.km
+        dados["plano_sugerido"] = _calcular_plano_sugerido(v.km_atual, baseline_km)
+    return dados
+
+
+def serializar_manutencao(m: ManutencaoVeiculo) -> dict:
+    return {
+        "id": m.id,
+        "veiculo_id": m.veiculo_id,
+        "tipo": m.tipo,
+        "data": m.data.isoformat(),
+        "km": m.km,
+        "descricao": m.descricao,
+        "custo": m.custo,
+        "registrado_por": m.registrado_por.nome,
+        "criado_em": m.criado_em.isoformat(),
+    }
+
+
+@app.get("/veiculos-dados")
+def listar_veiculos(
+    incluir_inativos: bool = False,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    query = db.query(Veiculo)
+    if not incluir_inativos:
+        query = query.filter(Veiculo.ativo.is_(True))
+    veiculos = query.order_by(Veiculo.placa).all()
+    return [serializar_veiculo(v) for v in veiculos]
+
+
+@app.post("/veiculos-dados", status_code=status.HTTP_201_CREATED)
+def criar_veiculo(
+    dados: VeiculoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
+):
+    placa = dados.placa.strip().upper()
+    if not placa:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a placa")
+    if db.query(Veiculo).filter_by(placa=placa).first() is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Já existe um veículo com essa placa")
+
+    veiculo = Veiculo(
+        placa=placa,
+        modelo=dados.modelo.strip(),
+        ano=dados.ano,
+        apelido=dados.apelido.strip() if dados.apelido else None,
+        km_atual=dados.km_atual,
+    )
+    db.add(veiculo)
+    db.commit()
+    db.refresh(veiculo)
+    return serializar_veiculo(veiculo)
+
+
+@app.get("/veiculos-dados/{veiculo_id}")
+def detalhe_veiculo(
+    veiculo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    veiculo = db.get(Veiculo, veiculo_id)
+    if veiculo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Veículo não encontrado")
+    return serializar_veiculo(veiculo, db=db, incluir_plano=True)
+
+
+@app.patch("/veiculos-dados/{veiculo_id}")
+def editar_veiculo(
+    veiculo_id: int,
+    dados: VeiculoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    veiculo = db.get(Veiculo, veiculo_id)
+    if veiculo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Veículo não encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+
+    if "placa" in campos:
+        nova_placa = (campos["placa"] or "").strip().upper()
+        if not nova_placa:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Placa não pode ficar vazia")
+        conflito = db.query(Veiculo).filter(Veiculo.placa == nova_placa, Veiculo.id != veiculo_id).first()
+        if conflito is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Já existe um veículo com essa placa")
+        veiculo.placa = nova_placa
+    if "modelo" in campos:
+        veiculo.modelo = campos["modelo"].strip() if campos["modelo"] else veiculo.modelo
+    if "ano" in campos:
+        veiculo.ano = campos["ano"]
+    if "apelido" in campos:
+        veiculo.apelido = campos["apelido"].strip() if campos["apelido"] else None
+    if "km_atual" in campos:
+        if campos["km_atual"] is not None and campos["km_atual"] < 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quilometragem não pode ser negativa")
+        veiculo.km_atual = campos["km_atual"]
+    if "ativo" in campos:
+        veiculo.ativo = campos["ativo"]
+
+    db.commit()
+    db.refresh(veiculo)
+    return serializar_veiculo(veiculo, db=db, incluir_plano=True)
+
+
+@app.delete("/veiculos-dados/{veiculo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_veiculo(
+    veiculo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
+):
+    veiculo = db.get(Veiculo, veiculo_id)
+    if veiculo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Veículo não encontrado")
+    db.delete(veiculo)
+    db.commit()
+
+
+@app.get("/veiculos-dados/{veiculo_id}/manutencoes")
+def listar_manutencoes(
+    veiculo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    manutencoes = (
+        db.query(ManutencaoVeiculo)
+        .filter(ManutencaoVeiculo.veiculo_id == veiculo_id)
+        .order_by(ManutencaoVeiculo.data.desc())
+        .all()
+    )
+    return [serializar_manutencao(m) for m in manutencoes]
+
+
+@app.post("/veiculos-dados/{veiculo_id}/manutencoes", status_code=status.HTTP_201_CREATED)
+def criar_manutencao(
+    veiculo_id: int,
+    dados: ManutencaoVeiculoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    veiculo = db.get(Veiculo, veiculo_id)
+    if veiculo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Veículo não encontrado")
+
+    if dados.tipo not in ("preventiva", "corretiva"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo deve ser preventiva ou corretiva")
+
+    descricao = dados.descricao.strip()
+    if not descricao:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Descreva a manutenção realizada")
+
+    manutencao = ManutencaoVeiculo(
+        veiculo_id=veiculo_id,
+        tipo=dados.tipo,
+        data=date.fromisoformat(dados.data),
+        km=dados.km,
+        descricao=descricao,
+        custo=dados.custo,
+        registrado_por_id=usuario.id,
+    )
+    db.add(manutencao)
+
+    # atualiza o km do veiculo se a manutencao registrada for mais recente (km maior)
+    if dados.km > veiculo.km_atual:
+        veiculo.km_atual = dados.km
+
+    db.commit()
+    db.refresh(manutencao)
+    return serializar_manutencao(manutencao)
+
+
+@app.patch("/veiculos-dados/manutencoes/{manutencao_id}")
+def editar_manutencao(
+    manutencao_id: int,
+    dados: ManutencaoVeiculoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    manutencao = db.get(ManutencaoVeiculo, manutencao_id)
+    if manutencao is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro não encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+
+    if "tipo" in campos:
+        if campos["tipo"] not in ("preventiva", "corretiva"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo deve ser preventiva ou corretiva")
+        manutencao.tipo = campos["tipo"]
+    if "data" in campos:
+        manutencao.data = date.fromisoformat(campos["data"])
+    if "km" in campos:
+        manutencao.km = campos["km"]
+    if "descricao" in campos:
+        descricao = (campos["descricao"] or "").strip()
+        if not descricao:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Descrição não pode ficar vazia")
+        manutencao.descricao = descricao
+    if "custo" in campos:
+        manutencao.custo = campos["custo"]
+
+    db.commit()
+    db.refresh(manutencao)
+    return serializar_manutencao(manutencao)
+
+
+@app.delete("/veiculos-dados/manutencoes/{manutencao_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_manutencao(
+    manutencao_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    manutencao = db.get(ManutencaoVeiculo, manutencao_id)
+    if manutencao is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro não encontrado")
+    db.delete(manutencao)
+    db.commit()
+
 
