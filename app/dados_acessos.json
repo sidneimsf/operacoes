@@ -1,0 +1,914 @@
+[
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "ADOTESC",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "ALFA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ARC",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ATLANTIC GARDEN",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "BOING AVIAMENTOS LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "BUSCO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CÂMARA MUNICIPAL DE ANTÔNIO CARLOS",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CANAL TELECOM",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "EDIFICIO ALBATROZ",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL ALVORADA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO EDIFICIO RESIDENCIAL ARAUCARIA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "COND. ARNO SCHEIDT",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ATLANTIC GARDEN",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "PAULO (AUSTRIA)",
+    "senha": "234203",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO EDIFICIO DANIELA",
+    "senha": "NÃO",
+    "chave": "CX CORRESP. 102"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "DONA ROSA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "CONDOMINIO EDIFICIO RESIDENCIAL VIDEIRA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO EDIFICIO DANIELA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "RES. ELDORADO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VALDEMAR SEBASTIAO Res GESSER",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ED. GIRASSOL",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND ED GRANITO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SELMA (Ed. Grasiela)",
+    "senha": "51085358",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL GUATTARI",
+    "senha": "Porta da frente (senha + 1582402)",
+    "chave": "Para entrar no prédio (senha + 10125)"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VALDEMAR SEBASTIAO Res JANAINA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL LOURDES LIMA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "RES. MARACAIBO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "MARES DO SUL",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "MONACO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO MORADA DO SOL (BLOCO A)",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO MORADA DO SOL (BLOCO B)",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO RESIDENCIAL OLAVO BILAC",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "RES PALMEIRAS",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND PRAIA COMPRIDA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CONDOMINIO EDIFICIO PRAIA DO RISO",
+    "senha": "NÃO",
+    "chave": "TAG ZELADORIA"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "COND. RICHARTZ",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VALDEMAR SEBASTIAO Res SOLANGE",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND. TRIANON",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "VILLA BORGHESE",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "CREDITO REAL",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "DESBRAVADOR",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "DMI",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "DMI",
+    "senha": "SIM",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ESCAMAX",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "FUFA-SC COMERCIO E REPRESENTACAO LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "GALERIA (SELITO)",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "IGREJA METODISTA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "INOVA ANDAIMES",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "INTERIP",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "KONICA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "LPS",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "LUMIX HEALTHCARE LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "LWART SOLUÇÕES AMBIENTAIS S.A.",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "MAKERHERO LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "MAZER",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO MORADA DO SOL (BLOCO A)",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "NDTV",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RENTEQ",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "ROBOX",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "SAFE CONSIG TECNOLOGIA DA INFORMACAO LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SCITEC",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SEGWARE",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SICREDI ESTREITO",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SKAYLINK LTDA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SUPERLEGAL ITAGUAÇU",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SUPERLEGAL VIACATARINA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "TDSA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "VOX",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "XPTI",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CASA DO POVO",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "ACRONEX",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "AGORA SOU MAE LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ALEMAO JURERE - STERTZ MATERIAIS DE CONSTRUCAO LTDA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ALKASOFT",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "EMPRESA DE CINEMAS ARCOPLEX S.A.",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ARMAZEM ITACORUBI - MINI MERCADO ITACORUBI LTDA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ARMAZEM JURERE - 3B MINI MERCADO E PADARIA LTDA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ARMAZEM TRINDADE - B&S MINI MERCADO E PADARIA LTDA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "BDO",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "BENEVIX",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "BOTHOME ADVOGADOS",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "BROGNOLI",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "BUZZ",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CAFÉ DO MERCADO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "CBA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "AREIAS BRANCAS",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "EDIFICIO RESIDENCIAL E COMERCIAL BELMAR",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CANTO DE CANASVIEIRAS",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COSTA AZUL",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "COND. COSTA DO MARFIM",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "DONA DALMA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CONDOMINIO RESIDENCIAL ITAPOA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "MONT VERT",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "PORTONOVO",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CONDOMINIO ROSANA",
+    "senha": "NÃO",
+    "chave": "TAG"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "COND. SÃO RAFAEL",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "RESIDENCIAL SARAH",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SOLAR DAS AMENDOEIRAS",
+    "senha": "5035 e 2380",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "TRINIDAD E TOBAGO",
+    "senha": "NÃO",
+    "chave": "CONTROLE + TAG"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "COND VENEZIA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "RESIDENCIAL WAVE",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CONFIDENCE TRAVELEX - BEIRAMAR",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "CREFONO - CONSELHO REGIONAL DE FONOAUDIOLOGIA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "CRESCER DESENVOLVIMENTO INFANTIL LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "CRTR - CONSELHO REGIONAL DE TECNICOS EM RADIOLOGIA DE SC",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "DESBRAVADOR",
+    "senha": "NÃO",
+    "chave": "CARTAO DE ACESSO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "DUFRY",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "EB ENERGY",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "EBP",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "EDP",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "EDP",
+    "senha": "SIM",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "FRACTAL",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "GMC",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "GRALHA CAMPECHE",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "GRALHA CAMPECHE",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "GRUPO ALMA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "HOYA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "HSTERN VILLA ROMANA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ICPOL",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "JOVI - V TECH MOBILE COMMUNICATION LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "KIKOS - KW FITNESS",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "LCW MOTOS",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "LEITURA VILLA ROMANA LIVRARIA E PAPELARIA LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "LIDER AVIAÇÃO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "LOFT",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "LUMMER ODONTOLOGIA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "MANAGER CONSULTORIA EM INFORMATICA LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "MOUT’S SOLUÇÕES",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "MOVAMI",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "MPB SANEAMENTOS LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "NATURA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "NEC PLUS ULTRA GESTAO & TECNOLOGIA LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "NEW HOTEL",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "FLC",
+    "cliente_nome": "NULEUM LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "OSKLEN VILLA ROMANA",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "PHOTONITA LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "PLATTANO",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SECOVI",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SICOOB (COOPERATIVA DE CREDITO)",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SICREDI INGLESES",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SONITEC",
+    "senha": "NÃO",
+    "chave": "ROSIANE"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SONITEC MULHER",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "SUA CIRURGIA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SUPER RIO - A3 SUPERMERCADO LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "SUPERLEGAL BEIRAMAR",
+    "senha": "NÃO",
+    "chave": "NÃO"
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "SUPERMERCADO FLORIPA - 3B MINI MERCADO E PADARIA LTDA",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "TNS",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "UNIFAEL",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "STAR SUL",
+    "cliente_nome": "UNO CLINICA",
+    "senha": "NÃO",
+    "chave": "SIM"
+  },
+  {
+    "empresa_cliente": "CORDSUL",
+    "cliente_nome": "VAEES",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "WAVETECH",
+    "senha": null,
+    "chave": null
+  },
+  {
+    "empresa_cliente": "KRETZER",
+    "cliente_nome": "ZUCCHETTI SOFTWARE E SISTEMAS LTDA",
+    "senha": null,
+    "chave": null
+  }
+]

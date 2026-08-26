@@ -258,6 +258,10 @@ function montarModalEditarColaborador() {
             <input type="date" id="editar-colab-admissao">
           </div>
           <div class="field">
+            <label for="editar-colab-aniversario">Aniversário (dia/mês, opcional)</label>
+            <input type="text" id="editar-colab-aniversario" placeholder="Ex: 24/01" maxlength="5">
+          </div>
+          <div class="field">
             <label for="editar-colab-supervisor">Supervisor</label>
             <select id="editar-colab-supervisor"><option value="">Administrativo / sem supervisor</option></select>
           </div>
@@ -310,6 +314,10 @@ async function abrirModalEditarColaborador() {
   document.getElementById('editar-colab-cargo').value = colaboradorAtual.cargo || '';
   document.getElementById('editar-colab-contato').value = colaboradorAtual.contato || '';
   document.getElementById('editar-colab-admissao').value = colaboradorAtual.data_admissao || '';
+  const diaAniv = colaboradorAtual.aniversario_dia;
+  const mesAniv = colaboradorAtual.aniversario_mes;
+  document.getElementById('editar-colab-aniversario').value =
+    diaAniv && mesAniv ? `${String(diaAniv).padStart(2, '0')}/${String(mesAniv).padStart(2, '0')}` : '';
   document.getElementById('editar-colab-status').value = colaboradorAtual.status;
 
   document.getElementById('editar-colab-modal-overlay').hidden = false;
@@ -321,6 +329,20 @@ async function salvarEdicaoColaborador(evento) {
   const botao = document.getElementById('editar-colab-modal-enviar');
   erroBox.classList.remove('visible');
 
+  const textoAniversario = document.getElementById('editar-colab-aniversario').value.trim();
+  let aniversarioDia = null;
+  let aniversarioMes = null;
+  if (textoAniversario) {
+    const partes = textoAniversario.split('/');
+    if (partes.length !== 2 || isNaN(Number(partes[0])) || isNaN(Number(partes[1]))) {
+      erroBox.textContent = 'Aniversário deve estar no formato DD/MM, ex: 24/01';
+      erroBox.classList.add('visible');
+      return;
+    }
+    aniversarioDia = Number(partes[0]);
+    aniversarioMes = Number(partes[1]);
+  }
+
   const supervisorValor = document.getElementById('editar-colab-supervisor').value;
   const corpo = {
     empresa_id: Number(document.getElementById('editar-colab-empresa').value),
@@ -329,6 +351,8 @@ async function salvarEdicaoColaborador(evento) {
     cargo: document.getElementById('editar-colab-cargo').value || null,
     contato: document.getElementById('editar-colab-contato').value || null,
     data_admissao: document.getElementById('editar-colab-admissao').value || null,
+    aniversario_dia: aniversarioDia,
+    aniversario_mes: aniversarioMes,
     supervisor_id: supervisorValor ? Number(supervisorValor) : null,
     status: document.getElementById('editar-colab-status').value,
   };
@@ -352,15 +376,40 @@ async function salvarEdicaoColaborador(evento) {
   }
 }
 
+function calcularTempoDeCasa(dataAdmissaoIso) {
+  if (!dataAdmissaoIso) return null;
+  const admissao = new Date(dataAdmissaoIso + 'T00:00:00');
+  const hoje = new Date();
+  let anos = hoje.getFullYear() - admissao.getFullYear();
+  let meses = hoje.getMonth() - admissao.getMonth();
+  if (hoje.getDate() < admissao.getDate()) meses -= 1;
+  if (meses < 0) {
+    anos -= 1;
+    meses += 12;
+  }
+  if (anos <= 0 && meses <= 0) return 'menos de 1 mês de empresa';
+  const partes = [];
+  if (anos > 0) partes.push(`${anos} ano${anos > 1 ? 's' : ''}`);
+  if (meses > 0) partes.push(`${meses} mês${meses > 1 ? 'es' : ''}`);
+  return `${partes.join(' e ')} de empresa`;
+}
+
 function renderizarHeaderColaborador() {
   const c = colaboradorAtual;
   document.getElementById('topbar-title').textContent = c.nome;
+
+  const tempoDeCasa = calcularTempoDeCasa(c.data_admissao);
+  const linhaTempoDeCasa = tempoDeCasa ? ` · 🎉 ${tempoDeCasa}` : '';
+  const linhaAniversario = c.aniversario_dia && c.aniversario_mes
+    ? ` · 🎂 Aniversário: ${String(c.aniversario_dia).padStart(2, '0')}/${String(c.aniversario_mes).padStart(2, '0')}`
+    : '';
+
   document.getElementById('colaborador-header').innerHTML = `
     <span class="empresa-tag">${c.empresa_nome} · ${c.status === 'ativo' ? 'Ativo' : c.status === 'afastado' ? 'Afastado' : 'Desligado'}</span>
     <h2>${c.nome}</h2>
     <span class="cnpj">${c.cargo || 'Cargo não informado'} · Registro ${c.registro || '—'}</span>
     <div class="meta" style="margin-top: 8px;">
-      Contato: ${c.contato || '—'} · Admissão: ${formatarData(c.data_admissao)} · Supervisor: ${c.supervisor_nome || 'Administrativo'}
+      Contato: ${c.contato || '—'} · Admissão: ${formatarData(c.data_admissao)} · Supervisor: ${c.supervisor_nome || 'Administrativo'}${linhaTempoDeCasa}${linhaAniversario}
     </div>
   `;
 }

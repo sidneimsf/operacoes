@@ -1148,6 +1148,93 @@ button {
   color: var(--text);
 }
 
+.acesso-info {
+  display: flex;
+  gap: 24px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.acesso-item {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.acesso-item strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.acesso-vazio {
+  color: var(--text-muted);
+}
+
+.valor-oculto {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text);
+  letter-spacing: 1px;
+}
+
+.btn-olho {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.btn-olho:hover {
+  opacity: 0.7;
+}
+
+.lembrete-subtitulo {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.lembrete-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  flex-wrap: wrap;
+}
+
+.lembrete-item a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.lembrete-item a:hover {
+  color: var(--accent);
+}
+
+.lembrete-dia {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 22px;
+}
+
+.lembrete-anos {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lembrete-hoje {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .timeline-item {
   display: flex;
   gap: 16px;

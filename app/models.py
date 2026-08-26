@@ -142,6 +142,8 @@ class Cliente(Base):
     cidade: Mapped[str | None] = mapped_column(String(100), nullable=True)
     responsavel_nome: Mapped[str | None] = mapped_column(String(150), nullable=True)
     responsavel_telefone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    senha_acesso: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    chave_acesso: Mapped[str | None] = mapped_column(String(200), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
@@ -169,6 +171,8 @@ class Colaborador(Base):
     cargo: Mapped[str | None] = mapped_column(String(100), nullable=True)
     contato: Mapped[str | None] = mapped_column(String(50), nullable=True)
     data_admissao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    aniversario_dia: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    aniversario_mes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo")  # ativo | afastado
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)

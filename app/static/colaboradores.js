@@ -156,6 +156,10 @@ function montarModalColaborador() {
             <input type="date" id="colaborador-form-admissao">
           </div>
           <div class="field">
+            <label for="colaborador-form-aniversario">Aniversário (dia/mês, opcional)</label>
+            <input type="text" id="colaborador-form-aniversario" placeholder="Ex: 24/01" maxlength="5">
+          </div>
+          <div class="field">
             <label for="colaborador-form-supervisor">Supervisor (opcional)</label>
             <select id="colaborador-form-supervisor"><option value="">Administrativo / sem supervisor</option></select>
           </div>
@@ -196,6 +200,20 @@ async function enviarNovoColaborador(evento) {
   const botao = document.getElementById('colaborador-modal-enviar');
   erroBox.classList.remove('visible');
 
+  const textoAniversario = document.getElementById('colaborador-form-aniversario').value.trim();
+  let aniversarioDia = null;
+  let aniversarioMes = null;
+  if (textoAniversario) {
+    const partes = textoAniversario.split('/');
+    if (partes.length !== 2 || isNaN(Number(partes[0])) || isNaN(Number(partes[1]))) {
+      erroBox.textContent = 'Aniversário deve estar no formato DD/MM, ex: 24/01';
+      erroBox.classList.add('visible');
+      return;
+    }
+    aniversarioDia = Number(partes[0]);
+    aniversarioMes = Number(partes[1]);
+  }
+
   const supervisorValor = document.getElementById('colaborador-form-supervisor').value;
   const corpo = {
     empresa_id: Number(document.getElementById('colaborador-form-empresa').value),
@@ -204,6 +222,8 @@ async function enviarNovoColaborador(evento) {
     cargo: document.getElementById('colaborador-form-cargo').value || null,
     contato: document.getElementById('colaborador-form-contato').value || null,
     data_admissao: document.getElementById('colaborador-form-admissao').value || null,
+    aniversario_dia: aniversarioDia,
+    aniversario_mes: aniversarioMes,
     supervisor_id: supervisorValor ? Number(supervisorValor) : null,
   };
 

@@ -92,6 +92,70 @@ function renderizarAvisoMeusChamados(meusChamados) {
   `;
 }
 
+const MESES_LABEL = {
+  1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
+  7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
+};
+
+function renderizarLembretes(dados) {
+  const container = document.getElementById('lembretes-aniversarios');
+  const { aniversarios_nascimento: nascimento, aniversarios_empresa: empresa } = dados;
+
+  if (nascimento.length === 0 && empresa.length === 0) {
+    container.innerHTML = '<div class="empty-state">Nenhum aniversário este mês.</div>';
+    return;
+  }
+
+  const listaNascimento = nascimento
+    .map(
+      (a) => `
+      <div class="lembrete-item">
+        <span class="lembrete-dia">${String(a.dia).padStart(2, '0')}</span>
+        <a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a>
+        ${a.hoje ? '<span class="lembrete-hoje">hoje 🎂</span>' : ''}
+      </div>
+    `
+    )
+    .join('');
+
+  const listaEmpresa = empresa
+    .map(
+      (a) => `
+      <div class="lembrete-item">
+        <span class="lembrete-dia">${String(a.dia).padStart(2, '0')}</span>
+        <a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a>
+        <span class="lembrete-anos">${a.anos_completos} ano${a.anos_completos !== 1 ? 's' : ''} de empresa</span>
+        ${a.hoje ? '<span class="lembrete-hoje">hoje 🎉</span>' : ''}
+      </div>
+    `
+    )
+    .join('');
+
+  container.innerHTML = `
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+      <div>
+        <div class="lembrete-subtitulo">🎂 Aniversário (nascimento)</div>
+        ${nascimento.length > 0 ? listaNascimento : '<div class="empty-state">Ninguém este mês.</div>'}
+      </div>
+      <div>
+        <div class="lembrete-subtitulo">🎉 Aniversário de empresa</div>
+        ${empresa.length > 0 ? listaEmpresa : '<div class="empty-state">Ninguém este mês.</div>'}
+      </div>
+    </div>
+  `;
+}
+
+async function carregarLembretes() {
+  try {
+    const dados = await Shell.chamarApi('/colaboradores-dados/lembretes');
+    if (dados === null) return;
+    renderizarLembretes(dados);
+  } catch (erro) {
+    document.getElementById('lembretes-aniversarios').innerHTML =
+      '<div class="empty-state">Não foi possível carregar os lembretes agora.</div>';
+  }
+}
+
 let TIPOS_CHAMADO = [];
 
 async function iniciar() {
@@ -129,6 +193,8 @@ async function iniciar() {
       `;
       container.appendChild(linha);
     });
+
+    carregarLembretes();
   } catch (erro) {
     document.getElementById('breakdown-empresas').innerHTML =
       '<div class="empty-state">Não foi possível carregar os indicadores agora.</div>';

@@ -41,6 +41,8 @@ class ClienteCreate(BaseModel):
     cidade: str | None = None
     responsavel_nome: str | None = None
     responsavel_telefone: str | None = None
+    senha_acesso: str | None = None
+    chave_acesso: str | None = None
 
 
 class ClienteUpdate(BaseModel):
@@ -53,6 +55,8 @@ class ClienteUpdate(BaseModel):
     cidade: str | None = None
     responsavel_nome: str | None = None
     responsavel_telefone: str | None = None
+    senha_acesso: str | None = None
+    chave_acesso: str | None = None
     ativo: bool | None = None
 
 
@@ -63,6 +67,8 @@ class ColaboradorCreate(BaseModel):
     cargo: str | None = None
     contato: str | None = None
     data_admissao: str | None = None
+    aniversario_dia: int | None = None
+    aniversario_mes: int | None = None
     supervisor_id: int | None = None
     status: str = "ativo"
 
@@ -74,6 +80,8 @@ class ColaboradorUpdate(BaseModel):
     cargo: str | None = None
     contato: str | None = None
     data_admissao: str | None = None
+    aniversario_dia: int | None = None
+    aniversario_mes: int | None = None
     supervisor_id: int | None = None
     status: str | None = None
 

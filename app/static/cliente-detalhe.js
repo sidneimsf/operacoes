@@ -326,6 +326,14 @@ function montarModalEditarCliente() {
             <label for="editar-cliente-responsavel-telefone">Telefone do responsável</label>
             <input type="text" id="editar-cliente-responsavel-telefone">
           </div>
+          <div class="field">
+            <label for="editar-cliente-senha-acesso">Senha de acesso ao local</label>
+            <input type="text" id="editar-cliente-senha-acesso" placeholder="Deixe em branco se não houver">
+          </div>
+          <div class="field">
+            <label for="editar-cliente-chave-acesso">Chave / tag / cartão de acesso</label>
+            <input type="text" id="editar-cliente-chave-acesso" placeholder="Ex: TAG, com o porteiro, etc.">
+          </div>
           <div class="error-message" id="editar-cliente-modal-erro"></div>
           <button type="submit" class="btn-primary" id="editar-cliente-modal-enviar">Salvar alterações</button>
         </form>
@@ -358,6 +366,8 @@ async function abrirModalEditarCliente() {
   document.getElementById('editar-cliente-cidade').value = clienteAtual.cidade || '';
   document.getElementById('editar-cliente-responsavel-nome').value = clienteAtual.responsavel_nome || '';
   document.getElementById('editar-cliente-responsavel-telefone').value = clienteAtual.responsavel_telefone || '';
+  document.getElementById('editar-cliente-senha-acesso').value = clienteAtual.senha_acesso || '';
+  document.getElementById('editar-cliente-chave-acesso').value = clienteAtual.chave_acesso || '';
   document.getElementById('editar-cliente-modal-overlay').hidden = false;
 }
 
@@ -377,6 +387,8 @@ async function salvarEdicaoCliente(evento) {
     cidade: document.getElementById('editar-cliente-cidade').value || null,
     responsavel_nome: document.getElementById('editar-cliente-responsavel-nome').value || null,
     responsavel_telefone: document.getElementById('editar-cliente-responsavel-telefone').value || null,
+    senha_acesso: document.getElementById('editar-cliente-senha-acesso').value || null,
+    chave_acesso: document.getElementById('editar-cliente-chave-acesso').value || null,
   };
 
   botao.disabled = true;
@@ -395,6 +407,21 @@ async function salvarEdicaoCliente(evento) {
   }
 }
 
+function escaparAtributo(texto) {
+  return String(texto).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function renderizarCampoAcesso(valor, idBase) {
+  if (!valor) return '<span class="acesso-vazio">Não informado</span>';
+  const upper = valor.toUpperCase();
+  if (upper === 'SIM') return '<span class="acesso-vazio">Possui (sem detalhe registrado)</span>';
+  if (upper === 'NÃO' || upper === 'NAO') return '<span class="acesso-vazio">Não possui</span>';
+  return `
+    <span class="valor-oculto" id="${idBase}" data-valor="${escaparAtributo(valor)}" data-oculto="true">••••••••</span>
+    <button type="button" class="btn-olho" data-target="${idBase}" aria-label="Mostrar">👁</button>
+  `;
+}
+
 function renderizarHeaderCliente() {
   const c = clienteAtual;
   document.getElementById('topbar-title').textContent = c.nome;
@@ -406,6 +433,12 @@ function renderizarHeaderCliente() {
   const linhaResponsavel = c.responsavel_nome || c.responsavel_telefone
     ? `<div class="meta" style="margin-top: 4px;">Responsável no local: ${c.responsavel_nome || '—'}${c.responsavel_telefone ? ` · ${c.responsavel_telefone}` : ''}</div>`
     : '';
+  const linhaAcesso = `
+    <div class="acesso-info">
+      <span class="acesso-item"><strong>Senha:</strong> ${renderizarCampoAcesso(c.senha_acesso, 'valor-senha-acesso')}</span>
+      <span class="acesso-item"><strong>Chave/Tag:</strong> ${renderizarCampoAcesso(c.chave_acesso, 'valor-chave-acesso')}</span>
+    </div>
+  `;
 
   document.getElementById('cliente-header').innerHTML = `
     <span class="empresa-tag">${c.empresa_nome}${c.ativo ? '' : ' · INATIVO'}</span>
@@ -413,6 +446,7 @@ function renderizarHeaderCliente() {
     <span class="cnpj">${c.cnpj || 'CNPJ não informado'}</span>
     ${linhaEndereco}
     ${linhaResponsavel}
+    ${linhaAcesso}
   `;
   const btnToggle = document.getElementById('btn-toggle-cliente');
   btnToggle.textContent = c.ativo ? 'Remover cliente' : 'Reativar cliente';
@@ -459,6 +493,16 @@ async function iniciar() {
     montarModalEditarCliente();
     document.getElementById('btn-editar-cliente').addEventListener('click', abrirModalEditarCliente);
     document.getElementById('btn-toggle-cliente').addEventListener('click', alternarStatusCliente);
+
+    document.getElementById('cliente-header').addEventListener('click', (evento) => {
+      const botao = evento.target.closest('.btn-olho');
+      if (!botao) return;
+      const alvo = document.getElementById(botao.dataset.target);
+      const oculto = alvo.dataset.oculto !== 'false';
+      alvo.textContent = oculto ? alvo.dataset.valor : '••••••••';
+      alvo.dataset.oculto = oculto ? 'false' : 'true';
+      botao.textContent = oculto ? '🙈' : '👁';
+    });
 
     montarModalHorario();
     document.getElementById('mapa-servicos').addEventListener('click', (evento) => {

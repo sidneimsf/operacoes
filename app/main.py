@@ -325,6 +325,56 @@ def listar_empresas(db: Session = Depends(get_db), usuario: Usuario = Depends(us
     return [{"id": e.id, "nome": e.nome} for e in empresas]
 
 
+def _calcular_anos_completos(data_inicio: date, referencia: date) -> int:
+    anos = referencia.year - data_inicio.year
+    if (referencia.month, referencia.day) < (data_inicio.month, data_inicio.day):
+        anos -= 1
+    return anos
+
+
+@app.get("/colaboradores-dados/lembretes")
+def lembretes_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Aniversariantes (nascimento) e aniversario de empresa (tempo de casa) do mes atual."""
+    hoje = date.today()
+    colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado").all()
+
+    aniversarios_nascimento = []
+    aniversarios_empresa = []
+
+    for c in colaboradores:
+        if c.aniversario_dia and c.aniversario_mes == hoje.month:
+            aniversarios_nascimento.append(
+                {
+                    "colaborador_id": c.id,
+                    "colaborador_nome": c.nome,
+                    "empresa_nome": c.empresa.nome,
+                    "dia": c.aniversario_dia,
+                    "hoje": c.aniversario_dia == hoje.day,
+                }
+            )
+
+        if c.data_admissao and c.data_admissao.month == hoje.month:
+            anos = _calcular_anos_completos(c.data_admissao, date(hoje.year, c.data_admissao.month, c.data_admissao.day))
+            aniversarios_empresa.append(
+                {
+                    "colaborador_id": c.id,
+                    "colaborador_nome": c.nome,
+                    "empresa_nome": c.empresa.nome,
+                    "dia": c.data_admissao.day,
+                    "anos_completos": anos,
+                    "hoje": c.data_admissao.day == hoje.day,
+                }
+            )
+
+    aniversarios_nascimento.sort(key=lambda x: x["dia"])
+    aniversarios_empresa.sort(key=lambda x: x["dia"])
+
+    return {
+        "aniversarios_nascimento": aniversarios_nascimento,
+        "aniversarios_empresa": aniversarios_empresa,
+    }
+
+
 def serializar_cliente(c: Cliente) -> dict:
     return {
         "id": c.id,
@@ -336,6 +386,8 @@ def serializar_cliente(c: Cliente) -> dict:
         "cidade": c.cidade,
         "responsavel_nome": c.responsavel_nome,
         "responsavel_telefone": c.responsavel_telefone,
+        "senha_acesso": c.senha_acesso,
+        "chave_acesso": c.chave_acesso,
         "empresa_id": c.empresa_id,
         "empresa_nome": c.empresa.nome,
         "ativo": c.ativo,
@@ -385,6 +437,8 @@ def criar_cliente(
         cidade=dados.cidade.strip() if dados.cidade else None,
         responsavel_nome=dados.responsavel_nome.strip() if dados.responsavel_nome else None,
         responsavel_telefone=dados.responsavel_telefone.strip() if dados.responsavel_telefone else None,
+        senha_acesso=dados.senha_acesso.strip() if dados.senha_acesso else None,
+        chave_acesso=dados.chave_acesso.strip() if dados.chave_acesso else None,
     )
     db.add(cliente)
     db.commit()
@@ -440,6 +494,10 @@ def editar_cliente(
         cliente.responsavel_nome = campos["responsavel_nome"].strip() if campos["responsavel_nome"] else None
     if "responsavel_telefone" in campos:
         cliente.responsavel_telefone = campos["responsavel_telefone"].strip() if campos["responsavel_telefone"] else None
+    if "senha_acesso" in campos:
+        cliente.senha_acesso = campos["senha_acesso"].strip() if campos["senha_acesso"] else None
+    if "chave_acesso" in campos:
+        cliente.chave_acesso = campos["chave_acesso"].strip() if campos["chave_acesso"] else None
     if "ativo" in campos:
         cliente.ativo = campos["ativo"]
 
@@ -456,6 +514,8 @@ def serializar_colaborador(c: Colaborador) -> dict:
         "cargo": c.cargo,
         "contato": c.contato,
         "data_admissao": c.data_admissao.isoformat() if c.data_admissao else None,
+        "aniversario_dia": c.aniversario_dia,
+        "aniversario_mes": c.aniversario_mes,
         "empresa_id": c.empresa_id,
         "empresa_nome": c.empresa.nome,
         "supervisor_id": c.supervisor_id,
@@ -492,6 +552,18 @@ def listar_colaboradores(
     return [serializar_colaborador(c) for c in colaboradores]
 
 
+def _validar_aniversario(dia: int | None, mes: int | None) -> None:
+    if (dia is None) != (mes is None):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Informe dia e mes do aniversario juntos, ou deixe os dois em branco",
+        )
+    if dia is not None and not (1 <= dia <= 31):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dia de aniversario invalido")
+    if mes is not None and not (1 <= mes <= 12):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mes de aniversario invalido")
+
+
 @app.post("/colaboradores-dados", status_code=status.HTTP_201_CREATED)
 def criar_colaborador(
     dados: ColaboradorCreate,
@@ -512,6 +584,8 @@ def criar_colaborador(
     if dados.supervisor_id is not None and db.get(Usuario, dados.supervisor_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
 
+    _validar_aniversario(dados.aniversario_dia, dados.aniversario_mes)
+
     admissao = date.fromisoformat(dados.data_admissao) if dados.data_admissao else None
 
     colaborador = Colaborador(
@@ -521,6 +595,8 @@ def criar_colaborador(
         cargo=dados.cargo.strip() if dados.cargo else None,
         contato=dados.contato.strip() if dados.contato else None,
         data_admissao=admissao,
+        aniversario_dia=dados.aniversario_dia,
+        aniversario_mes=dados.aniversario_mes,
         supervisor_id=dados.supervisor_id,
         status=dados.status,
     )
@@ -675,6 +751,12 @@ def editar_colaborador(
         colaborador.contato = campos["contato"].strip() if campos["contato"] else None
     if "data_admissao" in campos:
         colaborador.data_admissao = date.fromisoformat(campos["data_admissao"]) if campos["data_admissao"] else None
+    if "aniversario_dia" in campos or "aniversario_mes" in campos:
+        novo_dia = campos.get("aniversario_dia", colaborador.aniversario_dia)
+        novo_mes = campos.get("aniversario_mes", colaborador.aniversario_mes)
+        _validar_aniversario(novo_dia, novo_mes)
+        colaborador.aniversario_dia = novo_dia
+        colaborador.aniversario_mes = novo_mes
     if "supervisor_id" in campos:
         if campos["supervisor_id"] is not None and db.get(Usuario, campos["supervisor_id"]) is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
