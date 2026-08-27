@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatórios · operações</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="tabs-relatorio" id="tabs-relatorio">
+        <button class="tab-relatorio ativa" data-aba="geral">Geral</button>
+        <button class="tab-relatorio" data-aba="cliente">Por Cliente</button>
+        <button class="tab-relatorio" data-aba="colaborador">Por Colaborador</button>
+      </div>
+
+      <div class="filter-row" id="filtros-geral" style="align-items: flex-end;">
+        <div class="field">
+          <label>Período</label>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn-ghost periodo-preset" data-preset="mes-atual" style="padding: 8px 12px; font-size: 12.5px;">Este mês</button>
+            <button class="btn-ghost periodo-preset" data-preset="mes-passado" style="padding: 8px 12px; font-size: 12.5px;">Mês passado</button>
+            <button class="btn-ghost periodo-preset" data-preset="ultimos-3-meses" style="padding: 8px 12px; font-size: 12.5px;">Últimos 3 meses</button>
+            <button class="btn-ghost periodo-preset" data-preset="ano-atual" style="padding: 8px 12px; font-size: 12.5px;">Este ano</button>
+          </div>
+        </div>
+        <div class="field" id="campo-select-cliente" hidden>
+          <label for="filtro-cliente">Cliente</label>
+          <select id="filtro-cliente" style="min-width: 220px;"></select>
+        </div>
+        <div class="field" id="campo-select-colaborador" hidden>
+          <label for="filtro-colaborador">Colaborador</label>
+          <select id="filtro-colaborador" style="min-width: 220px;"></select>
+        </div>
+        <div class="field">
+          <label for="filtro-data-inicio">De</label>
+          <input type="date" id="filtro-data-inicio">
+        </div>
+        <div class="field">
+          <label for="filtro-data-fim">Até</label>
+          <input type="date" id="filtro-data-fim">
+        </div>
+        <div class="field">
+          <button class="btn-primary" id="btn-aplicar-periodo" style="width: auto; padding: 10px 20px;">Aplicar</button>
+        </div>
+        <div class="field" style="margin-left: auto;">
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-ghost" id="btn-exportar-pdf">Exportar PDF</button>
+            <button class="btn-ghost" id="btn-exportar-csv">Exportar Excel</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="relatorio-conteudo">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/relatorios.js"></script>
+</body>
+</html>

@@ -157,6 +157,7 @@ MODULOS_PERMISSAO = [
     {"chave": "usuarios", "label": "Usuários (gerenciar contas)", "padrao_escritorio_apenas": True},
     {"chave": "criar_cliente", "label": "Criar/editar clientes", "padrao_escritorio_apenas": True},
     {"chave": "criar_colaborador", "label": "Criar/editar colaboradores", "padrao_escritorio_apenas": True},
+    {"chave": "relatorios", "label": "Relatórios gerenciais", "padrao_escritorio_apenas": True},
 ]
 CHAVES_MODULOS_VALIDAS = {m["chave"] for m in MODULOS_PERMISSAO}
 
@@ -305,6 +306,11 @@ def pagina_veiculo_detalhe():
 @app.get("/permissoes", include_in_schema=False)
 def pagina_permissoes():
     return FileResponse("static/permissoes.html")
+
+
+@app.get("/relatorios", include_in_schema=False)
+def pagina_relatorios():
+    return FileResponse("static/relatorios.html")
 
 
 @app.get("/ocorrencias", include_in_schema=False)
@@ -1908,6 +1914,309 @@ def resetar_permissao(
         db.delete(override)
         db.commit()
     return {"usuario_id": usuario_id, "modulo": modulo, "resetado": True}
+
+
+# ---------------------------------------------------------------------------
+# Relatorio gerencial
+# ---------------------------------------------------------------------------
+
+@app.get("/relatorios-dados")
+def relatorio_gerencial(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    filtro_criado = func.date(Chamado.criado_em).between(inicio, fim)
+    filtro_finalizado = func.date(Chamado.finalizado_em).between(inicio, fim)
+
+    # ---------- Chamados ----------
+    total_abertos = db.query(Chamado).filter(filtro_criado).count()
+    total_finalizados = db.query(Chamado).filter(filtro_finalizado).count()
+
+    por_tipo_query = (
+        db.query(Chamado.tipo, func.count(Chamado.id))
+        .filter(filtro_criado)
+        .group_by(Chamado.tipo)
+        .order_by(func.count(Chamado.id).desc())
+        .all()
+    )
+    labels_tipo = {t["chave"]: t["label"] for t in TIPOS_CHAMADO}
+    chamados_por_tipo = [{"tipo": labels_tipo.get(t, t), "total": n} for t, n in por_tipo_query]
+
+    por_prioridade_query = (
+        db.query(Chamado.prioridade, func.count(Chamado.id))
+        .filter(filtro_criado)
+        .group_by(Chamado.prioridade)
+        .all()
+    )
+    labels_prioridade = {p["chave"]: p["label"] for p in PRIORIDADES_CHAMADO}
+    chamados_por_prioridade = [
+        {"prioridade": labels_prioridade.get(p, p), "total": n} for p, n in por_prioridade_query
+    ]
+
+    tempo_medio_query = (
+        db.query(func.avg(func.extract("epoch", Chamado.finalizado_em - Chamado.criado_em)))
+        .filter(filtro_finalizado)
+        .scalar()
+    )
+    tempo_medio_horas = round(tempo_medio_query / 3600, 1) if tempo_medio_query else None
+
+    top_clientes_query = (
+        db.query(Cliente.nome, func.count(Chamado.id).label("total"))
+        .join(Chamado, Chamado.cliente_id == Cliente.id)
+        .filter(filtro_criado)
+        .group_by(Cliente.nome)
+        .order_by(func.count(Chamado.id).desc())
+        .limit(5)
+        .all()
+    )
+    top_clientes = [{"cliente": nome, "total": total} for nome, total in top_clientes_query]
+
+    top_supervisores_query = (
+        db.query(Usuario.nome, func.count(Chamado.id).label("total"))
+        .join(Chamado, Chamado.responsavel_id == Usuario.id)
+        .filter(filtro_finalizado)
+        .group_by(Usuario.nome)
+        .order_by(func.count(Chamado.id).desc())
+        .limit(5)
+        .all()
+    )
+    top_supervisores = [{"supervisor": nome, "total": total} for nome, total in top_supervisores_query]
+
+    # ---------- Colaboradores ----------
+    total_colaboradores_ativos = db.query(Colaborador).filter(Colaborador.status != "desligado").count()
+    admissoes_periodo = (
+        db.query(Colaborador).filter(Colaborador.data_admissao.between(inicio, fim)).count()
+    )
+    faltas_periodo = (
+        db.query(ColaboradorEvento)
+        .filter(ColaboradorEvento.tipo == "falta", ColaboradorEvento.data_inicio.between(inicio, fim))
+        .count()
+    )
+    advertencias_periodo = (
+        db.query(ColaboradorEvento)
+        .filter(ColaboradorEvento.tipo == "advertencia", func.date(ColaboradorEvento.criado_em).between(inicio, fim))
+        .count()
+    )
+
+    hoje_real = date.today()
+    subquery_aso = (
+        db.query(
+            ColaboradorEvento.colaborador_id,
+            func.max(ColaboradorEvento.data_fim).label("data_fim_max"),
+        )
+        .filter(ColaboradorEvento.tipo == "aso", ColaboradorEvento.data_fim.isnot(None))
+        .group_by(ColaboradorEvento.colaborador_id)
+        .subquery()
+    )
+    asos_vencidos_atual = (
+        db.query(ColaboradorEvento)
+        .join(
+            subquery_aso,
+            (ColaboradorEvento.colaborador_id == subquery_aso.c.colaborador_id)
+            & (ColaboradorEvento.data_fim == subquery_aso.c.data_fim_max),
+        )
+        .filter(ColaboradorEvento.tipo == "aso", ColaboradorEvento.data_fim < hoje_real)
+        .count()
+    )
+
+    # ---------- Veiculos ----------
+    manutencoes_periodo_query = (
+        db.query(ManutencaoVeiculo.tipo, func.count(ManutencaoVeiculo.id), func.sum(ManutencaoVeiculo.custo))
+        .filter(ManutencaoVeiculo.data.between(inicio, fim))
+        .group_by(ManutencaoVeiculo.tipo)
+        .all()
+    )
+    manutencoes_por_tipo = [
+        {"tipo": "Preventiva" if t == "preventiva" else "Corretiva", "total": n, "custo": float(c) if c else 0.0}
+        for t, n, c in manutencoes_periodo_query
+    ]
+    custo_total_periodo = sum(m["custo"] for m in manutencoes_por_tipo)
+
+    custo_por_veiculo_query = (
+        db.query(Veiculo.placa, Veiculo.apelido, func.count(ManutencaoVeiculo.id), func.sum(ManutencaoVeiculo.custo))
+        .join(ManutencaoVeiculo, ManutencaoVeiculo.veiculo_id == Veiculo.id)
+        .filter(ManutencaoVeiculo.data.between(inicio, fim))
+        .group_by(Veiculo.placa, Veiculo.apelido)
+        .all()
+    )
+    custo_por_veiculo = [
+        {
+            "veiculo": apelido or placa,
+            "total_manutencoes": n,
+            "custo": float(c) if c else 0.0,
+        }
+        for placa, apelido, n, c in custo_por_veiculo_query
+    ]
+
+    # ---------- Clientes ----------
+    total_clientes_ativos = db.query(Cliente).filter(Cliente.ativo.is_(True)).count()
+    novos_clientes_periodo = db.query(Cliente).filter(func.date(Cliente.criado_em).between(inicio, fim)).count()
+
+    return {
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "chamados": {
+            "total_abertos": total_abertos,
+            "total_finalizados": total_finalizados,
+            "tempo_medio_horas": tempo_medio_horas,
+            "por_tipo": chamados_por_tipo,
+            "por_prioridade": chamados_por_prioridade,
+            "top_clientes": top_clientes,
+            "top_supervisores": top_supervisores,
+        },
+        "colaboradores": {
+            "total_ativos": total_colaboradores_ativos,
+            "admissoes_periodo": admissoes_periodo,
+            "faltas_periodo": faltas_periodo,
+            "advertencias_periodo": advertencias_periodo,
+            "asos_vencidos_atual": asos_vencidos_atual,
+        },
+        "veiculos": {
+            "custo_total_periodo": custo_total_periodo,
+            "manutencoes_por_tipo": manutencoes_por_tipo,
+            "custo_por_veiculo": custo_por_veiculo,
+        },
+        "clientes": {
+            "total_ativos": total_clientes_ativos,
+            "novos_periodo": novos_clientes_periodo,
+        },
+    }
+
+
+@app.get("/relatorios-dados/cliente/{cliente_id}")
+def relatorio_por_cliente(
+    cliente_id: int,
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    cliente = db.get(Cliente, cliente_id)
+    if cliente is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    chamados_periodo = (
+        db.query(Chamado)
+        .filter(Chamado.cliente_id == cliente_id, func.date(Chamado.criado_em).between(inicio, fim))
+        .order_by(Chamado.criado_em.desc())
+        .all()
+    )
+
+    labels_tipo = {t["chave"]: t["label"] for t in TIPOS_CHAMADO}
+    labels_prioridade = {p["chave"]: p["label"] for p in PRIORIDADES_CHAMADO}
+    labels_status = {s["chave"]: s["label"] for s in STATUS_CHAMADO}
+
+    contagem_tipo: dict[str, int] = {}
+    contagem_status: dict[str, int] = {}
+    contagem_prioridade: dict[str, int] = {}
+    for c in chamados_periodo:
+        contagem_tipo[c.tipo] = contagem_tipo.get(c.tipo, 0) + 1
+        contagem_status[c.status] = contagem_status.get(c.status, 0) + 1
+        contagem_prioridade[c.prioridade] = contagem_prioridade.get(c.prioridade, 0) + 1
+
+    finalizados = [c for c in chamados_periodo if c.status == "finalizado" and c.finalizado_em is not None]
+    if finalizados:
+        soma_horas = sum((c.finalizado_em - c.criado_em).total_seconds() for c in finalizados) / 3600
+        tempo_medio_horas = round(soma_horas / len(finalizados), 1)
+    else:
+        tempo_medio_horas = None
+
+    horarios = (
+        db.query(HorarioServico)
+        .filter(HorarioServico.cliente_id == cliente_id)
+        .all()
+    )
+    quem_atende = sorted({h.colaborador.nome for h in horarios})
+
+    return {
+        "cliente": {"id": cliente.id, "nome": cliente.nome, "empresa_nome": cliente.empresa.nome},
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "total_chamados": len(chamados_periodo),
+        "tempo_medio_horas": tempo_medio_horas,
+        "por_tipo": [{"tipo": labels_tipo.get(k, k), "total": v} for k, v in contagem_tipo.items()],
+        "por_status": [{"status": labels_status.get(k, k), "total": v} for k, v in contagem_status.items()],
+        "por_prioridade": [{"prioridade": labels_prioridade.get(k, k), "total": v} for k, v in contagem_prioridade.items()],
+        "quem_atende": quem_atende,
+        "chamados": [
+            {
+                "data": c.criado_em.date().isoformat(),
+                "tipo": labels_tipo.get(c.tipo, c.tipo),
+                "prioridade": labels_prioridade.get(c.prioridade, c.prioridade),
+                "status": labels_status.get(c.status, c.status),
+                "responsavel": c.responsavel.nome if c.responsavel else "—",
+                "descricao": c.descricao,
+            }
+            for c in chamados_periodo
+        ],
+    }
+
+
+@app.get("/relatorios-dados/colaborador/{colaborador_id}")
+def relatorio_por_colaborador(
+    colaborador_id: int,
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    colaborador = db.get(Colaborador, colaborador_id)
+    if colaborador is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador não encontrado")
+
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    data_referencia = func.coalesce(ColaboradorEvento.data_inicio, func.date(ColaboradorEvento.criado_em))
+    eventos = (
+        db.query(ColaboradorEvento)
+        .filter(ColaboradorEvento.colaborador_id == colaborador_id, data_referencia.between(inicio, fim))
+        .order_by(ColaboradorEvento.criado_em.desc())
+        .all()
+    )
+
+    labels_tipo = {t["chave"]: t["label"] for t in TIPOS_EVENTO_COLABORADOR}
+    contagem_tipo: dict[str, int] = {}
+    for e in eventos:
+        contagem_tipo[e.tipo] = contagem_tipo.get(e.tipo, 0) + 1
+
+    return {
+        "colaborador": {
+            "id": colaborador.id,
+            "nome": colaborador.nome,
+            "cargo": colaborador.cargo,
+            "empresa_nome": colaborador.empresa.nome,
+            "status": colaborador.status,
+        },
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "total_eventos": len(eventos),
+        "por_tipo": [{"tipo": labels_tipo.get(k, k), "total": v} for k, v in contagem_tipo.items()],
+        "eventos": [
+            {
+                "data": (e.data_inicio.isoformat() if e.data_inicio else e.criado_em.date().isoformat()),
+                "tipo": labels_tipo.get(e.tipo, e.tipo),
+                "descricao": e.descricao or "—",
+                "registrado_por": e.registrado_por.nome,
+            }
+            for e in eventos
+        ],
+    }
 
 
 

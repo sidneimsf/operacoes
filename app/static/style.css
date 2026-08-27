@@ -1306,6 +1306,75 @@ button {
   color: var(--accent);
 }
 
+.tabs-relatorio {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-relatorio {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tab-relatorio:hover {
+  color: var(--text);
+}
+
+.tab-relatorio.ativa {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+
+@media print {
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f7f7;
+    --surface-2: #eeeeee;
+    --border: #cccccc;
+    --text: #111111;
+    --text-muted: #444444;
+    --accent: #b5760a;
+    --accent-dark: #8a5a08;
+    --danger: #a83228;
+    --danger-bg: #f5e0dd;
+    --success: #2e7a53;
+  }
+
+  .sidebar,
+  .topbar,
+  .tabs-relatorio,
+  .filter-row,
+  .btn-primary,
+  .btn-ghost {
+    display: none !important;
+  }
+
+  .app-shell, .main-area, .content {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .kpi-card, .table-list, .postit {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
+
 .timeline-item {
   display: flex;
   gap: 16px;

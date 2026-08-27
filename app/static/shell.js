@@ -12,6 +12,7 @@ const Shell = (() => {
     asos: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M9 3h6v4H9z"/><path d="m9 14 2 2 4-4"/>',
     veiculos: '<path d="M5 17h14M5 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm14 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5 17V9l2-4h10l2 4v8"/><path d="M5 12h14"/>',
     permissoes: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
+    relatorios: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
   };
 
   const NAV_ITEMS = [
@@ -22,6 +23,7 @@ const Shell = (() => {
     { key: 'avisos', label: 'Avisos', href: '/avisos' },
     { key: 'asos', label: 'ASOs', href: '/asos', papeis: ['escritorio'] },
     { key: 'veiculos', label: 'Veículos', href: '/veiculos', papeis: ['escritorio'] },
+    { key: 'relatorios', label: 'Relatórios', href: '/relatorios', papeis: ['escritorio'] },
     { key: 'usuarios', label: 'Usuários', href: '/usuarios', papeis: ['escritorio'] },
     { key: 'permissoes', label: 'Permissões', href: '/permissoes', apenasSuperAdmin: true },
   ];
