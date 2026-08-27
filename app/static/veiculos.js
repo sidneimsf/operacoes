@@ -33,6 +33,10 @@ async function carregarVeiculos() {
     if (veiculos === null) return;
     renderizarLista(veiculos);
   } catch (erro) {
+    if (erro.status === 403) {
+      container.innerHTML = '<div class="empty-state">Esta área é restrita à equipe do escritório.</div>';
+      return;
+    }
     container.innerHTML = '<div class="empty-state">Não foi possível carregar os veículos agora.</div>';
   }
 }

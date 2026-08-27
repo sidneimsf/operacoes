@@ -391,6 +391,11 @@ async function iniciar() {
 
     await carregarManutencoes();
   } catch (erro) {
+    if (erro.status === 403) {
+      document.getElementById('veiculo-header').innerHTML =
+        '<div class="empty-state">Esta área é restrita à equipe do escritório.</div>';
+      return;
+    }
     document.getElementById('veiculo-header').innerHTML =
       '<div class="empty-state">Não foi possível carregar os dados agora.</div>';
   }

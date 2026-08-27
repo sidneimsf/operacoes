@@ -20,7 +20,7 @@ const Shell = (() => {
     { key: 'ocorrencias', label: 'Ocorrências', href: '/ocorrencias' },
     { key: 'avisos', label: 'Avisos', href: '/avisos' },
     { key: 'asos', label: 'ASOs', href: '/asos', papeis: ['escritorio'] },
-    { key: 'veiculos', label: 'Veículos', href: '/veiculos' },
+    { key: 'veiculos', label: 'Veículos', href: '/veiculos', papeis: ['escritorio'] },
     { key: 'usuarios', label: 'Usuários', href: '/usuarios', papeis: ['escritorio'] },
   ];
 

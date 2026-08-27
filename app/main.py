@@ -1568,7 +1568,7 @@ def serializar_manutencao(m: ManutencaoVeiculo) -> dict:
 def listar_veiculos(
     incluir_inativos: bool = False,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     query = db.query(Veiculo)
     if not incluir_inativos:
@@ -1606,7 +1606,7 @@ def criar_veiculo(
 def detalhe_veiculo(
     veiculo_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     veiculo = db.get(Veiculo, veiculo_id)
     if veiculo is None:
@@ -1619,7 +1619,7 @@ def editar_veiculo(
     veiculo_id: int,
     dados: VeiculoUpdate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     veiculo = db.get(Veiculo, veiculo_id)
     if veiculo is None:
@@ -1670,7 +1670,7 @@ def excluir_veiculo(
 def listar_manutencoes(
     veiculo_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     manutencoes = (
         db.query(ManutencaoVeiculo)
@@ -1686,7 +1686,7 @@ def criar_manutencao(
     veiculo_id: int,
     dados: ManutencaoVeiculoCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     veiculo = db.get(Veiculo, veiculo_id)
     if veiculo is None:
@@ -1724,7 +1724,7 @@ def editar_manutencao(
     manutencao_id: int,
     dados: ManutencaoVeiculoUpdate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     manutencao = db.get(ManutencaoVeiculo, manutencao_id)
     if manutencao is None:
@@ -1757,7 +1757,7 @@ def editar_manutencao(
 def excluir_manutencao(
     manutencao_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
 ):
     manutencao = db.get(ManutencaoVeiculo, manutencao_id)
     if manutencao is None:
