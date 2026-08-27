@@ -149,6 +149,7 @@ class TokenResponse(BaseModel):
     id: int
     nome: str
     papel: str
+    super_admin: bool = False
 
 
 class UsuarioOut(BaseModel):
@@ -159,3 +160,7 @@ class UsuarioOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PermissaoUpdate(BaseModel):
+    habilitado: bool

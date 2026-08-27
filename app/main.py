@@ -24,6 +24,7 @@ from models import (
     HorarioServico,
     ManutencaoVeiculo,
     Usuario,
+    UsuarioPermissao,
     Veiculo,
 )
 from schemas import (
@@ -41,6 +42,7 @@ from schemas import (
     LoginRequest,
     ManutencaoVeiculoCreate,
     ManutencaoVeiculoUpdate,
+    PermissaoUpdate,
     TokenResponse,
     VeiculoCreate,
     VeiculoUpdate,
@@ -145,6 +147,62 @@ def exigir_papel(*papeis_permitidos: str):
     return verificador
 
 
+# ---------------------------------------------------------------------------
+# Permissoes configuraveis por usuario (alem do papel padrao)
+# ---------------------------------------------------------------------------
+
+MODULOS_PERMISSAO = [
+    {"chave": "veiculos", "label": "Veículos", "padrao_escritorio_apenas": True},
+    {"chave": "asos", "label": "ASOs", "padrao_escritorio_apenas": True},
+    {"chave": "usuarios", "label": "Usuários (gerenciar contas)", "padrao_escritorio_apenas": True},
+    {"chave": "criar_cliente", "label": "Criar/editar clientes", "padrao_escritorio_apenas": True},
+    {"chave": "criar_colaborador", "label": "Criar/editar colaboradores", "padrao_escritorio_apenas": True},
+]
+CHAVES_MODULOS_VALIDAS = {m["chave"] for m in MODULOS_PERMISSAO}
+
+
+def tem_permissao(db: Session, usuario: Usuario, modulo: str) -> bool:
+    """
+    Um override explicito (criado por um super_admin) sempre vale por
+    cima da regra padrao do modulo. Sem override, usa a regra padrao:
+    modulos marcados como 'padrao_escritorio_apenas' exigem papel
+    escritorio; os demais ficam liberados pra qualquer usuario logado.
+    """
+    override = (
+        db.query(UsuarioPermissao)
+        .filter_by(usuario_id=usuario.id, modulo=modulo)
+        .first()
+    )
+    if override is not None:
+        return override.habilitado
+
+    info_modulo = next((m for m in MODULOS_PERMISSAO if m["chave"] == modulo), None)
+    if info_modulo is not None and info_modulo["padrao_escritorio_apenas"]:
+        return usuario.papel == "escritorio"
+    return True
+
+
+def exigir_modulo(modulo: str):
+    """Dependencia que checa a permissao efetiva (override ou padrao) para um modulo."""
+    def verificador(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+        if not tem_permissao(db, usuario, modulo):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Voce nao tem permissao para acessar esta area",
+            )
+        return usuario
+    return verificador
+
+
+def exigir_super_admin(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+    if not usuario.super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas administradores podem acessar isso",
+        )
+    return usuario
+
+
 def serializar_chamado(c: Chamado) -> dict:
     return {
         "id": c.id,
@@ -244,6 +302,11 @@ def pagina_veiculo_detalhe():
     return FileResponse("static/veiculo-detalhe.html")
 
 
+@app.get("/permissoes", include_in_schema=False)
+def pagina_permissoes():
+    return FileResponse("static/permissoes.html")
+
+
 @app.get("/ocorrencias", include_in_schema=False)
 def pagina_ocorrencias():
     return FileResponse("static/ocorrencias.html")
@@ -283,7 +346,9 @@ def login(dados: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email ou senha invalidos")
 
     token = criar_token(usuario.id, usuario.papel)
-    return TokenResponse(access_token=token, id=usuario.id, nome=usuario.nome, papel=usuario.papel)
+    return TokenResponse(
+        access_token=token, id=usuario.id, nome=usuario.nome, papel=usuario.papel, super_admin=usuario.super_admin
+    )
 
 
 @app.get("/auth/me")
@@ -442,7 +507,7 @@ def listar_clientes(
 def criar_cliente(
     dados: ClienteCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
 ):
     empresa = db.get(Empresa, dados.empresa_id)
     if empresa is None:
@@ -593,7 +658,7 @@ def _validar_aniversario(dia: int | None, mes: int | None) -> None:
 def criar_colaborador(
     dados: ColaboradorCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("criar_colaborador")),
 ):
     empresa = db.get(Empresa, dados.empresa_id)
     if empresa is None:
@@ -1119,7 +1184,7 @@ def remover_horario(
 @app.get("/usuarios-dados")
 def listar_usuarios(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("usuarios")),
 ):
     usuarios = db.query(Usuario).order_by(Usuario.nome).all()
     return [
@@ -1402,7 +1467,7 @@ def confirmar_chamado_finalizado(
 @app.get("/asos-dados")
 def listar_asos(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("asos")),
 ):
     """Painel de controle de ASOs - o ASO mais recente de cada colaborador ativo, com status de vencimento."""
     subquery = (
@@ -1460,7 +1525,7 @@ def listar_asos(
 @app.post("/asos-dados/testar-email")
 def testar_email_aso(
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("asos")),
 ):
     """Dispara a checagem de ASOs e o envio do e-mail na hora, para teste."""
     try:
@@ -1568,7 +1633,7 @@ def serializar_manutencao(m: ManutencaoVeiculo) -> dict:
 def listar_veiculos(
     incluir_inativos: bool = False,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     query = db.query(Veiculo)
     if not incluir_inativos:
@@ -1581,7 +1646,7 @@ def listar_veiculos(
 def criar_veiculo(
     dados: VeiculoCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     placa = dados.placa.strip().upper()
     if not placa:
@@ -1606,7 +1671,7 @@ def criar_veiculo(
 def detalhe_veiculo(
     veiculo_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     veiculo = db.get(Veiculo, veiculo_id)
     if veiculo is None:
@@ -1619,7 +1684,7 @@ def editar_veiculo(
     veiculo_id: int,
     dados: VeiculoUpdate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     veiculo = db.get(Veiculo, veiculo_id)
     if veiculo is None:
@@ -1657,7 +1722,7 @@ def editar_veiculo(
 def excluir_veiculo(
     veiculo_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     veiculo = db.get(Veiculo, veiculo_id)
     if veiculo is None:
@@ -1670,7 +1735,7 @@ def excluir_veiculo(
 def listar_manutencoes(
     veiculo_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     manutencoes = (
         db.query(ManutencaoVeiculo)
@@ -1686,7 +1751,7 @@ def criar_manutencao(
     veiculo_id: int,
     dados: ManutencaoVeiculoCreate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     veiculo = db.get(Veiculo, veiculo_id)
     if veiculo is None:
@@ -1724,7 +1789,7 @@ def editar_manutencao(
     manutencao_id: int,
     dados: ManutencaoVeiculoUpdate,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     manutencao = db.get(ManutencaoVeiculo, manutencao_id)
     if manutencao is None:
@@ -1757,12 +1822,92 @@ def editar_manutencao(
 def excluir_manutencao(
     manutencao_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_papel("escritorio")),
+    usuario: Usuario = Depends(exigir_modulo("veiculos")),
 ):
     manutencao = db.get(ManutencaoVeiculo, manutencao_id)
     if manutencao is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro não encontrado")
     db.delete(manutencao)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Administracao de permissoes (so super_admin: Caroline e Sidnei)
+# ---------------------------------------------------------------------------
+
+@app.get("/admin/permissoes")
+def listar_permissoes(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_super_admin),
+):
+    usuarios = db.query(Usuario).filter_by(ativo=True).order_by(Usuario.nome).all()
+    overrides = {(o.usuario_id, o.modulo): o.habilitado for o in db.query(UsuarioPermissao).all()}
+
+    linhas = []
+    for u in usuarios:
+        permissoes = {}
+        for modulo_info in MODULOS_PERMISSAO:
+            chave = modulo_info["chave"]
+            tem_override = (u.id, chave) in overrides
+            efetivo = tem_permissao(db, u, chave)
+            permissoes[chave] = {"efetivo": efetivo, "tem_override": tem_override}
+        linhas.append(
+            {
+                "usuario_id": u.id,
+                "nome": u.nome,
+                "papel": u.papel,
+                "super_admin": u.super_admin,
+                "permissoes": permissoes,
+            }
+        )
+
+    return {"modulos": MODULOS_PERMISSAO, "usuarios": linhas}
+
+
+@app.put("/admin/permissoes/{usuario_id}/{modulo}")
+def definir_permissao(
+    usuario_id: int,
+    modulo: str,
+    dados: PermissaoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_super_admin),
+):
+    if modulo not in CHAVES_MODULOS_VALIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Modulo invalido")
+
+    alvo = db.get(Usuario, usuario_id)
+    if alvo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+
+    habilitado = dados.habilitado
+
+    override = db.query(UsuarioPermissao).filter_by(usuario_id=usuario_id, modulo=modulo).first()
+    if override is None:
+        override = UsuarioPermissao(
+            usuario_id=usuario_id, modulo=modulo, habilitado=habilitado, atualizado_por_id=usuario.id
+        )
+        db.add(override)
+    else:
+        override.habilitado = habilitado
+        override.atualizado_por_id = usuario.id
+
+    db.commit()
+    return {"usuario_id": usuario_id, "modulo": modulo, "habilitado": habilitado}
+
+
+@app.delete("/admin/permissoes/{usuario_id}/{modulo}")
+def resetar_permissao(
+    usuario_id: int,
+    modulo: str,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_super_admin),
+):
+    """Remove o override, voltando o usuario para a regra padrao do modulo."""
+    override = db.query(UsuarioPermissao).filter_by(usuario_id=usuario_id, modulo=modulo).first()
+    if override is not None:
+        db.delete(override)
+        db.commit()
+    return {"usuario_id": usuario_id, "modulo": modulo, "resetado": True}
+
 
 

@@ -95,6 +95,7 @@ class Usuario(Base):
     senha_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     papel: Mapped[str] = mapped_column(String(20), nullable=False)  # "supervisor" ou "escritorio"
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    super_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # so Caroline e Sidnei - gerencia permissoes
     avisos_vistos_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
@@ -277,3 +278,29 @@ class ManutencaoVeiculo(Base):
 
     def __repr__(self) -> str:
         return f"<ManutencaoVeiculo {self.tipo} - veiculo {self.veiculo_id}>"
+
+
+class UsuarioPermissao(Base):
+    """
+    Permissao explicita de um usuario para um modulo especifico,
+    definida por um super_admin (Caroline/Sidnei). Quando existe uma
+    linha aqui para (usuario, modulo), ela vale por cima da regra
+    padrao do sistema (habilitado=True libera mesmo se o padrao
+    bloquearia; habilitado=False bloqueia mesmo se o padrao liberaria).
+    Sem linha aqui, vale a regra padrao de cada modulo.
+    """
+    __tablename__ = "usuario_permissoes"
+    __table_args__ = (UniqueConstraint("usuario_id", "modulo", name="uq_usuario_modulo"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    modulo: Mapped[str] = mapped_column(String(50), nullable=False)
+    habilitado: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    atualizado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc, onupdate=agora_utc)
+
+    usuario: Mapped["Usuario"] = relationship(foreign_keys=[usuario_id])
+    atualizado_por: Mapped["Usuario"] = relationship(foreign_keys=[atualizado_por_id])
+
+    def __repr__(self) -> str:
+        return f"<UsuarioPermissao usuario={self.usuario_id} modulo={self.modulo} habilitado={self.habilitado}>"

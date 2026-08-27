@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permissões · operações</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="section-title">Controle de acesso por usuário</div>
+      <div class="meta" style="margin-bottom: 20px;">
+        Cada módulo tem uma regra padrão (geralmente restrita ao escritório). Aqui você pode conceder ou revogar
+        acesso individualmente, por pessoa — isso sempre vale por cima da regra padrão.
+      </div>
+
+      <div id="matriz-permissoes">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/permissoes.js"></script>
+</body>
+</html>
