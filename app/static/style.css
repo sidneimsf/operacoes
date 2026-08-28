@@ -1,17 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg: #10151b;
-  --surface: #1a222b;
-  --surface-2: #212b35;
-  --border: #2c3844;
-  --text: #eef1f4;
-  --text-muted: #8fa0ac;
-  --accent: #e8a33d;
-  --accent-dark: #c27f1e;
-  --danger: #e2574c;
-  --danger-bg: #3a2320;
-  --success: #5cb88a;
+  /* Paleta baseada na identidade visual real da Cordsul (extraída da logomarca oficial) */
+  --bg: #171d33;
+  --surface: #1f2640;
+  --surface-2: #272f4e;
+  --border: #37406a;
+  --text: #f1f2f7;
+  --text-muted: #9aa2c4;
+  --accent: #d4af37;
+  --accent-dark: #a9861f;
+  --danger: #dd5147;
+  --danger-bg: #3a2020;
+  --success: #4caf7d;
   --radius: 10px;
 }
 
@@ -79,7 +80,7 @@ button {
 
 .login-brand {
   background:
-    radial-gradient(circle at 15% 15%, rgba(232, 163, 61, 0.10), transparent 45%),
+    radial-gradient(circle at 15% 15%, rgba(212, 175, 55, 0.10), transparent 45%),
     var(--bg);
   border-right: 1px solid var(--border);
   padding: 56px 48px;
@@ -96,19 +97,22 @@ button {
   }
 }
 
-.login-brand .wordmark {
-  font-size: 15px;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-family: 'IBM Plex Mono', monospace;
+.login-logo {
+  width: 120px;
+  height: auto;
+  display: block;
+  margin-bottom: 22px;
 }
 
-.login-brand h1 {
-  font-size: clamp(32px, 4vw, 44px);
-  line-height: 1.1;
-  margin: 18px 0 12px;
+.login-brand .wordmark {
+  display: block;
+  font-size: clamp(26px, 3.4vw, 36px);
+  color: var(--text);
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
+  margin: 0 0 14px;
 }
 
 .login-brand p {
@@ -365,24 +369,26 @@ button {
 }
 
 .sidebar .wordmark-block {
-  padding: 0 20px 18px;
+  padding: 18px 20px 16px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
+  text-align: center;
 }
 
-.sidebar .wordmark-block .wordmark {
-  font-family: 'IBM Plex Mono', monospace;
-  color: var(--accent);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+.sidebar-logo {
+  width: 76px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
 }
 
 .sidebar .wordmark-block .app-name {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  margin-top: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+  margin-top: 8px;
 }
 
 .sidebar-nav {
@@ -622,8 +628,8 @@ button {
   white-space: nowrap;
 }
 
-.evento-tipo-badge.atestado { background: rgba(232, 163, 61, 0.15); color: var(--accent); }
-.evento-tipo-badge.falta { background: rgba(226, 87, 76, 0.15); color: var(--danger); }
+.evento-tipo-badge.atestado { background: rgba(212, 175, 55, 0.15); color: var(--accent); }
+.evento-tipo-badge.falta { background: rgba(221, 81, 71, 0.15); color: var(--danger); }
 .evento-tipo-badge.cobertura { background: rgba(92, 184, 138, 0.15); color: var(--success); }
 .evento-tipo-badge.documento { background: rgba(140, 170, 220, 0.15); color: #8caadc; }
 .evento-tipo-badge.ferias { background: rgba(196, 140, 220, 0.15); color: #c88cdc; }
@@ -802,12 +808,12 @@ button {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 0 0 3px rgba(232, 163, 61, 0.18);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
 }
 
 .btn-abrir-chamado:hover {
   background: var(--accent-dark);
-  box-shadow: 0 0 0 4px rgba(232, 163, 61, 0.22);
+  box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.22);
 }
 
 .modal-overlay {
@@ -912,7 +918,7 @@ button {
 }
 
 .status-badge.novo {
-  background: rgba(232, 163, 61, 0.15);
+  background: rgba(212, 175, 55, 0.15);
   color: var(--accent);
 }
 
@@ -948,8 +954,8 @@ button {
 /* ---------- Aviso de chamados atribuídos (painel do supervisor) ---------- */
 
 .alert-banner {
-  background: rgba(232, 163, 61, 0.08);
-  border: 1px solid rgba(232, 163, 61, 0.35);
+  background: rgba(212, 175, 55, 0.08);
+  border: 1px solid rgba(212, 175, 55, 0.35);
   border-radius: var(--radius);
   padding: 16px 18px;
   margin-bottom: 26px;
@@ -1076,12 +1082,12 @@ button {
 }
 
 .priority-badge.urgente {
-  background: rgba(232, 163, 61, 0.15);
+  background: rgba(212, 175, 55, 0.15);
   color: var(--accent);
 }
 
 .priority-badge.urgentissimo {
-  background: rgba(226, 87, 76, 0.15);
+  background: rgba(221, 81, 71, 0.15);
   color: var(--danger);
 }
 
@@ -1095,12 +1101,12 @@ button {
 }
 
 .aso-badge.vencido {
-  background: rgba(226, 87, 76, 0.15);
+  background: rgba(221, 81, 71, 0.15);
   color: var(--danger);
 }
 
 .aso-badge.proximo {
-  background: rgba(232, 163, 61, 0.15);
+  background: rgba(212, 175, 55, 0.15);
   color: var(--accent);
 }
 
@@ -1287,7 +1293,7 @@ button {
   text-transform: uppercase;
   padding: 2px 6px;
   border-radius: 10px;
-  background: rgba(232, 163, 61, 0.15);
+  background: rgba(212, 175, 55, 0.15);
   color: var(--accent);
   vertical-align: middle;
 }
@@ -1342,9 +1348,9 @@ button {
     --border: #cccccc;
     --text: #111111;
     --text-muted: #444444;
-    --accent: #b5760a;
-    --accent-dark: #8a5a08;
-    --danger: #a83228;
+    --accent: #a9861f;
+    --accent-dark: #8a6f1a;
+    --danger: #9e1b2a;
     --danger-bg: #f5e0dd;
     --success: #2e7a53;
   }
@@ -1455,8 +1461,8 @@ button {
 
 .postit:nth-child(4n+1) {
   transform: rotate(-1.5deg);
-  background: rgba(232, 163, 61, 0.10);
-  border: 1px solid rgba(232, 163, 61, 0.28);
+  background: rgba(212, 175, 55, 0.10);
+  border: 1px solid rgba(212, 175, 55, 0.28);
 }
 
 .postit:nth-child(4n+2) {
@@ -1504,7 +1510,7 @@ button {
 
 .postit-excluir:hover {
   color: var(--danger);
-  background: rgba(226, 87, 76, 0.12);
+  background: rgba(221, 81, 71, 0.12);
 }
 
 .postit .mensagem {

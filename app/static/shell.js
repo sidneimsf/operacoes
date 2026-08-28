@@ -105,7 +105,7 @@ const Shell = (() => {
     const sidebarHtml = `
       <div class="sidebar">
         <div class="wordmark-block">
-          <span class="wordmark">SolarSync</span>
+          <img src="/static/logo-cordsul.svg" alt="Cordsul" class="sidebar-logo">
           <div class="app-name">operações</div>
         </div>
         <nav class="sidebar-nav">${linksHtml}</nav>
