@@ -13,6 +13,7 @@ const Shell = (() => {
     veiculos: '<path d="M5 17h14M5 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm14 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5 17V9l2-4h10l2 4v8"/><path d="M5 12h14"/>',
     permissoes: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
     relatorios: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+    'custos-diarios': '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1.5"/>',
   };
 
   const NAV_ITEMS = [
@@ -21,6 +22,7 @@ const Shell = (() => {
     { key: 'colaboradores', label: 'Colaboradores', href: '/colaboradores' },
     { key: 'ocorrencias', label: 'Ocorrências', href: '/ocorrencias' },
     { key: 'avisos', label: 'Avisos', href: '/avisos' },
+    { key: 'custos-diarios', label: 'Custos Diários', href: '/custos-diarios' },
     { key: 'asos', label: 'ASOs', href: '/asos', papeis: ['escritorio'] },
     { key: 'veiculos', label: 'Veículos', href: '/veiculos', papeis: ['escritorio'] },
     { key: 'relatorios', label: 'Relatórios', href: '/relatorios', papeis: ['escritorio'] },

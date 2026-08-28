@@ -280,6 +280,31 @@ class ManutencaoVeiculo(Base):
         return f"<ManutencaoVeiculo {self.tipo} - veiculo {self.veiculo_id}>"
 
 
+class CustoDiario(Base):
+    """
+    Custo do proprio bolso que um usuario (normalmente supervisor) paga
+    durante o dia, para depois ser reembolsado pelo escritorio.
+    """
+    __tablename__ = "custos_diarios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(50), nullable=False)
+    valor: Mapped[float] = mapped_column(Float, nullable=False)
+    data: Mapped[date] = mapped_column(Date, nullable=False)
+    descricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    comprovante_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    comprovante_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    reembolsado: Mapped[bool] = mapped_column(Boolean, default=False)
+    notificado: Mapped[bool] = mapped_column(Boolean, default=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    usuario: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<CustoDiario {self.tipo} - usuario {self.usuario_id} - R${self.valor}>"
+
+
 class UsuarioPermissao(Base):
     """
     Permissao explicita de um usuario para um modulo especifico,

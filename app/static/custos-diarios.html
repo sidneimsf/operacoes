@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custos Diários · operações</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="avisos-header">
+        <span class="section-title" style="margin: 0;">Custos do dia a dia</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-ghost" id="btn-testar-email-custos" hidden>Testar envio de e-mail</button>
+          <button class="btn-primary" id="btn-novo-custo">+ Lançar custo</button>
+        </div>
+      </div>
+
+      <div id="resultado-teste-email"></div>
+
+      <div class="kpi-grid" id="kpi-grid-custos">
+        <div class="kpi-card"><div class="label">total no período</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">pendentes de reembolso</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">já reembolsados</div><div class="value">—</div></div>
+      </div>
+
+      <div id="lista-custos">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/custos-diarios.js"></script>
+</body>
+</html>

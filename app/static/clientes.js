@@ -3,6 +3,7 @@ const auth = Shell.montar('clientes', 'Clientes');
 let empresas = [];
 let clientes = [];
 let empresaSelecionada = null;
+let termoBusca = '';
 
 function renderizarChips() {
   const container = document.getElementById('chips-empresas');
@@ -34,9 +35,14 @@ function renderizarChips() {
 
 function renderizarClientes() {
   const container = document.getElementById('lista-clientes');
-  const listaFiltrada = empresaSelecionada === null
+  let listaFiltrada = empresaSelecionada === null
     ? clientes
     : clientes.filter((c) => c.empresa_id === empresaSelecionada);
+
+  if (termoBusca.trim()) {
+    const termo = termoBusca.trim().toLowerCase();
+    listaFiltrada = listaFiltrada.filter((c) => c.nome.toLowerCase().includes(termo));
+  }
 
   if (listaFiltrada.length === 0) {
     container.innerHTML = '<div class="empty-state">Nenhum cliente encontrado.</div>';
@@ -194,5 +200,10 @@ document.getElementById('btn-novo-cliente').addEventListener('click', abrirModal
 if (auth.papel !== 'escritorio') {
   document.getElementById('btn-novo-cliente').hidden = true;
 }
+
+document.getElementById('busca-cliente').addEventListener('input', (evento) => {
+  termoBusca = evento.target.value;
+  renderizarClientes();
+});
 
 iniciar();

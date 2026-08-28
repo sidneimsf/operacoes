@@ -12,6 +12,14 @@ function labelSituacao(situacao, diasRestantes) {
   return `Em dia (${diasRestantes} dias)`;
 }
 
+let asosCompletos = [];
+let termoBuscaAso = '';
+let recemRealizados = {};
+
+function formatarDataISO(d) {
+  return d.toISOString().slice(0, 10);
+}
+
 function renderizarLista(asos) {
   const container = document.getElementById('lista-asos');
 
@@ -30,8 +38,15 @@ function renderizarLista(asos) {
   }
 
   const linhas = asos
-    .map(
-      (a) => `
+    .map((a) => {
+      const foiRealizadoAgora = !!recemRealizados[a.evento_id];
+      const botaoRealizadoOuDesfazer = foiRealizadoAgora
+        ? `<button class="btn-ghost btn-aso-desfazer" data-evento-id="${a.evento_id}" style="padding: 5px 10px; font-size: 12px; color: var(--danger);">Desfazer</button>`
+        : a.situacao !== 'ok'
+        ? `<button class="btn-primary btn-aso-realizado" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" style="width: auto; padding: 5px 10px; font-size: 12px;">ASO Realizado</button>`
+        : '';
+
+      return `
       <tr>
         <td><a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a></td>
         <td>${a.cargo || '—'}</td>
@@ -39,13 +54,14 @@ function renderizarLista(asos) {
         <td>${formatarData(a.data_exame)}</td>
         <td>${formatarData(a.data_vencimento)}</td>
         <td><span class="aso-badge ${a.situacao}">${labelSituacao(a.situacao, a.dias_restantes)}</span></td>
-        <td>
+        <td style="white-space: nowrap;">
+          ${botaoRealizadoOuDesfazer}
           <button class="btn-ghost btn-aso-editar" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" data-exame="${a.data_exame || ''}" data-vencimento="${a.data_vencimento || ''}" style="padding: 5px 10px; font-size: 12px;">Editar</button>
           <button class="btn-ghost btn-aso-excluir" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" style="padding: 5px 10px; font-size: 12px;">Excluir</button>
         </td>
       </tr>
-    `
-    )
+    `;
+    })
     .join('');
 
   container.innerHTML = `
@@ -64,13 +80,65 @@ async function carregarAsos() {
   try {
     const asos = await Shell.chamarApi('/asos-dados');
     if (asos === null) return;
-    renderizarLista(asos);
+    asosCompletos = asos;
+    aplicarFiltroBuscaAso();
   } catch (erro) {
     if (erro.status === 403) {
       container.innerHTML = '<div class="empty-state">Esta área é restrita à equipe do escritório.</div>';
       return;
     }
     container.innerHTML = '<div class="empty-state">Não foi possível carregar os dados agora.</div>';
+  }
+}
+
+function aplicarFiltroBuscaAso() {
+  const termo = termoBuscaAso.trim().toLowerCase();
+  const filtrados = termo
+    ? asosCompletos.filter((a) => a.colaborador_nome.toLowerCase().includes(termo))
+    : asosCompletos;
+  renderizarLista(filtrados);
+}
+
+async function marcarAsoRealizado(eventoId, colaboradorNome) {
+  const registro = asosCompletos.find((a) => a.evento_id === Number(eventoId));
+  if (!registro) return;
+
+  if (!confirm(`Confirmar que o ASO de ${colaboradorNome} foi realizado hoje? Isso renova o vencimento por 1 ano.`)) return;
+
+  recemRealizados[eventoId] = {
+    data_exame_anterior: registro.data_exame,
+    data_vencimento_anterior: registro.data_vencimento,
+  };
+
+  const hoje = new Date();
+  const vencimentoNovo = new Date(hoje);
+  vencimentoNovo.setDate(vencimentoNovo.getDate() + 365);
+
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoId}`, {
+      method: 'PATCH',
+      body: { data_inicio: formatarDataISO(hoje), data_fim: formatarDataISO(vencimentoNovo) },
+    });
+    await carregarAsos();
+  } catch (erro) {
+    delete recemRealizados[eventoId];
+    alert('Não foi possível marcar como realizado agora.');
+  }
+}
+
+async function desfazerAsoRealizado(eventoId) {
+  const anterior = recemRealizados[eventoId];
+  if (!anterior) return;
+
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoId}`, {
+      method: 'PATCH',
+      body: { data_inicio: anterior.data_exame_anterior, data_fim: anterior.data_vencimento_anterior },
+    });
+    delete recemRealizados[eventoId];
+    await carregarAsos();
+  } catch (erro) {
+    alert('Não foi possível desfazer agora.');
   }
 }
 
@@ -319,6 +387,16 @@ document.getElementById('btn-novo-aso').addEventListener('click', abrirModalNovo
 
 montarModalEditarAso();
 document.getElementById('lista-asos').addEventListener('click', (evento) => {
+  const botaoRealizado = evento.target.closest('.btn-aso-realizado');
+  if (botaoRealizado) {
+    marcarAsoRealizado(botaoRealizado.dataset.eventoId, botaoRealizado.dataset.colaborador);
+    return;
+  }
+  const botaoDesfazer = evento.target.closest('.btn-aso-desfazer');
+  if (botaoDesfazer) {
+    desfazerAsoRealizado(botaoDesfazer.dataset.eventoId);
+    return;
+  }
   const botaoEditar = evento.target.closest('.btn-aso-editar');
   if (botaoEditar) {
     abrirModalEditarAso(
@@ -333,6 +411,11 @@ document.getElementById('lista-asos').addEventListener('click', (evento) => {
   if (botaoExcluir) {
     excluirAso(botaoExcluir.dataset.eventoId, botaoExcluir.dataset.colaborador);
   }
+});
+
+document.getElementById("busca-aso").addEventListener("input", (evento) => {
+  termoBuscaAso = evento.target.value;
+  aplicarFiltroBuscaAso();
 });
 
 carregarAsos();

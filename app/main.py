@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 import jwt
 from alertas_aso import verificar_e_enviar_alertas
+from alertas_custos import verificar_e_enviar_custos
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import SessionLocal, get_db
 from models import (
@@ -20,6 +21,7 @@ from models import (
     Cliente,
     Colaborador,
     ColaboradorEvento,
+    CustoDiario,
     Empresa,
     HorarioServico,
     ManutencaoVeiculo,
@@ -37,6 +39,7 @@ from schemas import (
     ColaboradorCreate,
     ColaboradorEventoUpdate,
     ColaboradorUpdate,
+    CustoDiarioUpdate,
     HorarioServicoCreate,
     HorarioServicoUpdate,
     LoginRequest,
@@ -44,10 +47,11 @@ from schemas import (
     ManutencaoVeiculoUpdate,
     PermissaoUpdate,
     TokenResponse,
+    UsuarioAcessoUpdate,
     VeiculoCreate,
     VeiculoUpdate,
 )
-from security import criar_token, decodificar_token, verificar_senha
+from security import criar_token, decodificar_token, hash_senha, verificar_senha
 
 app = FastAPI(title="Operacoes SolarSync", version="0.1.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -67,15 +71,40 @@ def job_verificar_asos():
         db.close()
 
 
+def job_verificar_custos():
+    """Roda em background, uma vez por dia no fim do expediente."""
+    db = SessionLocal()
+    try:
+        resultado = verificar_e_enviar_custos(db)
+        print("[custos-diarios]", resultado)
+    except Exception as erro:
+        print("[custos-diarios] erro ao verificar/enviar:", erro)
+    finally:
+        db.close()
+
+
 agendador = BackgroundScheduler()
 agendador.add_job(job_verificar_asos, "cron", hour=8, minute=0)
+agendador.add_job(job_verificar_custos, "cron", hour=19, minute=0)
 agendador.start()
 
 PASTA_UPLOADS = Path("uploads/colaboradores")
 PASTA_UPLOADS.mkdir(parents=True, exist_ok=True)
 
+PASTA_UPLOADS_CUSTOS = Path("uploads/custos_diarios")
+PASTA_UPLOADS_CUSTOS.mkdir(parents=True, exist_ok=True)
+
 EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
 TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024  # 10 MB
+
+TIPOS_CUSTO_DIARIO = [
+    {"chave": "combustivel", "label": "Combustível"},
+    {"chave": "estacionamento", "label": "Estacionamento"},
+    {"chave": "pedagio", "label": "Pedágio"},
+    {"chave": "alimentacao", "label": "Alimentação"},
+    {"chave": "outros", "label": "Outros"},
+]
+CHAVES_TIPO_CUSTO_VALIDAS = {t["chave"] for t in TIPOS_CUSTO_DIARIO}
 
 TIPOS_EVENTO_COLABORADOR = [
     {"chave": "anotacao", "label": "Anotação"},
@@ -306,6 +335,11 @@ def pagina_veiculo_detalhe():
 @app.get("/permissoes", include_in_schema=False)
 def pagina_permissoes():
     return FileResponse("static/permissoes.html")
+
+
+@app.get("/custos-diarios", include_in_schema=False)
+def pagina_custos_diarios():
+    return FileResponse("static/custos-diarios.html")
 
 
 @app.get("/relatorios", include_in_schema=False)
@@ -1861,6 +1895,7 @@ def listar_permissoes(
             {
                 "usuario_id": u.id,
                 "nome": u.nome,
+                "email": u.email,
                 "papel": u.papel,
                 "super_admin": u.super_admin,
                 "permissoes": permissoes,
@@ -1914,6 +1949,37 @@ def resetar_permissao(
         db.delete(override)
         db.commit()
     return {"usuario_id": usuario_id, "modulo": modulo, "resetado": True}
+
+
+@app.patch("/admin/usuarios/{usuario_id}/acesso")
+def redefinir_acesso_usuario(
+    usuario_id: int,
+    dados: UsuarioAcessoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_super_admin),
+):
+    """Redefine o e-mail de login e/ou a senha de um usuario. So super_admin."""
+    alvo = db.get(Usuario, usuario_id)
+    if alvo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
+
+    if not dados.email and not dados.nova_senha:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe um novo e-mail ou uma nova senha")
+
+    if dados.email:
+        novo_email = dados.email.strip().lower()
+        conflito = db.query(Usuario).filter(Usuario.email == novo_email, Usuario.id != usuario_id).first()
+        if conflito is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Já existe um usuário com esse e-mail")
+        alvo.email = novo_email
+
+    if dados.nova_senha:
+        if len(dados.nova_senha) < 4:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A senha deve ter pelo menos 4 caracteres")
+        alvo.senha_hash = hash_senha(dados.nova_senha)
+
+    db.commit()
+    return {"id": alvo.id, "email": alvo.email, "senha_alterada": bool(dados.nova_senha)}
 
 
 # ---------------------------------------------------------------------------
@@ -2217,6 +2283,182 @@ def relatorio_por_colaborador(
             for e in eventos
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Custos diarios (reembolso de despesas dos supervisores)
+# ---------------------------------------------------------------------------
+
+@app.get("/custos-diarios-dados-tipos")
+def tipos_custo_diario(usuario: Usuario = Depends(usuario_atual)):
+    return {"tipos": TIPOS_CUSTO_DIARIO}
+
+
+def serializar_custo(c: CustoDiario) -> dict:
+    return {
+        "id": c.id,
+        "usuario_id": c.usuario_id,
+        "usuario_nome": c.usuario.nome,
+        "tipo": c.tipo,
+        "valor": c.valor,
+        "data": c.data.isoformat(),
+        "descricao": c.descricao,
+        "tem_comprovante": c.comprovante_path is not None,
+        "comprovante_nome_original": c.comprovante_nome_original,
+        "reembolsado": c.reembolsado,
+        "criado_em": c.criado_em.isoformat(),
+    }
+
+
+@app.get("/custos-diarios-dados")
+def listar_custos_diarios(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Supervisor comum ve so os proprios custos; escritorio ve de todo mundo."""
+    query = db.query(CustoDiario)
+    if usuario.papel != "escritorio":
+        query = query.filter(CustoDiario.usuario_id == usuario.id)
+    if data_inicio:
+        query = query.filter(CustoDiario.data >= date.fromisoformat(data_inicio))
+    if data_fim:
+        query = query.filter(CustoDiario.data <= date.fromisoformat(data_fim))
+    custos = query.order_by(CustoDiario.data.desc(), CustoDiario.criado_em.desc()).all()
+    return [serializar_custo(c) for c in custos]
+
+
+@app.post("/custos-diarios-dados", status_code=status.HTTP_201_CREATED)
+def criar_custo_diario(
+    tipo: str = Form(...),
+    valor: float = Form(...),
+    data_custo: str = Form(...),
+    descricao: str | None = Form(None),
+    comprovante: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if tipo not in CHAVES_TIPO_CUSTO_VALIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de custo invalido")
+    if valor <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O valor deve ser maior que zero")
+
+    comprovante_path_salvo = None
+    comprovante_nome_original = None
+    if comprovante is not None and comprovante.filename:
+        extensao = Path(comprovante.filename).suffix.lower()
+        if extensao not in EXTENSOES_PERMITIDAS:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Comprovante deve ser JPEG, PNG ou PDF")
+        conteudo = comprovante.file.read()
+        if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+
+        pasta_usuario = PASTA_UPLOADS_CUSTOS / str(usuario.id)
+        pasta_usuario.mkdir(parents=True, exist_ok=True)
+        nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+        caminho_completo = pasta_usuario / nome_arquivo
+        caminho_completo.write_bytes(conteudo)
+        comprovante_path_salvo = str(caminho_completo)
+        comprovante_nome_original = comprovante.filename
+
+    custo = CustoDiario(
+        usuario_id=usuario.id,
+        tipo=tipo,
+        valor=valor,
+        data=date.fromisoformat(data_custo),
+        descricao=descricao.strip() if descricao else None,
+        comprovante_path=comprovante_path_salvo,
+        comprovante_nome_original=comprovante_nome_original,
+    )
+    db.add(custo)
+    db.commit()
+    db.refresh(custo)
+    return serializar_custo(custo)
+
+
+@app.patch("/custos-diarios-dados/{custo_id}")
+def editar_custo_diario(
+    custo_id: int,
+    dados: CustoDiarioUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    custo = db.get(CustoDiario, custo_id)
+    if custo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Custo nao encontrado")
+    if custo.usuario_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Voce so pode editar seus proprios custos")
+
+    campos = dados.model_dump(exclude_unset=True)
+
+    if "reembolsado" in campos and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="So o escritorio pode marcar como reembolsado")
+
+    if "tipo" in campos:
+        if campos["tipo"] not in CHAVES_TIPO_CUSTO_VALIDAS:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de custo invalido")
+        custo.tipo = campos["tipo"]
+    if "valor" in campos:
+        if campos["valor"] <= 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O valor deve ser maior que zero")
+        custo.valor = campos["valor"]
+    if "data" in campos:
+        custo.data = date.fromisoformat(campos["data"])
+    if "descricao" in campos:
+        custo.descricao = campos["descricao"].strip() if campos["descricao"] else None
+    if "reembolsado" in campos:
+        custo.reembolsado = campos["reembolsado"]
+
+    db.commit()
+    db.refresh(custo)
+    return serializar_custo(custo)
+
+
+@app.delete("/custos-diarios-dados/{custo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_custo_diario(
+    custo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    custo = db.get(CustoDiario, custo_id)
+    if custo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Custo nao encontrado")
+    if custo.usuario_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Voce so pode excluir seus proprios custos")
+
+    if custo.comprovante_path and os.path.exists(custo.comprovante_path):
+        os.remove(custo.comprovante_path)
+
+    db.delete(custo)
+    db.commit()
+
+
+@app.get("/custos-diarios-dados/{custo_id}/comprovante")
+def baixar_comprovante_custo(
+    custo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    custo = db.get(CustoDiario, custo_id)
+    if custo is None or not custo.comprovante_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comprovante nao encontrado")
+    if custo.usuario_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissao para ver esse comprovante")
+    return FileResponse(custo.comprovante_path, filename=custo.comprovante_nome_original or "comprovante")
+
+
+@app.post("/custos-diarios-dados/testar-email")
+def testar_email_custos(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
+):
+    """Dispara a checagem de custos pendentes e o envio do e-mail na hora, para teste."""
+    try:
+        resultado = verificar_e_enviar_custos(db)
+        return resultado
+    except RuntimeError as erro:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erro))
 
 
 

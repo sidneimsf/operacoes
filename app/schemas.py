@@ -164,3 +164,16 @@ class UsuarioOut(BaseModel):
 
 class PermissaoUpdate(BaseModel):
     habilitado: bool
+
+
+class UsuarioAcessoUpdate(BaseModel):
+    email: str | None = None
+    nova_senha: str | None = None
+
+
+class CustoDiarioUpdate(BaseModel):
+    tipo: str | None = None
+    valor: float | None = None
+    data: str | None = None
+    descricao: str | None = None
+    reembolsado: bool | None = None
