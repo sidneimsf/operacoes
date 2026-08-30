@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-  /* Paleta baseada na identidade visual real da Cordsul (extraída da logomarca oficial) */
-  --bg: #171d33;
-  --surface: #1f2640;
-  --surface-2: #272f4e;
-  --border: #37406a;
-  --text: #f1f2f7;
-  --text-muted: #9aa2c4;
-  --accent: #d4af37;
-  --accent-dark: #a9861f;
-  --danger: #dd5147;
-  --danger-bg: #3a2020;
-  --success: #4caf7d;
+  /* Tema claro, baseado na identidade visual do Grupo Star Sul (extraída da logomarca oficial) */
+  --bg: #eef2f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f7;
+  --border: #d7deea;
+  --text: #17354f;
+  --text-muted: #5b6b82;
+  --accent: #7d5f11;
+  --accent-dark: #5f480c;
+  --danger: #c13327;
+  --danger-bg: #fbe4e2;
+  --success: #1f6b41;
   --radius: 10px;
 }
 
@@ -80,7 +80,7 @@ button {
 
 .login-brand {
   background:
-    radial-gradient(circle at 15% 15%, rgba(212, 175, 55, 0.10), transparent 45%),
+    radial-gradient(circle at 15% 15%, rgba(125, 95, 17, 0.10), transparent 45%),
     var(--bg);
   border-right: 1px solid var(--border);
   padding: 56px 48px;
@@ -205,7 +205,7 @@ button {
 .btn-primary {
   width: 100%;
   background: var(--accent);
-  color: #1a1206;
+  color: #ffffff;
   border: none;
   border-radius: var(--radius);
   padding: 13px 14px;
@@ -226,8 +226,8 @@ button {
 .error-message {
   display: none;
   background: var(--danger-bg);
-  color: #f2a39c;
-  border: 1px solid #5a2e29;
+  color: var(--danger);
+  border: 1px solid rgba(193, 51, 39, 0.35);
   border-radius: var(--radius);
   padding: 11px 14px;
   font-size: 13.5px;
@@ -320,7 +320,7 @@ button {
 .chip.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #1a1206;
+  color: #ffffff;
 }
 
 .cliente-row {
@@ -628,11 +628,11 @@ button {
   white-space: nowrap;
 }
 
-.evento-tipo-badge.atestado { background: rgba(212, 175, 55, 0.15); color: var(--accent); }
-.evento-tipo-badge.falta { background: rgba(221, 81, 71, 0.15); color: var(--danger); }
+.evento-tipo-badge.atestado { background: rgba(125, 95, 17, 0.15); color: var(--accent); }
+.evento-tipo-badge.falta { background: rgba(193, 51, 39, 0.15); color: var(--danger); }
 .evento-tipo-badge.cobertura { background: rgba(92, 184, 138, 0.15); color: var(--success); }
-.evento-tipo-badge.documento { background: rgba(140, 170, 220, 0.15); color: #8caadc; }
-.evento-tipo-badge.ferias { background: rgba(196, 140, 220, 0.15); color: #c88cdc; }
+.evento-tipo-badge.documento { background: rgba(140, 170, 220, 0.15); color: #2f5b9e; }
+.evento-tipo-badge.ferias { background: rgba(196, 140, 220, 0.15); color: #8a3fa8; }
 
 .evento-arquivo-link {
   display: inline-flex;
@@ -801,19 +801,19 @@ button {
 
 .btn-abrir-chamado {
   background: var(--accent);
-  color: #1a1206;
+  color: #ffffff;
   border: none;
   border-radius: 20px;
   padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.18);
+  box-shadow: 0 0 0 3px rgba(125, 95, 17, 0.18);
 }
 
 .btn-abrir-chamado:hover {
   background: var(--accent-dark);
-  box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.22);
+  box-shadow: 0 0 0 4px rgba(125, 95, 17, 0.22);
 }
 
 .modal-overlay {
@@ -918,13 +918,13 @@ button {
 }
 
 .status-badge.novo {
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(125, 95, 17, 0.15);
   color: var(--accent);
 }
 
 .status-badge.em_andamento {
   background: rgba(140, 170, 220, 0.15);
-  color: #8caadc;
+  color: #2f5b9e;
 }
 
 .status-badge.finalizado {
@@ -954,8 +954,8 @@ button {
 /* ---------- Aviso de chamados atribuídos (painel do supervisor) ---------- */
 
 .alert-banner {
-  background: rgba(212, 175, 55, 0.08);
-  border: 1px solid rgba(212, 175, 55, 0.35);
+  background: rgba(125, 95, 17, 0.08);
+  border: 1px solid rgba(125, 95, 17, 0.35);
   border-radius: var(--radius);
   padding: 16px 18px;
   margin-bottom: 26px;
@@ -1082,12 +1082,12 @@ button {
 }
 
 .priority-badge.urgente {
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(125, 95, 17, 0.15);
   color: var(--accent);
 }
 
 .priority-badge.urgentissimo {
-  background: rgba(221, 81, 71, 0.15);
+  background: rgba(193, 51, 39, 0.15);
   color: var(--danger);
 }
 
@@ -1101,12 +1101,12 @@ button {
 }
 
 .aso-badge.vencido {
-  background: rgba(221, 81, 71, 0.15);
+  background: rgba(193, 51, 39, 0.15);
   color: var(--danger);
 }
 
 .aso-badge.proximo {
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(125, 95, 17, 0.15);
   color: var(--accent);
 }
 
@@ -1284,7 +1284,7 @@ button {
 
 .toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(18px);
-  background-color: #1a1206;
+  background-color: #ffffff;
 }
 
 .badge-super-admin {
@@ -1293,7 +1293,7 @@ button {
   text-transform: uppercase;
   padding: 2px 6px;
   border-radius: 10px;
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(125, 95, 17, 0.15);
   color: var(--accent);
   vertical-align: middle;
 }
@@ -1342,7 +1342,7 @@ button {
 
 .btn-validade-aso.ativa {
   background: var(--accent);
-  color: #1a1206;
+  color: #ffffff;
   border-color: var(--accent);
 }
 
@@ -1467,8 +1467,8 @@ button {
 
 .postit:nth-child(4n+1) {
   transform: rotate(-1.5deg);
-  background: rgba(212, 175, 55, 0.10);
-  border: 1px solid rgba(212, 175, 55, 0.28);
+  background: rgba(125, 95, 17, 0.10);
+  border: 1px solid rgba(125, 95, 17, 0.28);
 }
 
 .postit:nth-child(4n+2) {
@@ -1516,7 +1516,7 @@ button {
 
 .postit-excluir:hover {
   color: var(--danger);
-  background: rgba(221, 81, 71, 0.12);
+  background: rgba(193, 51, 39, 0.12);
 }
 
 .postit .mensagem {
