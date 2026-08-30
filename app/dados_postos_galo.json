@@ -1,0 +1,292 @@
+[
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO AR - ARIRIU",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Bom Jesus de Nazaré, 2300",
+    "bairro": "Aririu",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO BA - BARRA DA LAGOA",
+    "responsavel": "Kellen",
+    "telefone": "48 9936-0948",
+    "endereco": "Rod. Jorn. Manoel de Menezes, 3007",
+    "bairro": "Barra da Lagoa",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO BG - ARIRIU",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Bom Jesus de Nazaré, 1481",
+    "bairro": "Aririu",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO BS - BOCA SERRA",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Valfride Vieira Martins, s/n - BR 282, KM 17",
+    "bairro": "Caminho Novo",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO BV - BELA VISTA",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "R. José Cosme Pamplona, 148",
+    "bairro": "Caminho Novo",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO CA - CAMPINAS",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Josué di Bernardi, S/N",
+    "bairro": "Campinas",
+    "cidade": "São José"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO CG - CORREGO GRANDE",
+    "responsavel": "Daniela",
+    "telefone": "48 9936-2250",
+    "endereco": "R. João Pio Duarte Silva, 1750",
+    "bairro": "Córrego Grande",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO CQ - COQUEIROS",
+    "responsavel": "Welington",
+    "telefone": "48 9983-1297",
+    "endereco": "Av. Eng. Max de Souza, 983",
+    "bairro": "Coqueiros",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO CR - CARIANOS",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Deputado Diomício Freitas, 3050",
+    "bairro": "Carianos",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO GP - PEDRITA",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Rod. Dr. Antônio Luiz Moura Gonzaga, 2361",
+    "bairro": "Rio Tavares",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO KO - CENTRO",
+    "responsavel": "Ana",
+    "telefone": "48 9179-4635",
+    "endereco": "R. Alm. Lamego, 1076",
+    "bairro": "Centro",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO LA - LAGOA",
+    "responsavel": "Aline / Eduardo",
+    "telefone": "48 9983-1269 / 48 9936-0748",
+    "endereco": "R. Henrique Vera do Nascimento, 270",
+    "bairro": "Lagoa da Conceição",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO LL - BARREIROS",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Leoberto Leal, 545",
+    "bairro": "Barreiros",
+    "cidade": "São José"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO LP - LAGOA",
+    "responsavel": "Sabrina",
+    "telefone": "48 9662-0190",
+    "endereco": "Av. Afonso Delambert Neto, 240",
+    "bairro": "Lagoa da Conceição",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO PA - PAGANI",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Atílio Pedro Pagani, 975",
+    "bairro": "Pagani",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO PC - CACHOEIRA BOM JESUS",
+    "responsavel": "Mauricio",
+    "telefone": "48 9159-2554",
+    "endereco": "Av. Luiz Boiteux Piazza, 2760",
+    "bairro": "Cachoeira do Bom Jesus",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO PF - PRAIA DE FORA",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Rod. BR 101, KM 225",
+    "bairro": "Praia de Fora",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO PH - CENTRO PALHOÇA",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "R. Edeling Schutz, 709",
+    "bairro": "Centro",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO PO - PONTE DO IMARUIM",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "R. Vinícius de Moraes, 1",
+    "bairro": "Ponte do Imaruim",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "FLC",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO POT - POTECAS",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "R. João José Martins, 226",
+    "bairro": "Potecas",
+    "cidade": "São José"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO PR - RESSACADA",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Rod. SC 405, 375",
+    "bairro": "Rio Tavares",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO PV - PASSA VINTE",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "R. Pref. Reinoldo Alves, s/n",
+    "bairro": "Passa Vinte",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO RG - RIO GRANDE",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Av. Rio Grande, 2345",
+    "bairro": "Rio Grande",
+    "cidade": "Palhoça"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO RT - RIO TAVARES",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Rodovia SC 405, KM 6 - 2953",
+    "bairro": "Rio Tavares",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO SC - SANTO ANTONIO",
+    "responsavel": null,
+    "telefone": "48 9844-0299",
+    "endereco": "Rod. José Carlos Daux, SC 401, KM 12, 7467",
+    "bairro": "Santo Antonio de Lisboa",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO SH - SHOPPING ITAGUAÇU",
+    "responsavel": "Cristian",
+    "telefone": "48 9136-1475",
+    "endereco": "R. Gerôncio Thives, 1099",
+    "bairro": "Barreiros",
+    "cidade": "São José"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Sandra",
+    "nome": "POSTO GALO SL - SACO LIMOES",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "R. João Motta Espezim, 200",
+    "bairro": "Saco dos Limões",
+    "cidade": "Florianópolis"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO SM - SERTAO DO MARUIM",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "Rod. SC 281, 2129",
+    "bairro": "Sertão do Maruim",
+    "cidade": "São José"
+  },
+  {
+    "empresa_raw": "Star Sul",
+    "supervisor_raw": "Rodrigo",
+    "nome": "POSTO GALO VE - VIA EXPRESSA",
+    "responsavel": null,
+    "telefone": null,
+    "endereco": "R. Paralela Novo Horizonte, 3530",
+    "bairro": "Capoeiras",
+    "cidade": "Florianópolis"
+  }
+]
