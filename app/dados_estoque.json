@@ -1,0 +1,224 @@
+[
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "P",
+    "quantidade": 0
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "M",
+    "quantidade": 2
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "G",
+    "quantidade": 2
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "GG",
+    "quantidade": 2
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "X1",
+    "quantidade": 0
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CALÇA",
+    "tamanho": "P",
+    "quantidade": 2
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CALÇA",
+    "tamanho": "M",
+    "quantidade": 0
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CALÇA",
+    "tamanho": "G",
+    "quantidade": 4
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CALÇA",
+    "tamanho": "GG",
+    "quantidade": 4
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CALÇA",
+    "tamanho": "G1",
+    "quantidade": 0
+  },
+  {
+    "empresa": "CORDSUL",
+    "tipo_peca": "CALÇA",
+    "tamanho": "G2",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "P",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "M",
+    "quantidade": 1
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "G",
+    "quantidade": 1
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "GG",
+    "quantidade": 1
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "X1",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "SAPATO",
+    "tamanho": "34",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "SAPATO",
+    "tamanho": "35",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "SAPATO",
+    "tamanho": "36",
+    "quantidade": 1
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "SAPATO",
+    "tamanho": "37",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "SAPATO",
+    "tamanho": "38",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "SAPATO",
+    "tamanho": "39",
+    "quantidade": 0
+  },
+  {
+    "empresa": "KRETZER",
+    "tipo_peca": "SAPATO",
+    "tamanho": "40",
+    "quantidade": 0
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "P",
+    "quantidade": 1
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "M",
+    "quantidade": 0
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "G",
+    "quantidade": 1
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "GG",
+    "quantidade": 4
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "X1",
+    "quantidade": 0
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "MOLETOM",
+    "tamanho": "P",
+    "quantidade": 2
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "MOLETOM",
+    "tamanho": "M",
+    "quantidade": 1
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "MOLETOM",
+    "tamanho": "G",
+    "quantidade": 3
+  },
+  {
+    "empresa": "STAR SUL",
+    "tipo_peca": "MOLETOM",
+    "tamanho": "GG",
+    "quantidade": 1
+  },
+  {
+    "empresa": "FLC",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "P",
+    "quantidade": 0
+  },
+  {
+    "empresa": "FLC",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "M",
+    "quantidade": 2
+  },
+  {
+    "empresa": "FLC",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "G",
+    "quantidade": 0
+  },
+  {
+    "empresa": "FLC",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "GG",
+    "quantidade": 2
+  },
+  {
+    "empresa": "FLC",
+    "tipo_peca": "CAMISETA",
+    "tamanho": "X1",
+    "quantidade": 0
+  }
+]

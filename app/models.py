@@ -146,10 +146,12 @@ class Cliente(Base):
     responsavel_telefone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     senha_acesso: Mapped[str | None] = mapped_column(String(200), nullable=True)
     chave_acesso: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     empresa: Mapped["Empresa"] = relationship(back_populates="clientes")
+    supervisor: Mapped["Usuario | None"] = relationship()
 
     def __repr__(self) -> str:
         return f"<Cliente {self.nome}>"
@@ -175,6 +177,13 @@ class Colaborador(Base):
     data_admissao: Mapped[date | None] = mapped_column(Date, nullable=True)
     aniversario_dia: Mapped[int | None] = mapped_column(Integer, nullable=True)
     aniversario_mes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    data_fim_experiencia_30: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_fim_experiencia_90: Mapped[date | None] = mapped_column(Date, nullable=True)
+    vt_numero_cartao: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    vt_situacao: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    vt_saldo: Mapped[float | None] = mapped_column(Float, nullable=True)
+    seguro_vida_data_inclusao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    seguro_vida_data_exclusao: Mapped[date | None] = mapped_column(Date, nullable=True)
     supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo")  # ativo | afastado
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
@@ -293,6 +302,8 @@ class CustoDiario(Base):
     valor: Mapped[float] = mapped_column(Float, nullable=False)
     data: Mapped[date] = mapped_column(Date, nullable=False)
     descricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    nome_beneficiario: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    chave_pix: Mapped[str | None] = mapped_column(String(150), nullable=True)
     comprovante_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
     comprovante_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
     reembolsado: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -303,6 +314,75 @@ class CustoDiario(Base):
 
     def __repr__(self) -> str:
         return f"<CustoDiario {self.tipo} - usuario {self.usuario_id} - R${self.valor}>"
+
+
+class EstoqueItem(Base):
+    """
+    Um tipo de peca+tamanho, por empresa, com a quantidade atual em
+    estoque. A quantidade so muda atraves de EstoqueMovimento, para
+    manter historico de entradas e saidas.
+    """
+    __tablename__ = "estoque_itens"
+    __table_args__ = (
+        UniqueConstraint("empresa_id", "tipo_peca", "tamanho", name="uq_estoque_empresa_tipo_tamanho"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas.id"), nullable=False)
+    tipo_peca: Mapped[str] = mapped_column(String(50), nullable=False)
+    tamanho: Mapped[str] = mapped_column(String(20), nullable=False)
+    quantidade_atual: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    empresa: Mapped["Empresa"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<EstoqueItem {self.tipo_peca} {self.tamanho} - empresa {self.empresa_id}>"
+
+
+class EstoqueMovimento(Base):
+    """Um registro de entrada ou saida de um item do estoque."""
+    __tablename__ = "estoque_movimentos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("estoque_itens.id"), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(10), nullable=False)  # entrada | saida
+    quantidade: Mapped[int] = mapped_column(Integer, nullable=False)
+    motivo: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    colaborador_id: Mapped[int | None] = mapped_column(ForeignKey("colaboradores.id"), nullable=True)
+    registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    item: Mapped["EstoqueItem"] = relationship()
+    colaborador: Mapped["Colaborador | None"] = relationship()
+    registrado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<EstoqueMovimento {self.tipo} {self.quantidade} - item {self.item_id}>"
+
+
+class MetlifeLancamento(Base):
+    """
+    Um lancamento do plano Metlife vinculado a um colaborador titular.
+    Se nome_dependente for nulo, e o lancamento do proprio titular;
+    caso contrario, e um dependente dele.
+    """
+    __tablename__ = "metlife_lancamentos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    colaborador_id: Mapped[int] = mapped_column(ForeignKey("colaboradores.id"), nullable=False)
+    nome_dependente: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    valor: Mapped[float | None] = mapped_column(Float, nullable=True)
+    desconta: Mapped[bool] = mapped_column(Boolean, default=False)
+    data_inclusao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_exclusao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    colaborador: Mapped["Colaborador"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<MetlifeLancamento colaborador={self.colaborador_id} dependente={self.nome_dependente}>"
 
 
 class UsuarioPermissao(Base):

@@ -1,0 +1,254 @@
+[
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "nome_dependente": null,
+    "valor": 27.54,
+    "desconta": false,
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "nome_dependente": "FRANCISCO EVANGELISTA COSTA",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2023-01-12",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "nome_dependente": "GABRIELI COSTA",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2024-10-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "nome_dependente": "LAURECI DA SILVA",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2024-10-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "nome_dependente": "MARINA MEDEIROS LORENZO SCHMIDT",
+    "valor": 27.54,
+    "desconta": false,
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "nome_dependente": "MAYARA COSTA",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "nome_dependente": "SIDNEI MANOEL DA SILVA FILHO",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2025-11-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER NASCIMENTO LIMA",
+    "nome_dependente": null,
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2024-09-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER NASCIMENTO LIMA",
+    "nome_dependente": "VALENTINA NASCIMENTO LIMA",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2024-09-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER NASCIMENTO LIMA",
+    "nome_dependente": "AGUINALDO LIMA",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2024-09-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JESSICA CUNHA DA SILVA",
+    "nome_dependente": null,
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2026-03-17",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JESSICA CUNHA DA SILVA",
+    "nome_dependente": "LÍVIA CUNHA ALVES",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2026-06-12",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JESSICA CUNHA DA SILVA",
+    "nome_dependente": "GUSTAVO ALVES PIERI",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2026-06-12",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JESSICA MACHADO DA CONCEICAO",
+    "nome_dependente": null,
+    "valor": 27.54,
+    "desconta": false,
+    "data_inclusao": "2022-08-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JESSICA MACHADO DA CONCEICAO",
+    "nome_dependente": "ANDRÉ MACHADO BATISTA",
+    "valor": 27.54,
+    "desconta": false,
+    "data_inclusao": "2022-10-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JESSICA MACHADO DA CONCEICAO",
+    "nome_dependente": "RONIVALDO BATISTA DE SOUZA",
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": "2026-02-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JUCIENE CERQUEIRA MACHADO",
+    "nome_dependente": null,
+    "valor": 27.54,
+    "desconta": true,
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "RODRIGO RANGEL FERREIRA",
+    "nome_dependente": null,
+    "valor": 27.54,
+    "desconta": false,
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "RODRIGO RANGEL FERREIRA",
+    "nome_dependente": null,
+    "valor": 523.2600000000001,
+    "desconta": false,
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ISLA AZEVEDO DOS SANTOS",
+    "nome_dependente": null,
+    "valor": 28.88,
+    "desconta": false,
+    "data_inclusao": "2024-07-02",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ISLA AZEVEDO DOS SANTOS",
+    "nome_dependente": "LEVI SANTOS DA CRUZ",
+    "valor": 28.88,
+    "desconta": false,
+    "data_inclusao": "2024-07-02",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ISLA AZEVEDO DOS SANTOS",
+    "nome_dependente": "ISABEL CRISTINA COSTA DE AZEVEDO",
+    "valor": 28.88,
+    "desconta": true,
+    "data_inclusao": "2025-07-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JAQUELINE MARIANA CUNHA DA SILVA",
+    "nome_dependente": null,
+    "valor": 28.88,
+    "desconta": true,
+    "data_inclusao": "2026-08-19",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JAQUELINE MARIANA CUNHA DA SILVA",
+    "nome_dependente": "ANTHONY DA SILVA FELISBINO",
+    "valor": 28.88,
+    "desconta": true,
+    "data_inclusao": "2026-08-19",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JAQUELINE MARIANA CUNHA DA SILVA",
+    "nome_dependente": "ARTHUR CUNHA BONETTI",
+    "valor": 28.88,
+    "desconta": true,
+    "data_inclusao": "2026-08-19",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JAQUELINE MARIANA CUNHA DA SILVA",
+    "nome_dependente": "THIAGO ANTONIO FELISBINO",
+    "valor": 28.88,
+    "desconta": true,
+    "data_inclusao": "2026-08-19",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "SANDRA APARECIDA DA SILVA",
+    "nome_dependente": null,
+    "valor": 28.88,
+    "desconta": false,
+    "data_inclusao": "2026-04-01",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "SANDRA APARECIDA DA SILVA",
+    "nome_dependente": null,
+    "valor": 288.8,
+    "desconta": false,
+    "data_inclusao": null,
+    "data_exclusao": null
+  }
+]

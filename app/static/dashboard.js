@@ -154,6 +154,42 @@ async function carregarLembretes() {
     document.getElementById('lembretes-aniversarios').innerHTML =
       '<div class="empty-state">Não foi possível carregar os lembretes agora.</div>';
   }
+  carregarExperiencias();
+}
+
+function formatarDataExperiencia(isoString) {
+  const [ano, mes, dia] = isoString.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+async function carregarExperiencias() {
+  const container = document.getElementById('lembretes-experiencia');
+  try {
+    const criticos = await Shell.chamarApi('/colaboradores-dados/experiencia/criticos');
+    if (criticos === null) return;
+
+    if (criticos.length === 0) {
+      container.innerHTML = '<div class="empty-state">Nenhum checkpoint de experiência vencendo em breve.</div>';
+      return;
+    }
+
+    container.innerHTML = criticos
+      .map((c) => {
+        const situacao = c.dias_restantes < 0 ? `vencido há ${Math.abs(c.dias_restantes)} dia(s)` : `em ${c.dias_restantes} dia(s)`;
+        const cor = c.dias_restantes < 0 ? 'vencido' : 'proximo';
+        return `
+          <div class="lembrete-item">
+            <span class="aso-badge ${cor}" style="min-width: 70px; text-align: center;">${c.checkpoint}</span>
+            <span>${c.colaborador_nome}</span>
+            <span class="meta">${c.empresa_nome}</span>
+            <span class="lembrete-anos">${formatarDataExperiencia(c.data_checkpoint)} · ${situacao}</span>
+          </div>
+        `;
+      })
+      .join('');
+  } catch (erro) {
+    container.innerHTML = '<div class="empty-state">Não foi possível carregar agora.</div>';
+  }
 }
 
 let TIPOS_CHAMADO = [];

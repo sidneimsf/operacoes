@@ -1,0 +1,660 @@
+[
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAMILIS DE SOUZA DIAS",
+    "cartao": "3264399363",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER COSTA CARVALHO",
+    "cartao": "201613842",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "EVELLYN SANTOS OLIVEIRA",
+    "cartao": "2604265557",
+    "situacao": "Está na empresa",
+    "saldo": 14.4
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "FABIANA MACHADO MENEZES",
+    "cartao": "96091018",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JUCIENE CERQUEIRA MACHADO",
+    "cartao": "640585483",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "MARIA IARA RODRIGUES VIEIRA",
+    "cartao": "2944106143",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ROSANGELA DE ARAUJO E SILVA",
+    "cartao": "4243707911",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "SAMARA DOS SANTOS ARAUJO",
+    "cartao": "926844062",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ADELAIDE FERREIRA",
+    "cartao": "06851000001411-7",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ELIZETE STREY",
+    "cartao": "06851000034857-0",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "FABIANA MACHADO MENEZES",
+    "cartao": "06851000001298-0",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JULIANA DE JESUS DOS PASSOS",
+    "cartao": "06851000001421-4",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "LUCIA MARIA DE SOUZA DA SILVA",
+    "cartao": "06851000024194-7",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ELENICE MACHADO",
+    "cartao": "6850000049849",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ELIZETE STREY",
+    "cartao": "06850000014816-7",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER COSTA CARVALHO",
+    "cartao": "06850000087737-1",
+    "situacao": "Está na empresa",
+    "saldo": 0.39
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER NASCIMENTO LIMA",
+    "cartao": "06850000190656-1",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "FABIANA MACHADO MENEZES",
+    "cartao": "06850000115229-0",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "INVANCLEIA DOS SANTOS",
+    "cartao": "06850000168052-0",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JESSICA CUNHA DA SILVA",
+    "cartao": "6850000199775",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JUCIENE CERQUEIRA MACHADO",
+    "cartao": "06850000014811 ",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "MARIA DO SOCORRO ABREU BILBY",
+    "cartao": "06850000013429 ",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "MARILDA BARBOSA PETIT FRERE",
+    "cartao": "6850000063535",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "WALQUIRIA DE JESUS FRAZAO",
+    "cartao": "6850000101856",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ANA SALETE CORREA",
+    "cartao": "623912251",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ARIANE MARTINS MOREIRA",
+    "cartao": "2604828309",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "CLECI SALETE REES",
+    "cartao": "3237996787",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ELISETE ERTHAL TELLES",
+    "cartao": "1819816542",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JAQUELINE REGINA DOS SANTOS",
+    "cartao": "73620250",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JOELY DE MOURA SILVEIRA",
+    "cartao": "2514160079",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JOZELI TEREZINHA LOPES DE OLIVEIRA",
+    "cartao": "4078814471",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "KEVIN FELIPE SOARES GONCALVES",
+    "cartao": "96575866",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "LILIANE AMADO DOS SANTOS",
+    "cartao": "3244617443",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "LIVIA DE SOUZA ARAUJO",
+    "cartao": "2605148421",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "LUCIANA LUANA FERREIRA FIDELIS",
+    "cartao": "2602771317",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "MARGARETE CAPISTRANO MELO",
+    "cartao": "2605566277",
+    "situacao": "Bloqueado ",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "MARIA SALETE DA SILVA PARAVISI",
+    "cartao": "2600640917",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "MIRELA REGINA COELHO",
+    "cartao": "3690318021",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "NUBIA SENA DOS SANTOS",
+    "cartao": "3692945733",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ROSIANE PEREIRA NUNES",
+    "cartao": "1424488514",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "SELMA DE BRITO FONSECA",
+    "cartao": "827361109",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "TATIANE VIEIRA",
+    "cartao": "1424410978",
+    "situacao": "Bloqueado INSS",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ZENAIDE REIS DOS SANTOS",
+    "cartao": "3592634775",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ANA CARPES DUARTE",
+    "cartao": "06851000001490-7",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "cartao": "06851000001489-3",
+    "situacao": "Está na empresa",
+    "saldo": 0.0
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JESSICA MACHADO DA CONCEICAO",
+    "cartao": "06851000001397-8",
+    "situacao": "Está na empresa",
+    "saldo": 0.0
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "TEREZINHA VITÓRIO ROMÃO",
+    "cartao": "06851000001488-5",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ANA CARPES DUARTE",
+    "cartao": "06850000163822\t",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ANA CARPES DUARTE",
+    "cartao": "06850000121133-4",
+    "situacao": "Está na empresa",
+    "saldo": 0.0
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ANA SALETE CORREA",
+    "cartao": "06850000186479-6",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ELISETE ERTHAL TELLES",
+    "cartao": "6850000049850",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "TATIANE VIEIRA",
+    "cartao": "6850000063772",
+    "situacao": "Ativo",
+    "saldo": 128.05
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ADILSON SOUSA",
+    "cartao": "560969921",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ANA PAULA DOS SANTOS",
+    "cartao": "184034625",
+    "situacao": "Está na empresa",
+    "saldo": 2.6
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "CLAUDIA CRISTINA SANTIAGO DA SILVA",
+    "cartao": "433664257",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "GISELE TERIAGO DE LIZ ROSA",
+    "cartao": "2527263535",
+    "situacao": "Ketlyn",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "HERONETE REGINA VIEIRA",
+    "cartao": "3696154197",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "INGRID DEGERING",
+    "cartao": "3920077203",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ISLA AZEVEDO DOS SANTOS",
+    "cartao": "3689408021",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JANAINA CARDOSO DOS SANTOS",
+    "cartao": "73495722",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JANE APARECIDA VIEIRA",
+    "cartao": "3693347381",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JOSEANE CRISTINA VIEIRA",
+    "cartao": "3690082853",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "KARLA ELZA DA SILVA",
+    "cartao": "1398080448",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "RANYELI RODRIGUES DE LIMA",
+    "cartao": "460472172",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "SANDRA DO SOCORRO BARBOSA",
+    "cartao": "1398083568",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "SELMA DE BRITO FONSECA",
+    "cartao": "3692153445",
+    "situacao": "Está na empresa",
+    "saldo": 7.2
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ANA PAULA DOS SANTOS",
+    "cartao": "06851000035916-5",
+    "situacao": "Está na empresa",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ROSANGELA REGINA DE SOUZA",
+    "cartao": "06851000001398-6",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ANTONIA CIRLENE DA SILVA PEREIRA",
+    "cartao": "06850000165613-1",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "cartao": "06850000121456-2",
+    "situacao": "Está na empresa",
+    "saldo": 12.46
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "CLAUDIA CRISTINA SANTIAGO DA SILVA",
+    "cartao": "06850000125801-2",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "CLEONICE DO ROSARIO RIBEIRO",
+    "cartao": "06850000121135-0",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ELAINE CRISTINA DA SILVA",
+    "cartao": "06850000179106-3",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "RENATA CRISTINA DE SOUZA",
+    "cartao": "06850000135169-1",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ROSANGELA REGINA DE SOUZA",
+    "cartao": "06850000139596-6",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ANA PAULA DOS SANTOS",
+    "cartao": "3379138077",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ANGÉLICA DA TRINDADE MARIA",
+    "cartao": "2606298405",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "BEATRIZ ANDRADE",
+    "cartao": "2607498949",
+    "situacao": "Está na empresa",
+    "saldo": 88.3
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "cartao": "2780562909",
+    "situacao": "Está na empresa",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "DÉBORA SOUZA DE FRAYN",
+    "cartao": "3378225117",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "GABRIELLY ALFA BATISTA",
+    "cartao": "3377444477",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ISLA AZEVEDO DOS SANTOS",
+    "cartao": "3375159469",
+    "situacao": "Está na empresa",
+    "saldo": 3.2
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JESSICA MACHADO DA CONCEICAO",
+    "cartao": "2796798461",
+    "situacao": "Está na empresa",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JUSSARA NUNES",
+    "cartao": "3388470625",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "LUCIMERY CHAGAS RIBEIRO",
+    "cartao": "2602181701",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "SOLANGE COELHO DA SILVA",
+    "cartao": "2607894357",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "cartao": "06851000035830-4",
+    "situacao": "Sabrina",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "cartao": "06850000195873-1",
+    "situacao": "Está na empresa",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ELAINE CRISTINA DE JESUS RODRIGUES",
+    "cartao": "06850000186460-5",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "IRACENE ROCHA DE JESUS",
+    "cartao": "06850000208359-3",
+    "situacao": "Está na empresa",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "IRACENE ROCHA DE JESUS",
+    "cartao": "06850000195877-4",
+    "situacao": "Está na empresa",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JAQUELINE MARIANA CUNHA DA SILVA",
+    "cartao": "06850000200622-0",
+    "situacao": "Ativo",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JOÃO VITOR SANTOS OLIVEIRA",
+    "cartao": "6850000208360-7",
+    "situacao": "Andrieli",
+    "saldo": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "KARINE SANTOS DA SILVA NASCIMENTO",
+    "cartao": "06850000176118-0",
+    "situacao": "Ativo",
+    "saldo": null
+  }
+]

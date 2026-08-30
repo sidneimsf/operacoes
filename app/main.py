@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 import jwt
 from alertas_aso import verificar_e_enviar_alertas
 from alertas_custos import verificar_e_enviar_custos
+from alertas_experiencia import verificar_e_enviar_experiencias
 from apscheduler.schedulers.background import BackgroundScheduler
 from database import SessionLocal, get_db
 from models import (
@@ -23,8 +24,11 @@ from models import (
     ColaboradorEvento,
     CustoDiario,
     Empresa,
+    EstoqueItem,
+    EstoqueMovimento,
     HorarioServico,
     ManutencaoVeiculo,
+    MetlifeLancamento,
     Usuario,
     UsuarioPermissao,
     Veiculo,
@@ -40,11 +44,16 @@ from schemas import (
     ColaboradorEventoUpdate,
     ColaboradorUpdate,
     CustoDiarioUpdate,
+    EstoqueItemCreate,
+    EstoqueItemUpdate,
+    EstoqueMovimentoCreate,
     HorarioServicoCreate,
     HorarioServicoUpdate,
     LoginRequest,
     ManutencaoVeiculoCreate,
     ManutencaoVeiculoUpdate,
+    MetlifeLancamentoCreate,
+    MetlifeLancamentoUpdate,
     PermissaoUpdate,
     TokenResponse,
     UsuarioAcessoUpdate,
@@ -83,9 +92,22 @@ def job_verificar_custos():
         db.close()
 
 
+def job_verificar_experiencias():
+    """Roda em background, uma vez por dia - checa checkpoints de 30/90 dias."""
+    db = SessionLocal()
+    try:
+        resultado = verificar_e_enviar_experiencias(db)
+        print("[experiencia]", resultado)
+    except Exception as erro:
+        print("[experiencia] erro ao verificar/enviar:", erro)
+    finally:
+        db.close()
+
+
 agendador = BackgroundScheduler()
 agendador.add_job(job_verificar_asos, "cron", hour=8, minute=0)
 agendador.add_job(job_verificar_custos, "cron", hour=19, minute=0)
+agendador.add_job(job_verificar_experiencias, "cron", hour=8, minute=10)
 agendador.start()
 
 PASTA_UPLOADS = Path("uploads/colaboradores")
@@ -102,6 +124,7 @@ TIPOS_CUSTO_DIARIO = [
     {"chave": "estacionamento", "label": "Estacionamento"},
     {"chave": "pedagio", "label": "Pedágio"},
     {"chave": "alimentacao", "label": "Alimentação"},
+    {"chave": "diaria", "label": "Diária"},
     {"chave": "outros", "label": "Outros"},
 ]
 CHAVES_TIPO_CUSTO_VALIDAS = {t["chave"] for t in TIPOS_CUSTO_DIARIO}
@@ -187,6 +210,7 @@ MODULOS_PERMISSAO = [
     {"chave": "criar_cliente", "label": "Criar/editar clientes", "padrao_escritorio_apenas": True},
     {"chave": "criar_colaborador", "label": "Criar/editar colaboradores", "padrao_escritorio_apenas": True},
     {"chave": "relatorios", "label": "Relatórios gerenciais", "padrao_escritorio_apenas": True},
+    {"chave": "estoque", "label": "Controle de Estoque", "padrao_escritorio_apenas": True},
 ]
 CHAVES_MODULOS_VALIDAS = {m["chave"] for m in MODULOS_PERMISSAO}
 
@@ -345,6 +369,11 @@ def pagina_custos_diarios():
 @app.get("/relatorios", include_in_schema=False)
 def pagina_relatorios():
     return FileResponse("static/relatorios.html")
+
+
+@app.get("/estoque", include_in_schema=False)
+def pagina_estoque():
+    return FileResponse("static/estoque.html")
 
 
 @app.get("/ocorrencias", include_in_schema=False)
@@ -518,6 +547,8 @@ def serializar_cliente(c: Cliente) -> dict:
         "responsavel_telefone": c.responsavel_telefone,
         "senha_acesso": c.senha_acesso,
         "chave_acesso": c.chave_acesso,
+        "supervisor_id": c.supervisor_id,
+        "supervisor_nome": c.supervisor.nome if c.supervisor else None,
         "empresa_id": c.empresa_id,
         "empresa_nome": c.empresa.nome,
         "ativo": c.ativo,
@@ -557,6 +588,9 @@ def criar_cliente(
     if not nome:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do cliente")
 
+    if dados.supervisor_id is not None and db.get(Usuario, dados.supervisor_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
+
     cliente = Cliente(
         empresa_id=dados.empresa_id,
         nome=nome,
@@ -569,6 +603,7 @@ def criar_cliente(
         responsavel_telefone=dados.responsavel_telefone.strip() if dados.responsavel_telefone else None,
         senha_acesso=dados.senha_acesso.strip() if dados.senha_acesso else None,
         chave_acesso=dados.chave_acesso.strip() if dados.chave_acesso else None,
+        supervisor_id=dados.supervisor_id,
     )
     db.add(cliente)
     db.commit()
@@ -628,6 +663,10 @@ def editar_cliente(
         cliente.senha_acesso = campos["senha_acesso"].strip() if campos["senha_acesso"] else None
     if "chave_acesso" in campos:
         cliente.chave_acesso = campos["chave_acesso"].strip() if campos["chave_acesso"] else None
+    if "supervisor_id" in campos:
+        if campos["supervisor_id"] is not None and db.get(Usuario, campos["supervisor_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
+        cliente.supervisor_id = campos["supervisor_id"]
     if "ativo" in campos:
         cliente.ativo = campos["ativo"]
 
@@ -646,6 +685,13 @@ def serializar_colaborador(c: Colaborador) -> dict:
         "data_admissao": c.data_admissao.isoformat() if c.data_admissao else None,
         "aniversario_dia": c.aniversario_dia,
         "aniversario_mes": c.aniversario_mes,
+        "data_fim_experiencia_30": c.data_fim_experiencia_30.isoformat() if c.data_fim_experiencia_30 else None,
+        "data_fim_experiencia_90": c.data_fim_experiencia_90.isoformat() if c.data_fim_experiencia_90 else None,
+        "vt_numero_cartao": c.vt_numero_cartao,
+        "vt_situacao": c.vt_situacao,
+        "vt_saldo": c.vt_saldo,
+        "seguro_vida_data_inclusao": c.seguro_vida_data_inclusao.isoformat() if c.seguro_vida_data_inclusao else None,
+        "seguro_vida_data_exclusao": c.seguro_vida_data_exclusao.isoformat() if c.seguro_vida_data_exclusao else None,
         "empresa_id": c.empresa_id,
         "empresa_nome": c.empresa.nome,
         "supervisor_id": c.supervisor_id,
@@ -718,6 +764,9 @@ def criar_colaborador(
 
     admissao = date.fromisoformat(dados.data_admissao) if dados.data_admissao else None
 
+    fim_experiencia_30 = admissao + timedelta(days=29) if admissao else None
+    fim_experiencia_90 = admissao + timedelta(days=89) if admissao else None
+
     colaborador = Colaborador(
         empresa_id=dados.empresa_id,
         registro=dados.registro.strip() if dados.registro else None,
@@ -725,6 +774,8 @@ def criar_colaborador(
         cargo=dados.cargo.strip() if dados.cargo else None,
         contato=dados.contato.strip() if dados.contato else None,
         data_admissao=admissao,
+        data_fim_experiencia_30=fim_experiencia_30,
+        data_fim_experiencia_90=fim_experiencia_90,
         aniversario_dia=dados.aniversario_dia,
         aniversario_mes=dados.aniversario_mes,
         supervisor_id=dados.supervisor_id,
@@ -887,6 +938,24 @@ def editar_colaborador(
         _validar_aniversario(novo_dia, novo_mes)
         colaborador.aniversario_dia = novo_dia
         colaborador.aniversario_mes = novo_mes
+    if "data_fim_experiencia_30" in campos:
+        valor = campos["data_fim_experiencia_30"]
+        colaborador.data_fim_experiencia_30 = date.fromisoformat(valor) if valor else None
+    if "data_fim_experiencia_90" in campos:
+        valor = campos["data_fim_experiencia_90"]
+        colaborador.data_fim_experiencia_90 = date.fromisoformat(valor) if valor else None
+    if "vt_numero_cartao" in campos:
+        colaborador.vt_numero_cartao = campos["vt_numero_cartao"].strip() if campos["vt_numero_cartao"] else None
+    if "vt_situacao" in campos:
+        colaborador.vt_situacao = campos["vt_situacao"].strip() if campos["vt_situacao"] else None
+    if "vt_saldo" in campos:
+        colaborador.vt_saldo = campos["vt_saldo"]
+    if "seguro_vida_data_inclusao" in campos:
+        valor = campos["seguro_vida_data_inclusao"]
+        colaborador.seguro_vida_data_inclusao = date.fromisoformat(valor) if valor else None
+    if "seguro_vida_data_exclusao" in campos:
+        valor = campos["seguro_vida_data_exclusao"]
+        colaborador.seguro_vida_data_exclusao = date.fromisoformat(valor) if valor else None
     if "supervisor_id" in campos:
         if campos["supervisor_id"] is not None and db.get(Usuario, campos["supervisor_id"]) is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
@@ -1113,22 +1182,41 @@ def horarios_do_cliente(
 TURNOS_VALIDOS = {"manha", "tarde", "noite"}
 
 
+def _horarios_se_sobrepoem(inicio1: str, fim1: str, inicio2: str, fim2: str) -> bool:
+    """Compara strings HH:MM - a comparacao lexicografica funciona pois o formato e sempre zero-padded."""
+    return inicio1 < fim2 and inicio2 < fim1
+
+
 def _checar_conflito_horario(
-    db: Session, colaborador_id: int, dia_semana: str, turno: str, ignorar_id: int | None = None
+    db: Session,
+    colaborador_id: int,
+    dia_semana: str,
+    hora_inicio: str,
+    hora_fim: str,
+    ignorar_id: int | None = None,
 ) -> None:
-    """Um colaborador nao pode estar em dois lugares no mesmo dia/turno."""
+    """
+    Um colaborador nao pode estar em dois lugares ao mesmo tempo. So
+    bloqueia se as faixas de horario realmente se sobrepoem - o mesmo
+    dia com turnos iguais mas horarios diferentes (ex: 06:00-08:00 e
+    08:30-12:00) e permitido.
+    """
     query = db.query(HorarioServico).filter(
         HorarioServico.colaborador_id == colaborador_id,
         HorarioServico.dia_semana == dia_semana,
-        HorarioServico.turno == turno,
     )
     if ignorar_id is not None:
         query = query.filter(HorarioServico.id != ignorar_id)
-    if query.first() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Esse colaborador ja tem um horario nesse dia/turno. Edite o horario existente em vez de criar um novo.",
-        )
+
+    for existente in query.all():
+        if _horarios_se_sobrepoem(hora_inicio, hora_fim, existente.hora_inicio, existente.hora_fim):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Esse colaborador ja tem um horario que se sobrepoe nesse dia "
+                    f"({existente.hora_inicio}-{existente.hora_fim}). Ajuste o horario para nao coincidir."
+                ),
+            )
 
 
 @app.post("/horarios-servico", status_code=status.HTTP_201_CREATED)
@@ -1145,8 +1233,10 @@ def criar_horario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
     if db.get(Cliente, dados.cliente_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+    if dados.hora_inicio >= dados.hora_fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A hora final deve ser depois da hora inicial")
 
-    _checar_conflito_horario(db, dados.colaborador_id, dados.dia_semana, dados.turno)
+    _checar_conflito_horario(db, dados.colaborador_id, dados.dia_semana, dados.hora_inicio, dados.hora_fim)
 
     horario = HorarioServico(
         colaborador_id=dados.colaborador_id,
@@ -1178,13 +1268,23 @@ def editar_horario(
     novo_colaborador_id = campos.get("colaborador_id", horario.colaborador_id)
     novo_dia = campos.get("dia_semana", horario.dia_semana)
     novo_turno = campos.get("turno", horario.turno)
+    nova_hora_inicio = campos.get("hora_inicio", horario.hora_inicio)
+    nova_hora_fim = campos.get("hora_fim", horario.hora_fim)
 
-    if "colaborador_id" in campos or "dia_semana" in campos or "turno" in campos:
-        if novo_dia not in DIAS_SEMANA_ORDEM:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dia da semana invalido")
-        if novo_turno not in TURNOS_VALIDOS:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Turno invalido")
-        _checar_conflito_horario(db, novo_colaborador_id, novo_dia, novo_turno, ignorar_id=horario_id)
+    if novo_dia not in DIAS_SEMANA_ORDEM:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Dia da semana invalido")
+    if novo_turno not in TURNOS_VALIDOS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Turno invalido")
+    if nova_hora_inicio >= nova_hora_fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A hora final deve ser depois da hora inicial")
+
+    if (
+        "colaborador_id" in campos
+        or "dia_semana" in campos
+        or "hora_inicio" in campos
+        or "hora_fim" in campos
+    ):
+        _checar_conflito_horario(db, novo_colaborador_id, novo_dia, nova_hora_inicio, nova_hora_fim, ignorar_id=horario_id)
 
     if "colaborador_id" in campos:
         if db.get(Colaborador, campos["colaborador_id"]) is None:
@@ -2303,6 +2403,8 @@ def serializar_custo(c: CustoDiario) -> dict:
         "valor": c.valor,
         "data": c.data.isoformat(),
         "descricao": c.descricao,
+        "nome_beneficiario": c.nome_beneficiario,
+        "chave_pix": c.chave_pix,
         "tem_comprovante": c.comprovante_path is not None,
         "comprovante_nome_original": c.comprovante_nome_original,
         "reembolsado": c.reembolsado,
@@ -2335,6 +2437,8 @@ def criar_custo_diario(
     valor: float = Form(...),
     data_custo: str = Form(...),
     descricao: str | None = Form(None),
+    nome_beneficiario: str | None = Form(None),
+    chave_pix: str | None = Form(None),
     comprovante: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
@@ -2368,6 +2472,8 @@ def criar_custo_diario(
         valor=valor,
         data=date.fromisoformat(data_custo),
         descricao=descricao.strip() if descricao else None,
+        nome_beneficiario=nome_beneficiario.strip() if nome_beneficiario else None,
+        chave_pix=chave_pix.strip() if chave_pix else None,
         comprovante_path=comprovante_path_salvo,
         comprovante_nome_original=comprovante_nome_original,
     )
@@ -2407,6 +2513,10 @@ def editar_custo_diario(
         custo.data = date.fromisoformat(campos["data"])
     if "descricao" in campos:
         custo.descricao = campos["descricao"].strip() if campos["descricao"] else None
+    if "nome_beneficiario" in campos:
+        custo.nome_beneficiario = campos["nome_beneficiario"].strip() if campos["nome_beneficiario"] else None
+    if "chave_pix" in campos:
+        custo.chave_pix = campos["chave_pix"].strip() if campos["chave_pix"] else None
     if "reembolsado" in campos:
         custo.reembolsado = campos["reembolsado"]
 
@@ -2459,6 +2569,316 @@ def testar_email_custos(
         return resultado
     except RuntimeError as erro:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erro))
+
+
+# ---------------------------------------------------------------------------
+# Periodo de experiencia (30/90 dias)
+# ---------------------------------------------------------------------------
+
+@app.get("/colaboradores-dados/experiencia/criticos")
+def listar_experiencias_criticas(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Colaboradores com checkpoint de experiencia vencendo em ate 7 dias - para o painel."""
+    from alertas_experiencia import buscar_experiencias_criticas
+
+    criticos = buscar_experiencias_criticas(db)
+    return [
+        {
+            "colaborador_nome": c["colaborador_nome"],
+            "empresa_nome": c["empresa_nome"],
+            "checkpoint": c["checkpoint"],
+            "data_checkpoint": c["data_checkpoint"].isoformat(),
+            "dias_restantes": c["dias_restantes"],
+        }
+        for c in criticos
+    ]
+
+
+@app.post("/colaboradores-dados/experiencia/testar-email")
+def testar_email_experiencia(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_papel("escritorio")),
+):
+    """Dispara a checagem de experiencia e o envio do e-mail na hora, para teste."""
+    try:
+        resultado = verificar_e_enviar_experiencias(db)
+        return resultado
+    except RuntimeError as erro:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erro))
+
+
+# ---------------------------------------------------------------------------
+# Controle de estoque (EPI / uniformes)
+# ---------------------------------------------------------------------------
+
+def serializar_item_estoque(item: EstoqueItem) -> dict:
+    return {
+        "id": item.id,
+        "empresa_id": item.empresa_id,
+        "empresa_nome": item.empresa.nome,
+        "tipo_peca": item.tipo_peca,
+        "tamanho": item.tamanho,
+        "quantidade_atual": item.quantidade_atual,
+        "ativo": item.ativo,
+    }
+
+
+def serializar_movimento_estoque(m: EstoqueMovimento) -> dict:
+    return {
+        "id": m.id,
+        "item_id": m.item_id,
+        "tipo": m.tipo,
+        "quantidade": m.quantidade,
+        "motivo": m.motivo,
+        "colaborador_id": m.colaborador_id,
+        "colaborador_nome": m.colaborador.nome if m.colaborador else None,
+        "registrado_por": m.registrado_por.nome,
+        "criado_em": m.criado_em.isoformat(),
+    }
+
+
+@app.get("/estoque-dados")
+def listar_estoque(
+    empresa_id: int | None = None,
+    incluir_inativos: bool = False,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("estoque")),
+):
+    query = db.query(EstoqueItem)
+    if empresa_id is not None:
+        query = query.filter(EstoqueItem.empresa_id == empresa_id)
+    if not incluir_inativos:
+        query = query.filter(EstoqueItem.ativo.is_(True))
+    itens = query.order_by(EstoqueItem.tipo_peca, EstoqueItem.tamanho).all()
+    return [serializar_item_estoque(i) for i in itens]
+
+
+@app.post("/estoque-dados", status_code=status.HTTP_201_CREATED)
+def criar_item_estoque(
+    dados: EstoqueItemCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("estoque")),
+):
+    if db.get(Empresa, dados.empresa_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa invalida")
+
+    tipo_peca = dados.tipo_peca.strip().upper()
+    tamanho = dados.tamanho.strip().upper()
+    if not tipo_peca or not tamanho:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o tipo de peca e o tamanho")
+    if dados.quantidade_inicial < 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quantidade nao pode ser negativa")
+
+    existente = db.query(EstoqueItem).filter_by(empresa_id=dados.empresa_id, tipo_peca=tipo_peca, tamanho=tamanho).first()
+    if existente is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Ja existe esse item (peca+tamanho) para essa empresa")
+
+    item = EstoqueItem(
+        empresa_id=dados.empresa_id,
+        tipo_peca=tipo_peca,
+        tamanho=tamanho,
+        quantidade_atual=dados.quantidade_inicial,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return serializar_item_estoque(item)
+
+
+@app.patch("/estoque-dados/{item_id}")
+def editar_item_estoque(
+    item_id: int,
+    dados: EstoqueItemUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("estoque")),
+):
+    item = db.get(EstoqueItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item nao encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "tipo_peca" in campos:
+        item.tipo_peca = campos["tipo_peca"].strip().upper()
+    if "tamanho" in campos:
+        item.tamanho = campos["tamanho"].strip().upper()
+    if "ativo" in campos:
+        item.ativo = campos["ativo"]
+
+    db.commit()
+    db.refresh(item)
+    return serializar_item_estoque(item)
+
+
+@app.delete("/estoque-dados/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_item_estoque(
+    item_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("estoque")),
+):
+    item = db.get(EstoqueItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item nao encontrado")
+    db.query(EstoqueMovimento).filter_by(item_id=item_id).delete()
+    db.delete(item)
+    db.commit()
+
+
+@app.get("/estoque-dados/{item_id}/movimentos")
+def listar_movimentos_estoque(
+    item_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("estoque")),
+):
+    if db.get(EstoqueItem, item_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item nao encontrado")
+    movimentos = (
+        db.query(EstoqueMovimento)
+        .filter_by(item_id=item_id)
+        .order_by(EstoqueMovimento.criado_em.desc())
+        .all()
+    )
+    return [serializar_movimento_estoque(m) for m in movimentos]
+
+
+@app.post("/estoque-dados/{item_id}/movimentos", status_code=status.HTTP_201_CREATED)
+def criar_movimento_estoque(
+    item_id: int,
+    dados: EstoqueMovimentoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("estoque")),
+):
+    item = db.get(EstoqueItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item nao encontrado")
+
+    if dados.tipo not in ("entrada", "saida"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo deve ser entrada ou saida")
+    if dados.quantidade <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quantidade deve ser maior que zero")
+    if dados.colaborador_id is not None and db.get(Colaborador, dados.colaborador_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
+
+    if dados.tipo == "saida" and dados.quantidade > item.quantidade_atual:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Estoque insuficiente (disponivel: {item.quantidade_atual})",
+        )
+
+    movimento = EstoqueMovimento(
+        item_id=item_id,
+        tipo=dados.tipo,
+        quantidade=dados.quantidade,
+        motivo=dados.motivo.strip() if dados.motivo else None,
+        colaborador_id=dados.colaborador_id,
+        registrado_por_id=usuario.id,
+    )
+    db.add(movimento)
+
+    if dados.tipo == "entrada":
+        item.quantidade_atual += dados.quantidade
+    else:
+        item.quantidade_atual -= dados.quantidade
+
+    db.commit()
+    db.refresh(movimento)
+    return serializar_movimento_estoque(movimento)
+
+
+# ---------------------------------------------------------------------------
+# METLIFE (titular + dependentes)
+# ---------------------------------------------------------------------------
+
+def serializar_metlife(m: MetlifeLancamento) -> dict:
+    return {
+        "id": m.id,
+        "colaborador_id": m.colaborador_id,
+        "nome_dependente": m.nome_dependente,
+        "valor": m.valor,
+        "desconta": m.desconta,
+        "data_inclusao": m.data_inclusao.isoformat() if m.data_inclusao else None,
+        "data_exclusao": m.data_exclusao.isoformat() if m.data_exclusao else None,
+    }
+
+
+@app.get("/colaboradores-dados/{colaborador_id}/metlife")
+def listar_metlife_colaborador(
+    colaborador_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if db.get(Colaborador, colaborador_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    lancamentos = db.query(MetlifeLancamento).filter_by(colaborador_id=colaborador_id).all()
+    return [serializar_metlife(m) for m in lancamentos]
+
+
+@app.post("/colaboradores-dados/{colaborador_id}/metlife", status_code=status.HTTP_201_CREATED)
+def criar_metlife(
+    colaborador_id: int,
+    dados: MetlifeLancamentoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if db.get(Colaborador, colaborador_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+
+    lancamento = MetlifeLancamento(
+        colaborador_id=colaborador_id,
+        nome_dependente=dados.nome_dependente.strip() if dados.nome_dependente else None,
+        valor=dados.valor,
+        desconta=dados.desconta,
+        data_inclusao=date.fromisoformat(dados.data_inclusao) if dados.data_inclusao else None,
+        data_exclusao=date.fromisoformat(dados.data_exclusao) if dados.data_exclusao else None,
+    )
+    db.add(lancamento)
+    db.commit()
+    db.refresh(lancamento)
+    return serializar_metlife(lancamento)
+
+
+@app.patch("/colaboradores-dados/metlife/{lancamento_id}")
+def editar_metlife(
+    lancamento_id: int,
+    dados: MetlifeLancamentoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    lancamento = db.get(MetlifeLancamento, lancamento_id)
+    if lancamento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lancamento nao encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "nome_dependente" in campos:
+        lancamento.nome_dependente = campos["nome_dependente"].strip() if campos["nome_dependente"] else None
+    if "valor" in campos:
+        lancamento.valor = campos["valor"]
+    if "desconta" in campos:
+        lancamento.desconta = campos["desconta"]
+    if "data_inclusao" in campos:
+        valor = campos["data_inclusao"]
+        lancamento.data_inclusao = date.fromisoformat(valor) if valor else None
+    if "data_exclusao" in campos:
+        valor = campos["data_exclusao"]
+        lancamento.data_exclusao = date.fromisoformat(valor) if valor else None
+
+    db.commit()
+    db.refresh(lancamento)
+    return serializar_metlife(lancamento)
+
+
+@app.delete("/colaboradores-dados/metlife/{lancamento_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_metlife(
+    lancamento_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    lancamento = db.get(MetlifeLancamento, lancamento_id)
+    if lancamento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lancamento nao encontrado")
+    db.delete(lancamento)
+    db.commit()
 
 
 

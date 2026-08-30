@@ -31,18 +31,24 @@ const DIAS_LABEL = {
 };
 const TURNOS_LABEL = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
 
-function celulaHorarioHtml(registro, campoNome, dia, turno) {
-  if (!registro) {
-    return `<td data-dia="${dia}" data-turno="${turno}"><span class="horario-celula-vazia">+</span></td>`;
-  }
-  return `
-    <td data-dia="${dia}" data-turno="${turno}" data-horario-id="${registro.id}">
-      <div class="horario-celula">
+function celulaHorarioHtml(registros, campoNome, dia, turno) {
+  const lista = registros || [];
+  const itensHtml = lista
+    .map(
+      (registro) => `
+      <div class="horario-celula" data-horario-id="${registro.id}">
         <span class="nome">${registro[campoNome]}</span>
         <span class="hora">${registro.hora_inicio}-${registro.hora_fim}</span>
       </div>
-    </td>
-  `;
+    `
+    )
+    .join('');
+
+  const dicaAdicionar = lista.length === 0
+    ? '<span class="horario-celula-vazia">+</span>'
+    : '<span class="horario-add-mais">+ adicionar outro</span>';
+
+  return `<td data-dia="${dia}" data-turno="${turno}">${itensHtml}${dicaAdicionar}</td>`;
 }
 
 function montarGradeSemanal(horarios, campoNome) {
@@ -52,7 +58,9 @@ function montarGradeSemanal(horarios, campoNome) {
 
   const porDiaTurno = {};
   horarios.forEach((h) => {
-    porDiaTurno[`${h.dia_semana}_${h.turno}`] = h;
+    const chave = `${h.dia_semana}_${h.turno}`;
+    if (!porDiaTurno[chave]) porDiaTurno[chave] = [];
+    porDiaTurno[chave].push(h);
   });
 
   const headerCols = dias.map((d) => `<th>${DIAS_LABEL[d]}</th>`).join('');
@@ -262,6 +270,34 @@ function montarModalEditarColaborador() {
             <input type="text" id="editar-colab-aniversario" placeholder="Ex: 24/01" maxlength="5">
           </div>
           <div class="field">
+            <label for="editar-colab-experiencia-30">Fim do período de 30 dias (opcional)</label>
+            <input type="date" id="editar-colab-experiencia-30">
+          </div>
+          <div class="field">
+            <label for="editar-colab-experiencia-90">Fim do período de 90 dias (opcional)</label>
+            <input type="date" id="editar-colab-experiencia-90">
+          </div>
+          <div class="field">
+            <label for="editar-colab-vt-numero">Número do cartão VT</label>
+            <input type="text" id="editar-colab-vt-numero">
+          </div>
+          <div class="field">
+            <label for="editar-colab-vt-situacao">Situação do VT</label>
+            <input type="text" id="editar-colab-vt-situacao" placeholder="Ex: Ativo, Está na empresa">
+          </div>
+          <div class="field">
+            <label for="editar-colab-vt-saldo">Saldo do VT (R$)</label>
+            <input type="number" id="editar-colab-vt-saldo" step="0.01" min="0">
+          </div>
+          <div class="field">
+            <label for="editar-colab-seguro-inclusao">Seguro de vida - inclusão</label>
+            <input type="date" id="editar-colab-seguro-inclusao">
+          </div>
+          <div class="field">
+            <label for="editar-colab-seguro-exclusao">Seguro de vida - exclusão</label>
+            <input type="date" id="editar-colab-seguro-exclusao">
+          </div>
+          <div class="field">
             <label for="editar-colab-supervisor">Supervisor</label>
             <select id="editar-colab-supervisor"><option value="">Administrativo / sem supervisor</option></select>
           </div>
@@ -318,6 +354,13 @@ async function abrirModalEditarColaborador() {
   const mesAniv = colaboradorAtual.aniversario_mes;
   document.getElementById('editar-colab-aniversario').value =
     diaAniv && mesAniv ? `${String(diaAniv).padStart(2, '0')}/${String(mesAniv).padStart(2, '0')}` : '';
+  document.getElementById('editar-colab-experiencia-30').value = colaboradorAtual.data_fim_experiencia_30 || '';
+  document.getElementById('editar-colab-experiencia-90').value = colaboradorAtual.data_fim_experiencia_90 || '';
+  document.getElementById('editar-colab-vt-numero').value = colaboradorAtual.vt_numero_cartao || '';
+  document.getElementById('editar-colab-vt-situacao').value = colaboradorAtual.vt_situacao || '';
+  document.getElementById('editar-colab-vt-saldo').value = colaboradorAtual.vt_saldo ?? '';
+  document.getElementById('editar-colab-seguro-inclusao').value = colaboradorAtual.seguro_vida_data_inclusao || '';
+  document.getElementById('editar-colab-seguro-exclusao').value = colaboradorAtual.seguro_vida_data_exclusao || '';
   document.getElementById('editar-colab-status').value = colaboradorAtual.status;
 
   document.getElementById('editar-colab-modal-overlay').hidden = false;
@@ -353,6 +396,13 @@ async function salvarEdicaoColaborador(evento) {
     data_admissao: document.getElementById('editar-colab-admissao').value || null,
     aniversario_dia: aniversarioDia,
     aniversario_mes: aniversarioMes,
+    data_fim_experiencia_30: document.getElementById('editar-colab-experiencia-30').value || null,
+    data_fim_experiencia_90: document.getElementById('editar-colab-experiencia-90').value || null,
+    vt_numero_cartao: document.getElementById('editar-colab-vt-numero').value || null,
+    vt_situacao: document.getElementById('editar-colab-vt-situacao').value || null,
+    vt_saldo: document.getElementById('editar-colab-vt-saldo').value ? Number(document.getElementById('editar-colab-vt-saldo').value) : null,
+    seguro_vida_data_inclusao: document.getElementById('editar-colab-seguro-inclusao').value || null,
+    seguro_vida_data_exclusao: document.getElementById('editar-colab-seguro-exclusao').value || null,
     supervisor_id: supervisorValor ? Number(supervisorValor) : null,
     status: document.getElementById('editar-colab-status').value,
   };
@@ -404,6 +454,26 @@ function renderizarHeaderColaborador() {
     ? ` · 🎂 Aniversário: ${String(c.aniversario_dia).padStart(2, '0')}/${String(c.aniversario_mes).padStart(2, '0')}`
     : '';
 
+  let linhaExperiencia = '';
+  if (c.data_fim_experiencia_30 || c.data_fim_experiencia_90) {
+    const partes = [];
+    if (c.data_fim_experiencia_30) partes.push(`30 dias: ${formatarData(c.data_fim_experiencia_30)}`);
+    if (c.data_fim_experiencia_90) partes.push(`90 dias: ${formatarData(c.data_fim_experiencia_90)}`);
+    linhaExperiencia = `<div class="meta" style="margin-top: 4px;">📋 Período de experiência · ${partes.join(' · ')}</div>`;
+  }
+
+  let linhaBeneficios = '';
+  if (c.vt_numero_cartao || c.seguro_vida_data_inclusao) {
+    const partes = [];
+    if (c.vt_numero_cartao) {
+      partes.push(`VT: ${c.vt_numero_cartao}${c.vt_situacao ? ` (${c.vt_situacao})` : ''}${c.vt_saldo != null ? ` · saldo R$ ${c.vt_saldo.toFixed(2)}` : ''}`);
+    }
+    if (c.seguro_vida_data_inclusao) {
+      partes.push(`Seguro de vida: desde ${formatarData(c.seguro_vida_data_inclusao)}${c.seguro_vida_data_exclusao ? ` até ${formatarData(c.seguro_vida_data_exclusao)}` : ''}`);
+    }
+    linhaBeneficios = `<div class="meta" style="margin-top: 4px;">💳 ${partes.join(' · ')}</div>`;
+  }
+
   document.getElementById('colaborador-header').innerHTML = `
     <span class="empresa-tag">${c.empresa_nome} · ${c.status === 'ativo' ? 'Ativo' : c.status === 'afastado' ? 'Afastado' : 'Desligado'}</span>
     <h2>${c.nome}</h2>
@@ -411,6 +481,8 @@ function renderizarHeaderColaborador() {
     <div class="meta" style="margin-top: 8px;">
       Contato: ${c.contato || '—'} · Admissão: ${formatarData(c.data_admissao)} · Supervisor: ${c.supervisor_nome || 'Administrativo'}${linhaTempoDeCasa}${linhaAniversario}
     </div>
+    ${linhaExperiencia}
+    ${linhaBeneficios}
   `;
 }
 
@@ -651,6 +723,162 @@ async function carregarTimeline() {
   }
 }
 
+function renderizarListaMetlife(lancamentos) {
+  const container = document.getElementById('lista-metlife');
+  if (lancamentos.length === 0) {
+    container.innerHTML = '<div class="empty-state">Nenhum lançamento do METLIFE ainda.</div>';
+    return;
+  }
+  const linhas = lancamentos
+    .map(
+      (l) => `
+      <tr>
+        <td>${l.nome_dependente || '<em>Titular</em>'}</td>
+        <td>${l.valor != null ? 'R$ ' + l.valor.toFixed(2) : '—'}</td>
+        <td>${l.desconta ? 'Sim' : 'Não'}</td>
+        <td>${l.data_inclusao ? formatarData(l.data_inclusao) : '—'}</td>
+        <td>${l.data_exclusao ? formatarData(l.data_exclusao) : '—'}</td>
+        <td>
+          <button class="btn-ghost btn-metlife-editar" data-id="${l.id}" style="padding: 4px 8px; font-size: 11.5px;">Editar</button>
+          <button class="btn-ghost btn-metlife-excluir" data-id="${l.id}" style="padding: 4px 8px; font-size: 11.5px;">Excluir</button>
+        </td>
+      </tr>
+    `
+    )
+    .join('');
+  container.innerHTML = `
+    <table class="table-list">
+      <thead><tr><th>Dependente</th><th>Valor</th><th>Desconta</th><th>Inclusão</th><th>Exclusão</th><th>Ações</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+  `;
+}
+
+let metlifeCacheAtual = [];
+
+async function carregarMetlife() {
+  const container = document.getElementById('lista-metlife');
+  container.innerHTML = '<div class="loading-state">Carregando...</div>';
+  try {
+    const lancamentos = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/metlife`);
+    if (lancamentos === null) return;
+    metlifeCacheAtual = lancamentos;
+    renderizarListaMetlife(lancamentos);
+  } catch (erro) {
+    container.innerHTML = '<div class="empty-state">Não foi possível carregar agora.</div>';
+  }
+}
+
+function montarModalMetlife() {
+  const html = `
+    <div class="modal-overlay" id="metlife-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="metlife-modal-titulo">Lançamento METLIFE</h3>
+          <button class="modal-close" id="metlife-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="metlife-form">
+          <div class="field">
+            <label for="metlife-dependente">Nome do dependente (deixe em branco se for o titular)</label>
+            <input type="text" id="metlife-dependente">
+          </div>
+          <div class="field">
+            <label for="metlife-valor">Valor (R$)</label>
+            <input type="number" id="metlife-valor" step="0.01" min="0">
+          </div>
+          <div class="field">
+            <label><input type="checkbox" id="metlife-desconta" style="width: auto; margin-right: 6px;">Desconta em folha</label>
+          </div>
+          <div class="field">
+            <label for="metlife-inclusao">Data de inclusão</label>
+            <input type="date" id="metlife-inclusao">
+          </div>
+          <div class="field">
+            <label for="metlife-exclusao">Data de exclusão</label>
+            <input type="date" id="metlife-exclusao">
+          </div>
+          <div class="error-message" id="metlife-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="metlife-modal-enviar">Salvar</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('metlife-modal-fechar').addEventListener('click', () => {
+    document.getElementById('metlife-modal-overlay').hidden = true;
+  });
+  document.getElementById('metlife-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'metlife-modal-overlay') document.getElementById('metlife-modal-overlay').hidden = true;
+  });
+  document.getElementById('metlife-form').addEventListener('submit', salvarMetlife);
+}
+
+let metlifeIdEmEdicao = null;
+
+function abrirModalMetlife(id) {
+  metlifeIdEmEdicao = id;
+  document.getElementById('metlife-form').reset();
+  document.getElementById('metlife-modal-erro').classList.remove('visible');
+
+  if (id) {
+    const lancamento = metlifeCacheAtual.find((l) => l.id === id);
+    document.getElementById('metlife-modal-titulo').textContent = 'Editar lançamento METLIFE';
+    document.getElementById('metlife-dependente').value = lancamento.nome_dependente || '';
+    document.getElementById('metlife-valor').value = lancamento.valor ?? '';
+    document.getElementById('metlife-desconta').checked = lancamento.desconta;
+    document.getElementById('metlife-inclusao').value = lancamento.data_inclusao || '';
+    document.getElementById('metlife-exclusao').value = lancamento.data_exclusao || '';
+  } else {
+    document.getElementById('metlife-modal-titulo').textContent = 'Adicionar dependente';
+  }
+
+  document.getElementById('metlife-modal-overlay').hidden = false;
+}
+
+async function salvarMetlife(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('metlife-modal-erro');
+  const botao = document.getElementById('metlife-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const corpo = {
+    nome_dependente: document.getElementById('metlife-dependente').value || null,
+    valor: document.getElementById('metlife-valor').value ? Number(document.getElementById('metlife-valor').value) : null,
+    desconta: document.getElementById('metlife-desconta').checked,
+    data_inclusao: document.getElementById('metlife-inclusao').value || null,
+    data_exclusao: document.getElementById('metlife-exclusao').value || null,
+  };
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+  try {
+    if (metlifeIdEmEdicao) {
+      await Shell.chamarApi(`/colaboradores-dados/metlife/${metlifeIdEmEdicao}`, { method: 'PATCH', body: corpo });
+    } else {
+      await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/metlife`, { method: 'POST', body: corpo });
+    }
+    document.getElementById('metlife-modal-overlay').hidden = true;
+    carregarMetlife();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar';
+  }
+}
+
+async function excluirMetlife(id) {
+  if (!confirm('Excluir esse lançamento do METLIFE?')) return;
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/metlife/${id}`, { method: 'DELETE' });
+    carregarMetlife();
+  } catch (erro) {
+    alert('Não foi possível excluir agora.');
+  }
+}
+
 async function iniciar() {
   if (!colaboradorId) {
     document.getElementById('colaborador-header').innerHTML = '<div class="empty-state">Colaborador não especificado.</div>';
@@ -677,9 +905,15 @@ async function iniciar() {
 
     montarModalHorario();
     document.getElementById('mapa-servicos').addEventListener('click', (evento) => {
-      const celula = evento.target.closest('td[data-dia]');
-      if (!celula) return;
-      abrirModalHorario(celula.dataset.dia, celula.dataset.turno, celula.dataset.horarioId);
+      const itemExistente = evento.target.closest('.horario-celula[data-horario-id]');
+      const td = evento.target.closest('td[data-dia]');
+      if (!td) return;
+
+      if (itemExistente) {
+        abrirModalHorario(td.dataset.dia, td.dataset.turno, itemExistente.dataset.horarioId);
+      } else {
+        abrirModalHorario(td.dataset.dia, td.dataset.turno, null);
+      }
     });
 
     document.getElementById('timeline').addEventListener('click', (evento) => {
@@ -689,8 +923,18 @@ async function iniciar() {
       abrirArquivoEvento(link.dataset.eventoId);
     });
 
+    montarModalMetlife();
+    document.getElementById('btn-novo-metlife').addEventListener('click', () => abrirModalMetlife(null));
+    document.getElementById('lista-metlife').addEventListener('click', (evento) => {
+      const btnEditar = evento.target.closest('.btn-metlife-editar');
+      if (btnEditar) return abrirModalMetlife(Number(btnEditar.dataset.id));
+      const btnExcluir = evento.target.closest('.btn-metlife-excluir');
+      if (btnExcluir) return excluirMetlife(Number(btnExcluir.dataset.id));
+    });
+
     carregarMapaServicos();
     carregarTimeline();
+    carregarMetlife();
   } catch (erro) {
     document.getElementById('colaborador-header').innerHTML =
       '<div class="empty-state">Não foi possível carregar os dados agora.</div>';

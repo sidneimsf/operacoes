@@ -43,6 +43,7 @@ class ClienteCreate(BaseModel):
     responsavel_telefone: str | None = None
     senha_acesso: str | None = None
     chave_acesso: str | None = None
+    supervisor_id: int | None = None
 
 
 class ClienteUpdate(BaseModel):
@@ -57,6 +58,7 @@ class ClienteUpdate(BaseModel):
     responsavel_telefone: str | None = None
     senha_acesso: str | None = None
     chave_acesso: str | None = None
+    supervisor_id: int | None = None
     ativo: bool | None = None
 
 
@@ -82,8 +84,31 @@ class ColaboradorUpdate(BaseModel):
     data_admissao: str | None = None
     aniversario_dia: int | None = None
     aniversario_mes: int | None = None
+    data_fim_experiencia_30: str | None = None
+    data_fim_experiencia_90: str | None = None
+    vt_numero_cartao: str | None = None
+    vt_situacao: str | None = None
+    vt_saldo: float | None = None
+    seguro_vida_data_inclusao: str | None = None
+    seguro_vida_data_exclusao: str | None = None
     supervisor_id: int | None = None
     status: str | None = None
+
+
+class MetlifeLancamentoCreate(BaseModel):
+    nome_dependente: str | None = None
+    valor: float | None = None
+    desconta: bool = False
+    data_inclusao: str | None = None
+    data_exclusao: str | None = None
+
+
+class MetlifeLancamentoUpdate(BaseModel):
+    nome_dependente: str | None = None
+    valor: float | None = None
+    desconta: bool | None = None
+    data_inclusao: str | None = None
+    data_exclusao: str | None = None
 
 
 class ColaboradorEventoUpdate(BaseModel):
@@ -176,4 +201,26 @@ class CustoDiarioUpdate(BaseModel):
     valor: float | None = None
     data: str | None = None
     descricao: str | None = None
+    nome_beneficiario: str | None = None
+    chave_pix: str | None = None
     reembolsado: bool | None = None
+
+
+class EstoqueItemCreate(BaseModel):
+    empresa_id: int
+    tipo_peca: str
+    tamanho: str
+    quantidade_inicial: int = 0
+
+
+class EstoqueItemUpdate(BaseModel):
+    tipo_peca: str | None = None
+    tamanho: str | None = None
+    ativo: bool | None = None
+
+
+class EstoqueMovimentoCreate(BaseModel):
+    tipo: str
+    quantidade: int
+    motivo: str | None = None
+    colaborador_id: int | None = None

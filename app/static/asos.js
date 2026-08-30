@@ -15,6 +15,7 @@ function labelSituacao(situacao, diasRestantes) {
 let asosCompletos = [];
 let termoBuscaAso = '';
 let recemRealizados = {};
+let validadeSelecionadaAso = { novo: null, editar: null };
 
 function formatarDataISO(d) {
   return d.toISOString().slice(0, 10);
@@ -159,6 +160,14 @@ async function carregarColaboradoresAgrupados() {
   return colaboradoresAgrupadosCache;
 }
 
+function calcularVencimentoAso(dataExameStr, anos) {
+  if (!dataExameStr) return '';
+  const [ano, mes, dia] = dataExameStr.split('-').map(Number);
+  const dataExame = new Date(ano, mes - 1, dia);
+  dataExame.setFullYear(dataExame.getFullYear() + anos);
+  return dataExame.toISOString().slice(0, 10);
+}
+
 function montarModalNovoAso() {
   const html = `
     <div class="modal-overlay" id="novo-aso-modal-overlay" hidden>
@@ -175,6 +184,13 @@ function montarModalNovoAso() {
           <div class="field">
             <label for="novo-aso-exame">Data do exame</label>
             <input type="date" id="novo-aso-exame" required>
+          </div>
+          <div class="field">
+            <label>Validade</label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn-ghost btn-validade-aso" data-modal="novo" data-anos="1" style="flex: 1;">1 ano</button>
+              <button type="button" class="btn-ghost btn-validade-aso" data-modal="novo" data-anos="2" style="flex: 1;">2 anos</button>
+            </div>
           </div>
           <div class="field">
             <label for="novo-aso-vencimento">Data de vencimento</label>
@@ -197,11 +213,30 @@ function montarModalNovoAso() {
     }
   });
   document.getElementById('novo-aso-form').addEventListener('submit', enviarNovoAso);
+
+  document.querySelectorAll('.btn-validade-aso[data-modal="novo"]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      document.querySelectorAll('.btn-validade-aso[data-modal="novo"]').forEach((b) => b.classList.remove('ativa'));
+      botao.classList.add('ativa');
+      validadeSelecionadaAso.novo = Number(botao.dataset.anos);
+      document.getElementById('novo-aso-vencimento').value = calcularVencimentoAso(
+        document.getElementById('novo-aso-exame').value,
+        validadeSelecionadaAso.novo
+      );
+    });
+  });
+  document.getElementById('novo-aso-exame').addEventListener('change', (evento) => {
+    if (validadeSelecionadaAso.novo) {
+      document.getElementById('novo-aso-vencimento').value = calcularVencimentoAso(evento.target.value, validadeSelecionadaAso.novo);
+    }
+  });
 }
 
 async function abrirModalNovoAso() {
   document.getElementById('novo-aso-form').reset();
   document.getElementById('novo-aso-modal-erro').classList.remove('visible');
+  validadeSelecionadaAso.novo = null;
+  document.querySelectorAll('.btn-validade-aso[data-modal="novo"]').forEach((b) => b.classList.remove('ativa'));
 
   const grupos = await carregarColaboradoresAgrupados();
   document.getElementById('novo-aso-colaborador').innerHTML = grupos
@@ -284,6 +319,13 @@ function montarModalEditarAso() {
             <input type="date" id="editar-aso-exame" required>
           </div>
           <div class="field">
+            <label>Validade</label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn-ghost btn-validade-aso" data-modal="editar" data-anos="1" style="flex: 1;">1 ano</button>
+              <button type="button" class="btn-ghost btn-validade-aso" data-modal="editar" data-anos="2" style="flex: 1;">2 anos</button>
+            </div>
+          </div>
+          <div class="field">
             <label for="editar-aso-vencimento">Data de vencimento</label>
             <input type="date" id="editar-aso-vencimento" required>
           </div>
@@ -304,6 +346,23 @@ function montarModalEditarAso() {
     }
   });
   document.getElementById('editar-aso-form').addEventListener('submit', salvarEdicaoAso);
+
+  document.querySelectorAll('.btn-validade-aso[data-modal="editar"]').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      document.querySelectorAll('.btn-validade-aso[data-modal="editar"]').forEach((b) => b.classList.remove('ativa'));
+      botao.classList.add('ativa');
+      validadeSelecionadaAso.editar = Number(botao.dataset.anos);
+      document.getElementById('editar-aso-vencimento').value = calcularVencimentoAso(
+        document.getElementById('editar-aso-exame').value,
+        validadeSelecionadaAso.editar
+      );
+    });
+  });
+  document.getElementById('editar-aso-exame').addEventListener('change', (evento) => {
+    if (validadeSelecionadaAso.editar) {
+      document.getElementById('editar-aso-vencimento').value = calcularVencimentoAso(evento.target.value, validadeSelecionadaAso.editar);
+    }
+  });
 }
 
 let eventoIdEmEdicao = null;
@@ -313,6 +372,8 @@ function abrirModalEditarAso(eventoId, colaboradorNome, dataExame, dataVenciment
   document.getElementById('editar-aso-modal-titulo').textContent = `Editar ASO · ${colaboradorNome}`;
   document.getElementById('editar-aso-exame').value = dataExame;
   document.getElementById('editar-aso-vencimento').value = dataVencimento;
+  validadeSelecionadaAso.editar = null;
+  document.querySelectorAll('.btn-validade-aso[data-modal="editar"]').forEach((b) => b.classList.remove('ativa'));
   document.getElementById('editar-aso-modal-erro').classList.remove('visible');
   document.getElementById('editar-aso-modal-overlay').hidden = false;
 }

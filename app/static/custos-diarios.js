@@ -58,6 +58,7 @@ function renderizarLista(custos) {
         <td>${c.usuario_nome}</td>
         <td>${labelTipoCusto(c.tipo)}</td>
         <td>${formatarMoeda(c.valor)}</td>
+        <td>${c.nome_beneficiario || c.usuario_nome}${c.chave_pix ? ` <span class="meta">(${c.chave_pix})</span>` : ''}</td>
         <td>${c.descricao || '—'}</td>
         <td>${linhaComprovante}</td>
         <td><span class="aso-badge ${c.reembolsado ? 'ok' : 'proximo'}">${c.reembolsado ? 'Reembolsado' : 'Pendente'}</span></td>
@@ -70,7 +71,7 @@ function renderizarLista(custos) {
   container.innerHTML = `
     <table class="table-list">
       <thead>
-        <tr><th>Data</th><th>Quem pagou</th><th>Tipo</th><th>Valor</th><th>Descrição</th><th>Comprovante</th><th>Status</th><th>Ações</th></tr>
+        <tr><th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Descrição</th><th>Comprovante</th><th>Status</th><th>Ações</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
@@ -134,6 +135,14 @@ function montarModalNovoCusto() {
             <label for="custo-descricao">Descrição (opcional)</label>
             <textarea id="custo-descricao" rows="2" placeholder="Ex: Combustível pra visitar o cliente X"></textarea>
           </div>
+          <div class="field">
+            <label for="custo-nome-beneficiario">Reembolsar para (nome, se for diferente de você)</label>
+            <input type="text" id="custo-nome-beneficiario" placeholder="Deixe em branco se for você mesmo">
+          </div>
+          <div class="field">
+            <label for="custo-chave-pix">Chave PIX pro reembolso</label>
+            <input type="text" id="custo-chave-pix" placeholder="CPF, telefone, e-mail ou chave aleatória">
+          </div>
           <div class="field" id="campo-comprovante">
             <label for="custo-comprovante">Comprovante (opcional, JPEG/PNG/PDF)</label>
             <input type="file" id="custo-comprovante" accept=".jpg,.jpeg,.png,.pdf">
@@ -173,6 +182,8 @@ function abrirModalEditarCusto(custoId, custo) {
   document.getElementById('custo-valor').value = custo.valor;
   document.getElementById('custo-data').value = custo.data;
   document.getElementById('custo-descricao').value = custo.descricao || '';
+  document.getElementById('custo-nome-beneficiario').value = custo.nome_beneficiario || '';
+  document.getElementById('custo-chave-pix').value = custo.chave_pix || '';
   document.getElementById('campo-comprovante').hidden = true;
   document.getElementById('custo-modal-erro').classList.remove('visible');
   document.getElementById('novo-custo-modal-overlay').hidden = false;
@@ -224,6 +235,8 @@ async function salvarCusto(evento) {
         valor: Number(document.getElementById('custo-valor').value),
         data: document.getElementById('custo-data').value,
         descricao: document.getElementById('custo-descricao').value || null,
+        nome_beneficiario: document.getElementById('custo-nome-beneficiario').value || null,
+        chave_pix: document.getElementById('custo-chave-pix').value || null,
       };
       await Shell.chamarApi(`/custos-diarios-dados/${custoIdEmEdicao}`, { method: 'PATCH', body: corpo });
     } else {
@@ -232,6 +245,8 @@ async function salvarCusto(evento) {
       formData.append('valor', document.getElementById('custo-valor').value);
       formData.append('data_custo', document.getElementById('custo-data').value);
       formData.append('descricao', document.getElementById('custo-descricao').value || '');
+      formData.append('nome_beneficiario', document.getElementById('custo-nome-beneficiario').value || '');
+      formData.append('chave_pix', document.getElementById('custo-chave-pix').value || '');
       const arquivo = document.getElementById('custo-comprovante').files[0];
       if (arquivo) formData.append('comprovante', arquivo);
       await enviarFormData('/custos-diarios-dados', formData);

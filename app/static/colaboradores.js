@@ -122,6 +122,14 @@ async function carregarLista() {
 let empresasCache = [];
 let supervisoresCache = [];
 
+function calcularVencimentoAso(dataExameStr, anos) {
+  if (!dataExameStr) return '';
+  const [ano, mes, dia] = dataExameStr.split('-').map(Number);
+  const dataExame = new Date(ano, mes - 1, dia);
+  dataExame.setFullYear(dataExame.getFullYear() + anos);
+  return dataExame.toISOString().slice(0, 10);
+}
+
 function montarModalColaborador() {
   const html = `
     <div class="modal-overlay" id="colaborador-modal-overlay" hidden>
@@ -160,6 +168,21 @@ function montarModalColaborador() {
             <input type="text" id="colaborador-form-aniversario" placeholder="Ex: 24/01" maxlength="5">
           </div>
           <div class="field">
+            <label for="colaborador-form-aso-exame">Data do exame ASO (opcional)</label>
+            <input type="date" id="colaborador-form-aso-exame">
+          </div>
+          <div class="field">
+            <label>Validade do ASO</label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="btn-ghost btn-validade-aso-colab" data-anos="1" style="flex: 1;">1 ano</button>
+              <button type="button" class="btn-ghost btn-validade-aso-colab" data-anos="2" style="flex: 1;">2 anos</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="colaborador-form-aso-vencimento">Vencimento do ASO</label>
+            <input type="date" id="colaborador-form-aso-vencimento">
+          </div>
+          <div class="field">
             <label for="colaborador-form-supervisor">Supervisor (opcional)</label>
             <select id="colaborador-form-supervisor"><option value="">Administrativo / sem supervisor</option></select>
           </div>
@@ -176,11 +199,23 @@ function montarModalColaborador() {
     if (evento.target.id === 'colaborador-modal-overlay') fecharModalColaborador();
   });
   document.getElementById('colaborador-form').addEventListener('submit', enviarNovoColaborador);
+
+  document.querySelectorAll('.btn-validade-aso-colab').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      document.querySelectorAll('.btn-validade-aso-colab').forEach((b) => b.classList.remove('ativa'));
+      botao.classList.add('ativa');
+      const exame = document.getElementById('colaborador-form-aso-exame').value;
+      if (exame) {
+        document.getElementById('colaborador-form-aso-vencimento').value = calcularVencimentoAso(exame, Number(botao.dataset.anos));
+      }
+    });
+  });
 }
 
 function abrirModalColaborador() {
   document.getElementById('colaborador-form').reset();
   document.getElementById('colaborador-modal-erro').classList.remove('visible');
+  document.querySelectorAll('.btn-validade-aso-colab').forEach((b) => b.classList.remove('ativa'));
   document.getElementById('colaborador-form-empresa').innerHTML = empresasCache
     .map((e) => `<option value="${e.id}">${e.nome}</option>`)
     .join('');
@@ -192,6 +227,32 @@ function abrirModalColaborador() {
 
 function fecharModalColaborador() {
   document.getElementById('colaborador-modal-overlay').hidden = true;
+}
+
+async function enviarFormData(caminho, formData) {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return null;
+
+  const resposta = await fetch(caminho, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    body: formData,
+  });
+
+  if (resposta.status === 401) {
+    Shell.sair();
+    return null;
+  }
+  if (!resposta.ok) {
+    const erro = new Error(`Falha ao chamar ${caminho}`);
+    try {
+      erro.detalhe = (await resposta.json()).detail;
+    } catch (_) {
+      // sem corpo JSON, sem problema
+    }
+    throw erro;
+  }
+  return resposta.json();
 }
 
 async function enviarNovoColaborador(evento) {
@@ -214,6 +275,14 @@ async function enviarNovoColaborador(evento) {
     aniversarioMes = Number(partes[1]);
   }
 
+  const dataExameAso = document.getElementById('colaborador-form-aso-exame').value;
+  const dataVencimentoAso = document.getElementById('colaborador-form-aso-vencimento').value;
+  if (dataExameAso && !dataVencimentoAso) {
+    erroBox.textContent = 'Escolha a validade do ASO (1 ou 2 anos) ou preencha o vencimento.';
+    erroBox.classList.add('visible');
+    return;
+  }
+
   const supervisorValor = document.getElementById('colaborador-form-supervisor').value;
   const corpo = {
     empresa_id: Number(document.getElementById('colaborador-form-empresa').value),
@@ -231,7 +300,16 @@ async function enviarNovoColaborador(evento) {
   botao.textContent = 'Criando...';
 
   try {
-    await Shell.chamarApi('/colaboradores-dados', { method: 'POST', body: corpo });
+    const novoColaborador = await Shell.chamarApi('/colaboradores-dados', { method: 'POST', body: corpo });
+
+    if (dataExameAso && dataVencimentoAso) {
+      const formDataAso = new FormData();
+      formDataAso.append('tipo', 'aso');
+      formDataAso.append('data_inicio', dataExameAso);
+      formDataAso.append('data_fim', dataVencimentoAso);
+      await enviarFormData(`/colaboradores-dados/${novoColaborador.id}/eventos`, formDataAso);
+    }
+
     fecharModalColaborador();
     carregarResumo();
     carregarLista();

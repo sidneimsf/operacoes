@@ -1,0 +1,476 @@
+[
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ADELAIDE FERREIRA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAMILIS DE SOUZA DIAS",
+    "data_inclusao": "2026-07-23",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "CAROLINE MEDEIROS",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ELIZETE STREY",
+    "data_inclusao": "2025-12-05",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER COSTA CARVALHO",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ESTER NASCIMENTO LIMA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "EVELLYN SANTOS OLIVEIRA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "FABIANA MACHADO MENEZES",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "FABIANE DA SILVA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "INVANCLEIA DOS SANTOS",
+    "data_inclusao": "2026-02-02",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ISABEL CRISTINA PEREIRA DA SILVA SOUSA",
+    "data_inclusao": "2026-03-20",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JESSICA CUNHA DA SILVA",
+    "data_inclusao": "2025-04-23",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "JULIANA DE JESUS DOS PASSOS",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "LILIANE BUENO PEREIRA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "LUCIA MARIA DE SOUZA DA SILVA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "MARIA DO SOCORRO ABREU BILBY",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "MARIA IARA RODRIGUES VIEIRA",
+    "data_inclusao": "2025-09-19",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "NILSON VIVAN",
+    "data_inclusao": "2026-05-13",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "RIVANIA HELENA DA SILVA PEREIRA",
+    "data_inclusao": "2026-01-06",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "RODRIGO RANGEL FERREIRA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "ROSANGELA DE ARAUJO E SILVA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "SAMARA DOS SANTOS ARAUJO",
+    "data_inclusao": "2026-08-10",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "CORDSUL",
+    "colaborador_nome": "WALQUIRIA DE JESUS FRAZAO",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ANA CARPES DUARTE",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ANA SALETE CORREA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ARIANE MARTINS MOREIRA",
+    "data_inclusao": "2026-04-23",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "CLECI SALETE REES",
+    "data_inclusao": "2025-09-24",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ELISETE ERTHAL TELLES",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "GISELE TERIAGO DE LIZ ROSA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JAQUELINE REGINA DOS SANTOS",
+    "data_inclusao": "2026-02-02",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JANAINA SILVA DOS SANTOS",
+    "data_inclusao": "2026-07-03",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JOAO HENRIQUE CORREIA DE MELO",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JOELY DE MOURA SILVEIRA",
+    "data_inclusao": "2025-11-03",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "JOZELI TEREZINHA LOPES DE OLIVEIRA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "KEVIN FELIPE SOARES GONCALVES",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "LILIANE AMADO DOS SANTOS",
+    "data_inclusao": "2026-05-19",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "LIVIA DE SOUZA ARAUJO",
+    "data_inclusao": "2026-06-23",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "LUCIANA LUANA FERREIRA FIDELIS",
+    "data_inclusao": "2026-02-11",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "MARGARETE CAPISTRANO MELO",
+    "data_inclusao": "2026-04-14",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "MIRELA REGINA COELHO",
+    "data_inclusao": "2026-08-20",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "NUBIA SENA DOS SANTOS",
+    "data_inclusao": "2026-04-10",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ROSENICE DE JESUS DA SILVA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ROSIANE PEREIRA NUNES",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "SANDRA APARECIDA DA SILVA",
+    "data_inclusao": "2026-03-17",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "SELMA DE BRITO FONSECA",
+    "data_inclusao": "2026-08-13",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "TATIANE VIEIRA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "TEREZINHA VITÓRIO ROMÃO",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "VERA REGINA GOUDEL",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "ZENAIDE REIS DOS SANTOS",
+    "data_inclusao": "2026-04-29",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ADILSON SOUSA",
+    "data_inclusao": "2026-08-13",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ANTONIA CIRLENE DA SILVA PEREIRA",
+    "data_inclusao": "2026-05-14",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "CLAUDIA CRISTINA SANTIAGO DA SILVA",
+    "data_inclusao": "2025-11-21",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "CLEONICE DO ROSARIO RIBEIRO",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ELAINE CRISTINA DA SILVA",
+    "data_inclusao": "2025-12-17",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "INGRID DEGERING",
+    "data_inclusao": "2026-07-21",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ISLA AZEVEDO DOS SANTOS",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JANAINA CARDOSO DOS SANTOS",
+    "data_inclusao": "2025-03-31",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JANE APARECIDA VIEIRA",
+    "data_inclusao": "2026-04-02",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JESSICA MACHADO DA CONCEICAO",
+    "data_inclusao": "2025-04-09",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "JOSEANE CRISTINA VIEIRA",
+    "data_inclusao": "2025-04-13",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "KARLA ELZA DA SILVA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "MILENA ARAUJO DOS SANTOS",
+    "data_inclusao": "2026-05-19",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "RANYELI RODRIGUES DE LIMA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "RENATA CRISTINA DE SOUZA",
+    "data_inclusao": "2025-05-25",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "ROSANGELA REGINA DE SOUZA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "STAR SUL",
+    "colaborador_nome": "SANDRA DO SOCORRO BARBOSA",
+    "data_inclusao": null,
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ANA ISABELLY JULIO COUTO BITTENCOURTT",
+    "data_inclusao": "2026-08-07",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ANGÉLICA DA TRINDADE MARIA",
+    "data_inclusao": "2026-06-29",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "BEATRIZ ANDRADE",
+    "data_inclusao": "2026-02-12",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "DÉBORA SOUZA DE FRAYN",
+    "data_inclusao": "2026-07-24",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "ELAINE CRISTINA DE JESUS RODRIGUES",
+    "data_inclusao": "2026-05-29",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "GABRIELLY ALFA BATISTA",
+    "data_inclusao": "2026-07-06",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "KRETZER",
+    "colaborador_nome": "IRACENE ROCHA DE JESUS",
+    "data_inclusao": "2026-08-20",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JAQUELINE MARIANA CUNHA DA SILVA",
+    "data_inclusao": "2026-07-17",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JOÃO VITOR SANTOS OLIVEIRA",
+    "data_inclusao": "2026-08-18",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "JUSSARA NUNES",
+    "data_inclusao": "2026-04-06",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "KARINE SANTOS DA SILVA NASCIMENTO",
+    "data_inclusao": "2026-05-11",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "LUCIMERY CHAGAS RIBEIRO",
+    "data_inclusao": "2026-03-10",
+    "data_exclusao": null
+  },
+  {
+    "empresa_colaborador": "FLC",
+    "colaborador_nome": "SOLANGE COELHO DA SILVA",
+    "data_inclusao": "2026-04-29",
+    "data_exclusao": null
+  }
+]

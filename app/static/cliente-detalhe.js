@@ -280,6 +280,7 @@ async function carregarMapaServicos() {
 
 let clienteAtual = null;
 let empresasCache = [];
+let supervisoresCache = [];
 
 function montarModalEditarCliente() {
   const html = `
@@ -327,6 +328,10 @@ function montarModalEditarCliente() {
             <input type="text" id="editar-cliente-responsavel-telefone">
           </div>
           <div class="field">
+            <label for="editar-cliente-supervisor">Supervisor responsável</label>
+            <select id="editar-cliente-supervisor"><option value="">Sem supervisor definido</option></select>
+          </div>
+          <div class="field">
             <label for="editar-cliente-senha-acesso">Senha de acesso ao local</label>
             <input type="text" id="editar-cliente-senha-acesso" placeholder="Deixe em branco se não houver">
           </div>
@@ -368,6 +373,9 @@ async function abrirModalEditarCliente() {
   document.getElementById('editar-cliente-responsavel-telefone').value = clienteAtual.responsavel_telefone || '';
   document.getElementById('editar-cliente-senha-acesso').value = clienteAtual.senha_acesso || '';
   document.getElementById('editar-cliente-chave-acesso').value = clienteAtual.chave_acesso || '';
+  document.getElementById('editar-cliente-supervisor').innerHTML =
+    '<option value="">Sem supervisor definido</option>' +
+    supervisoresCache.map((s) => `<option value="${s.id}" ${s.id === clienteAtual.supervisor_id ? 'selected' : ''}>${s.nome}</option>`).join('');
   document.getElementById('editar-cliente-modal-overlay').hidden = false;
 }
 
@@ -389,6 +397,7 @@ async function salvarEdicaoCliente(evento) {
     responsavel_telefone: document.getElementById('editar-cliente-responsavel-telefone').value || null,
     senha_acesso: document.getElementById('editar-cliente-senha-acesso').value || null,
     chave_acesso: document.getElementById('editar-cliente-chave-acesso').value || null,
+    supervisor_id: document.getElementById('editar-cliente-supervisor').value ? Number(document.getElementById('editar-cliente-supervisor').value) : null,
   };
 
   botao.disabled = true;
@@ -433,6 +442,7 @@ function renderizarHeaderCliente() {
   const linhaResponsavel = c.responsavel_nome || c.responsavel_telefone
     ? `<div class="meta" style="margin-top: 4px;">Responsável no local: ${c.responsavel_nome || '—'}${c.responsavel_telefone ? ` · ${c.responsavel_telefone}` : ''}</div>`
     : '';
+  const linhaSupervisor = `<div class="meta" style="margin-top: 4px;">Supervisor: ${c.supervisor_nome || 'Não definido'}</div>`;
   const linhaAcesso = `
     <div class="acesso-info">
       <span class="acesso-item"><strong>Senha:</strong> ${renderizarCampoAcesso(c.senha_acesso, 'valor-senha-acesso')}</span>
@@ -446,6 +456,7 @@ function renderizarHeaderCliente() {
     <span class="cnpj">${c.cnpj || 'CNPJ não informado'}</span>
     ${linhaEndereco}
     ${linhaResponsavel}
+    ${linhaSupervisor}
     ${linhaAcesso}
   `;
   const btnToggle = document.getElementById('btn-toggle-cliente');
@@ -485,6 +496,7 @@ async function iniciar() {
     PRIORIDADES = tiposEStatus.prioridades;
 
     empresasCache = await Shell.chamarApi('/empresas');
+    supervisoresCache = await Shell.chamarApi('/supervisores');
 
     document.getElementById('topbar-title').textContent = cliente.nome;
     clienteAtual = cliente;

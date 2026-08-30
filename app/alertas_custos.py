@@ -28,8 +28,10 @@ def montar_corpo_email(custos: list[CustoDiario]) -> str:
           <td style="padding:8px;border-bottom:1px solid #333;">{c.tipo}</td>
           <td style="padding:8px;border-bottom:1px solid #333;">{c.data.strftime('%d/%m/%Y')}</td>
           <td style="padding:8px;border-bottom:1px solid #333;">R$ {c.valor:.2f}</td>
+          <td style="padding:8px;border-bottom:1px solid #333;">{c.nome_beneficiario or c.usuario.nome}</td>
+          <td style="padding:8px;border-bottom:1px solid #333;">{c.chave_pix or '—'}</td>
           <td style="padding:8px;border-bottom:1px solid #333;">{c.descricao or '—'}</td>
-          <td style="padding:8px;border-bottom:1px solid #333;">{'Anexo em anexo neste e-mail' if c.comprovante_path else 'Sem comprovante'}</td>
+          <td style="padding:8px;border-bottom:1px solid #333;">{'Em anexo' if c.comprovante_path else 'Sem comprovante'}</td>
         </tr>
         """
 
@@ -40,10 +42,12 @@ def montar_corpo_email(custos: list[CustoDiario]) -> str:
       <table style="border-collapse: collapse; width: 100%;">
         <thead>
           <tr style="background:#eee;">
-            <th style="padding:8px;text-align:left;">Quem pagou</th>
+            <th style="padding:8px;text-align:left;">Quem lançou</th>
             <th style="padding:8px;text-align:left;">Tipo</th>
             <th style="padding:8px;text-align:left;">Data</th>
             <th style="padding:8px;text-align:left;">Valor</th>
+            <th style="padding:8px;text-align:left;">Reembolsar para</th>
+            <th style="padding:8px;text-align:left;">Chave PIX</th>
             <th style="padding:8px;text-align:left;">Observação</th>
             <th style="padding:8px;text-align:left;">Comprovante</th>
           </tr>

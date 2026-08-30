@@ -4,6 +4,7 @@ let empresas = [];
 let clientes = [];
 let empresaSelecionada = null;
 let termoBusca = '';
+let supervisoresCache = [];
 
 function renderizarChips() {
   const container = document.getElementById('chips-empresas');
@@ -115,6 +116,10 @@ function montarModalCliente() {
             <label for="cliente-form-chave-acesso">Chave / tag / cartão de acesso (opcional)</label>
             <input type="text" id="cliente-form-chave-acesso">
           </div>
+          <div class="field">
+            <label for="cliente-form-supervisor">Supervisor responsável (opcional)</label>
+            <select id="cliente-form-supervisor"><option value="">Sem supervisor definido</option></select>
+          </div>
           <div class="error-message" id="cliente-modal-erro"></div>
           <button type="submit" class="btn-primary" id="cliente-modal-enviar">Criar cliente</button>
         </form>
@@ -136,6 +141,9 @@ function abrirModalCliente() {
   document.getElementById('cliente-form-empresa').innerHTML = empresas
     .map((e) => `<option value="${e.id}">${e.nome}</option>`)
     .join('');
+  document.getElementById('cliente-form-supervisor').innerHTML =
+    '<option value="">Sem supervisor definido</option>' +
+    supervisoresCache.map((s) => `<option value="${s.id}">${s.nome}</option>`).join('');
   document.getElementById('cliente-modal-overlay').hidden = false;
 }
 
@@ -161,6 +169,7 @@ async function enviarNovoCliente(evento) {
     responsavel_telefone: document.getElementById('cliente-form-responsavel-telefone').value || null,
     senha_acesso: document.getElementById('cliente-form-senha-acesso').value || null,
     chave_acesso: document.getElementById('cliente-form-chave-acesso').value || null,
+    supervisor_id: document.getElementById('cliente-form-supervisor').value ? Number(document.getElementById('cliente-form-supervisor').value) : null,
   };
 
   botao.disabled = true;
@@ -183,6 +192,8 @@ async function iniciar() {
   try {
     empresas = await Shell.chamarApi('/empresas');
     if (empresas === null) return;
+
+    supervisoresCache = await Shell.chamarApi('/supervisores');
 
     clientes = await Shell.chamarApi('/clientes-dados');
     if (clientes === null) return;
