@@ -109,7 +109,7 @@ const Shell = (() => {
     const sidebarHtml = `
       <div class="sidebar">
         <div class="wordmark-block">
-          <img src="/static/logo-cordsul.svg" alt="Cordsul" class="sidebar-logo">
+          <img src="/static/logo-starsul.png" alt="Grupo Star Sul" class="sidebar-logo">
           <div class="app-name">operações</div>
         </div>
         <nav class="sidebar-nav">${linksHtml}</nav>

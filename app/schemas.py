@@ -196,6 +196,13 @@ class UsuarioAcessoUpdate(BaseModel):
     nova_senha: str | None = None
 
 
+class UsuarioCreate(BaseModel):
+    nome: str
+    email: str
+    senha: str
+    papel: str
+
+
 class CustoDiarioUpdate(BaseModel):
     tipo: str | None = None
     valor: float | None = None
@@ -207,13 +214,14 @@ class CustoDiarioUpdate(BaseModel):
 
 
 class EstoqueItemCreate(BaseModel):
-    empresa_id: int
+    empresa_id: int | None = None
     tipo_peca: str
     tamanho: str
     quantidade_inicial: int = 0
 
 
 class EstoqueItemUpdate(BaseModel):
+    empresa_id: int | None = None
     tipo_peca: str | None = None
     tamanho: str | None = None
     ativo: bool | None = None

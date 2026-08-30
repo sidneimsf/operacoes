@@ -57,6 +57,7 @@ from schemas import (
     PermissaoUpdate,
     TokenResponse,
     UsuarioAcessoUpdate,
+    UsuarioCreate,
     VeiculoCreate,
     VeiculoUpdate,
 )
@@ -1331,6 +1332,35 @@ def listar_usuarios(
         {"id": u.id, "nome": u.nome, "email": u.email, "papel": u.papel, "ativo": u.ativo}
         for u in usuarios
     ]
+
+
+@app.post("/usuarios-dados", status_code=status.HTTP_201_CREATED)
+def criar_usuario_endpoint(
+    dados: UsuarioCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("usuarios")),
+):
+    nome = dados.nome.strip()
+    email = dados.email.strip().lower()
+    if not nome or not email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe nome e e-mail")
+    if dados.papel not in ("escritorio", "supervisor"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Papel deve ser escritorio ou supervisor")
+    if len(dados.senha) < 4:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A senha deve ter pelo menos 4 caracteres")
+    if db.query(Usuario).filter_by(email=email).first() is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Já existe um usuário com esse e-mail")
+
+    novo_usuario = Usuario(
+        nome=nome,
+        email=email,
+        senha_hash=hash_senha(dados.senha),
+        papel=dados.papel,
+    )
+    db.add(novo_usuario)
+    db.commit()
+    db.refresh(novo_usuario)
+    return {"id": novo_usuario.id, "nome": novo_usuario.nome, "email": novo_usuario.email, "papel": novo_usuario.papel, "ativo": novo_usuario.ativo}
 
 
 @app.get("/supervisores")
@@ -2617,7 +2647,7 @@ def serializar_item_estoque(item: EstoqueItem) -> dict:
     return {
         "id": item.id,
         "empresa_id": item.empresa_id,
-        "empresa_nome": item.empresa.nome,
+        "empresa_nome": item.empresa.nome if item.empresa_id else "Geral",
         "tipo_peca": item.tipo_peca,
         "tamanho": item.tamanho,
         "quantidade_atual": item.quantidade_atual,
@@ -2661,7 +2691,7 @@ def criar_item_estoque(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(exigir_modulo("estoque")),
 ):
-    if db.get(Empresa, dados.empresa_id) is None:
+    if dados.empresa_id is not None and db.get(Empresa, dados.empresa_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa invalida")
 
     tipo_peca = dados.tipo_peca.strip().upper()
@@ -2699,6 +2729,10 @@ def editar_item_estoque(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item nao encontrado")
 
     campos = dados.model_dump(exclude_unset=True)
+    if "empresa_id" in campos:
+        if campos["empresa_id"] is not None and db.get(Empresa, campos["empresa_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa invalida")
+        item.empresa_id = campos["empresa_id"]
     if "tipo_peca" in campos:
         item.tipo_peca = campos["tipo_peca"].strip().upper()
     if "tamanho" in campos:

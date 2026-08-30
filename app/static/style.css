@@ -98,7 +98,7 @@ button {
 }
 
 .login-logo {
-  width: 120px;
+  width: 220px;
   height: auto;
   display: block;
   margin-bottom: 22px;
@@ -376,7 +376,7 @@ button {
 }
 
 .sidebar-logo {
-  width: 76px;
+  width: 160px;
   height: auto;
   display: block;
   margin: 0 auto;
@@ -1338,6 +1338,12 @@ button {
   color: var(--accent);
   border-bottom-color: var(--accent);
   font-weight: 500;
+}
+
+.btn-validade-aso.ativa {
+  background: var(--accent);
+  color: #1a1206;
+  border-color: var(--accent);
 }
 
 @media print {

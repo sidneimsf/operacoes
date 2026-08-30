@@ -88,7 +88,7 @@ def montar_corpo_email(criticos: list[dict]) -> str:
           {linhas}
         </tbody>
       </table>
-      <p style="color:#888;font-size:12px;margin-top:20px;">E-mail automatico do sistema de operações da Cordsul.</p>
+      <p style="color:#888;font-size:12px;margin-top:20px;">E-mail automatico do sistema de operações do Grupo Star Sul.</p>
     </div>
     """
 
@@ -110,7 +110,7 @@ def verificar_e_enviar_experiencias(db: Session) -> dict:
     if not destinatarios:
         return {"enviado": False, "motivo": "Nenhum destinatario configurado (ALERTA_EXPERIENCIA_EMAILS)", "total": len(criticos)}
 
-    assunto = f"[Cordsul - Operações] {len(criticos)} colaborador(es) em fim de período de experiência"
+    assunto = f"[Grupo Star Sul - Operações] {len(criticos)} colaborador(es) em fim de período de experiência"
     corpo = montar_corpo_email(criticos)
     enviar_email(destinatarios, assunto, corpo)
 

@@ -20,6 +20,17 @@ function renderizarChips() {
   });
   container.appendChild(chipTodos);
 
+  const totalGeral = itens.filter((i) => i.empresa_id === null).length;
+  const chipGeral = document.createElement('button');
+  chipGeral.className = 'chip' + (empresaSelecionada === 'geral' ? ' active' : '');
+  chipGeral.textContent = `Geral · ${totalGeral}`;
+  chipGeral.addEventListener('click', () => {
+    empresaSelecionada = 'geral';
+    renderizarChips();
+    renderizarLista();
+  });
+  container.appendChild(chipGeral);
+
   empresas.forEach((empresa) => {
     const total = itens.filter((i) => i.empresa_id === empresa.id).length;
     const chip = document.createElement('button');
@@ -36,7 +47,12 @@ function renderizarChips() {
 
 function renderizarLista() {
   const container = document.getElementById('lista-estoque');
-  const filtrados = empresaSelecionada === null ? itens : itens.filter((i) => i.empresa_id === empresaSelecionada);
+  let filtrados = itens;
+  if (empresaSelecionada === 'geral') {
+    filtrados = itens.filter((i) => i.empresa_id === null);
+  } else if (empresaSelecionada !== null) {
+    filtrados = itens.filter((i) => i.empresa_id === empresaSelecionada);
+  }
 
   if (filtrados.length === 0) {
     container.innerHTML = '<div class="empty-state">Nenhum item cadastrado.</div>';
@@ -115,8 +131,8 @@ function montarModalNovoItem() {
         </div>
         <form id="novo-item-form">
           <div class="field">
-            <label for="item-form-empresa">Empresa</label>
-            <select id="item-form-empresa" required></select>
+            <label for="item-form-empresa">Empresa (deixe "Geral" se a peça não tem logo)</label>
+            <select id="item-form-empresa"></select>
           </div>
           <div class="field">
             <label for="item-form-peca">Tipo de peça</label>
@@ -149,7 +165,9 @@ function montarModalNovoItem() {
 
 function abrirModalNovoItem() {
   document.getElementById('novo-item-form').reset();
-  document.getElementById('item-form-empresa').innerHTML = empresas.map((e) => `<option value="${e.id}">${e.nome}</option>`).join('');
+  document.getElementById('item-form-empresa').innerHTML =
+    '<option value="">Geral (sem logo, compartilhado)</option>' +
+    empresas.map((e) => `<option value="${e.id}">${e.nome}</option>`).join('');
   document.getElementById('novo-item-modal-erro').classList.remove('visible');
   document.getElementById('novo-item-modal-overlay').hidden = false;
 }
@@ -161,7 +179,7 @@ async function enviarNovoItem(evento) {
   erroBox.classList.remove('visible');
 
   const corpo = {
-    empresa_id: Number(document.getElementById('item-form-empresa').value),
+    empresa_id: document.getElementById('item-form-empresa').value ? Number(document.getElementById('item-form-empresa').value) : null,
     tipo_peca: document.getElementById('item-form-peca').value,
     tamanho: document.getElementById('item-form-tamanho').value,
     quantidade_inicial: Number(document.getElementById('item-form-quantidade').value),

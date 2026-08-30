@@ -57,7 +57,7 @@ def montar_corpo_email(custos: list[CustoDiario]) -> str:
         </tbody>
       </table>
       <p style="margin-top:14px;"><strong>Total a reembolsar: R$ {total:.2f}</strong></p>
-      <p style="color:#888;font-size:12px;margin-top:20px;">E-mail automatico do sistema de operações da Cordsul.</p>
+      <p style="color:#888;font-size:12px;margin-top:20px;">E-mail automatico do sistema de operações do Grupo Star Sul.</p>
     </div>
     """
 
@@ -83,7 +83,7 @@ def verificar_e_enviar_custos(db: Session) -> dict:
         return {"enviado": False, "motivo": "Nenhum destinatario configurado (REEMBOLSO_EMAILS)", "total": len(custos)}
 
     valor_total = sum(c.valor for c in custos)
-    assunto = f"[Cordsul - Operações] {len(custos)} custo(s) para reembolso - R$ {valor_total:.2f}"
+    assunto = f"[Grupo Star Sul - Operações] {len(custos)} custo(s) para reembolso - R$ {valor_total:.2f}"
     corpo = montar_corpo_email(custos)
 
     anexos = [

@@ -318,17 +318,19 @@ class CustoDiario(Base):
 
 class EstoqueItem(Base):
     """
-    Um tipo de peca+tamanho, por empresa, com a quantidade atual em
-    estoque. A quantidade so muda atraves de EstoqueMovimento, para
-    manter historico de entradas e saidas.
+    Um tipo de peca+tamanho, com a quantidade atual em estoque. A
+    quantidade so muda atraves de EstoqueMovimento, para manter
+    historico de entradas e saidas.
+
+    empresa_id e opcional: so faz sentido pra pecas com a logo
+    impressa (ex: camiseta), que precisam de estoque separado por
+    empresa. Itens sem logo (calca, sapato, moletom, etc.) ficam com
+    empresa_id nulo - um estoque geral, compartilhado entre todas.
     """
     __tablename__ = "estoque_itens"
-    __table_args__ = (
-        UniqueConstraint("empresa_id", "tipo_peca", "tamanho", name="uq_estoque_empresa_tipo_tamanho"),
-    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas.id"), nullable=False)
+    empresa_id: Mapped[int | None] = mapped_column(ForeignKey("empresas.id"), nullable=True)
     tipo_peca: Mapped[str] = mapped_column(String(50), nullable=False)
     tamanho: Mapped[str] = mapped_column(String(20), nullable=False)
     quantidade_atual: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
