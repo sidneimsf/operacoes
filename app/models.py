@@ -233,6 +233,11 @@ class HorarioServico(Base):
     Mapa de servicos: em qual cliente um colaborador trabalha, em cada
     dia da semana e turno (manha/tarde), com o horario exato. Um
     colaborador pode atender varios clientes ao longo da semana.
+
+    data_inicio/data_fim: quando esse vinculo comecou e terminou.
+    Remover um horario NAO apaga a linha - so preenche data_fim (soft
+    delete), pra manter o historico. A grade do dia a dia so mostra
+    onde data_fim esta vazio (ainda ativo).
     """
     __tablename__ = "horarios_servico"
 
@@ -243,6 +248,8 @@ class HorarioServico(Base):
     turno: Mapped[str] = mapped_column(String(10), nullable=False)  # manha | tarde
     hora_inicio: Mapped[str] = mapped_column(String(5), nullable=False)
     hora_fim: Mapped[str] = mapped_column(String(5), nullable=False)
+    data_inicio: Mapped[date] = mapped_column(Date, nullable=False, default=date.today)
+    data_fim: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     colaborador: Mapped["Colaborador"] = relationship()
     cliente: Mapped["Cliente"] = relationship()
@@ -385,6 +392,37 @@ class MetlifeLancamento(Base):
 
     def __repr__(self) -> str:
         return f"<MetlifeLancamento colaborador={self.colaborador_id} dependente={self.nome_dependente}>"
+
+
+class HistoricoMapaServico(Base):
+    """
+    Log de auditoria: registra toda vez que um vinculo colaborador+
+    cliente no mapa de servicos e criado, encerrado ou editado. E o
+    detalhe por baixo dos panos - a consulta principal de "quanto
+    tempo ficou" usa direto data_inicio/data_fim do HorarioServico,
+    sem precisar ler este log.
+    """
+    __tablename__ = "historico_mapa_servico"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    horario_servico_id: Mapped[int] = mapped_column(ForeignKey("horarios_servico.id"), nullable=False)
+    colaborador_id: Mapped[int] = mapped_column(ForeignKey("colaboradores.id"), nullable=False)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    tipo_evento: Mapped[str] = mapped_column(String(20), nullable=False)  # iniciado | encerrado | editado
+    dia_semana: Mapped[str] = mapped_column(String(10), nullable=False)
+    turno: Mapped[str] = mapped_column(String(10), nullable=False)
+    hora_inicio: Mapped[str] = mapped_column(String(5), nullable=False)
+    hora_fim: Mapped[str] = mapped_column(String(5), nullable=False)
+    motivo: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    colaborador: Mapped["Colaborador"] = relationship()
+    cliente: Mapped["Cliente"] = relationship()
+    registrado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<HistoricoMapaServico {self.tipo_evento} - colaborador {self.colaborador_id} cliente {self.cliente_id}>"
 
 
 class UsuarioPermissao(Base):

@@ -15,6 +15,7 @@ const Shell = (() => {
     relatorios: '<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
     'custos-diarios': '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1.5"/>',
     estoque: '<path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+    'mapa-servico': '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 7h6a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4H8"/>',
   };
 
   const NAV_ITEMS = [
@@ -28,6 +29,7 @@ const Shell = (() => {
     { key: 'veiculos', label: 'Veículos', href: '/veiculos', papeis: ['escritorio'] },
     { key: 'relatorios', label: 'Relatórios', href: '/relatorios', papeis: ['escritorio'] },
     { key: 'estoque', label: 'Estoque', href: '/estoque', papeis: ['escritorio'] },
+    { key: 'mapa-servico', label: 'Mapa de Serviço', href: '/mapa-servico', papeis: ['escritorio'] },
     { key: 'usuarios', label: 'Usuários', href: '/usuarios', papeis: ['escritorio'] },
     { key: 'permissoes', label: 'Permissões', href: '/permissoes', apenasSuperAdmin: true },
   ];

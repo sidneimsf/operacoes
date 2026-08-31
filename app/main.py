@@ -26,6 +26,7 @@ from models import (
     Empresa,
     EstoqueItem,
     EstoqueMovimento,
+    HistoricoMapaServico,
     HorarioServico,
     ManutencaoVeiculo,
     MetlifeLancamento,
@@ -212,6 +213,7 @@ MODULOS_PERMISSAO = [
     {"chave": "criar_colaborador", "label": "Criar/editar colaboradores", "padrao_escritorio_apenas": True},
     {"chave": "relatorios", "label": "Relatórios gerenciais", "padrao_escritorio_apenas": True},
     {"chave": "estoque", "label": "Controle de Estoque", "padrao_escritorio_apenas": True},
+    {"chave": "mapa_servico", "label": "Histórico do Mapa de Serviço", "padrao_escritorio_apenas": True},
 ]
 CHAVES_MODULOS_VALIDAS = {m["chave"] for m in MODULOS_PERMISSAO}
 
@@ -375,6 +377,11 @@ def pagina_relatorios():
 @app.get("/estoque", include_in_schema=False)
 def pagina_estoque():
     return FileResponse("static/estoque.html")
+
+
+@app.get("/mapa-servico", include_in_schema=False)
+def pagina_mapa_servico():
+    return FileResponse("static/mapa-servico.html")
 
 
 @app.get("/ocorrencias", include_in_schema=False)
@@ -1147,6 +1154,8 @@ def serializar_horario(h: HorarioServico) -> dict:
         "turno": h.turno,
         "hora_inicio": h.hora_inicio,
         "hora_fim": h.hora_fim,
+        "data_inicio": h.data_inicio.isoformat() if h.data_inicio else None,
+        "data_fim": h.data_fim.isoformat() if h.data_fim else None,
     }
 
 
@@ -1158,7 +1167,7 @@ def horarios_do_colaborador(
 ):
     registros = (
         db.query(HorarioServico)
-        .filter(HorarioServico.colaborador_id == colaborador_id)
+        .filter(HorarioServico.colaborador_id == colaborador_id, HorarioServico.data_fim.is_(None))
         .all()
     )
     registros.sort(key=lambda h: (DIAS_SEMANA_ORDEM.index(h.dia_semana), h.turno))
@@ -1173,7 +1182,7 @@ def horarios_do_cliente(
 ):
     registros = (
         db.query(HorarioServico)
-        .filter(HorarioServico.cliente_id == cliente_id)
+        .filter(HorarioServico.cliente_id == cliente_id, HorarioServico.data_fim.is_(None))
         .all()
     )
     registros.sort(key=lambda h: (DIAS_SEMANA_ORDEM.index(h.dia_semana), h.turno))
@@ -1205,6 +1214,7 @@ def _checar_conflito_horario(
     query = db.query(HorarioServico).filter(
         HorarioServico.colaborador_id == colaborador_id,
         HorarioServico.dia_semana == dia_semana,
+        HorarioServico.data_fim.is_(None),
     )
     if ignorar_id is not None:
         query = query.filter(HorarioServico.id != ignorar_id)
@@ -1218,6 +1228,29 @@ def _checar_conflito_horario(
                     f"({existente.hora_inicio}-{existente.hora_fim}). Ajuste o horario para nao coincidir."
                 ),
             )
+
+
+def _registrar_evento_mapa_servico(
+    db: Session,
+    horario: HorarioServico,
+    tipo_evento: str,
+    registrado_por_id: int,
+    motivo: str | None = None,
+) -> None:
+    db.add(
+        HistoricoMapaServico(
+            horario_servico_id=horario.id,
+            colaborador_id=horario.colaborador_id,
+            cliente_id=horario.cliente_id,
+            tipo_evento=tipo_evento,
+            dia_semana=horario.dia_semana,
+            turno=horario.turno,
+            hora_inicio=horario.hora_inicio,
+            hora_fim=horario.hora_fim,
+            motivo=motivo,
+            registrado_por_id=registrado_por_id,
+        )
+    )
 
 
 @app.post("/horarios-servico", status_code=status.HTTP_201_CREATED)
@@ -1246,8 +1279,11 @@ def criar_horario(
         turno=dados.turno,
         hora_inicio=dados.hora_inicio,
         hora_fim=dados.hora_fim,
+        data_inicio=date.today(),
     )
     db.add(horario)
+    db.flush()
+    _registrar_evento_mapa_servico(db, horario, "iniciado", usuario.id)
     db.commit()
     db.refresh(horario)
     return serializar_horario(horario)
@@ -1279,6 +1315,32 @@ def editar_horario(
     if nova_hora_inicio >= nova_hora_fim:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A hora final deve ser depois da hora inicial")
 
+    if "cliente_id" in campos and campos["cliente_id"] != horario.cliente_id:
+        # Trocar de cliente = encerrar o vinculo atual e abrir um novo, para manter o historico limpo
+        if db.get(Cliente, campos["cliente_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+
+        _checar_conflito_horario(db, novo_colaborador_id, novo_dia, nova_hora_inicio, nova_hora_fim, ignorar_id=horario_id)
+
+        horario.data_fim = date.today()
+        _registrar_evento_mapa_servico(db, horario, "encerrado", usuario.id, motivo="Mudou de cliente")
+
+        novo_horario = HorarioServico(
+            colaborador_id=novo_colaborador_id,
+            cliente_id=campos["cliente_id"],
+            dia_semana=novo_dia,
+            turno=novo_turno,
+            hora_inicio=nova_hora_inicio,
+            hora_fim=nova_hora_fim,
+            data_inicio=date.today(),
+        )
+        db.add(novo_horario)
+        db.flush()
+        _registrar_evento_mapa_servico(db, novo_horario, "iniciado", usuario.id, motivo="Mudou de cliente")
+        db.commit()
+        db.refresh(novo_horario)
+        return serializar_horario(novo_horario)
+
     if (
         "colaborador_id" in campos
         or "dia_semana" in campos
@@ -1291,10 +1353,6 @@ def editar_horario(
         if db.get(Colaborador, campos["colaborador_id"]) is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
         horario.colaborador_id = campos["colaborador_id"]
-    if "cliente_id" in campos:
-        if db.get(Cliente, campos["cliente_id"]) is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
-        horario.cliente_id = campos["cliente_id"]
     if "dia_semana" in campos:
         horario.dia_semana = campos["dia_semana"]
     if "turno" in campos:
@@ -1304,6 +1362,8 @@ def editar_horario(
     if "hora_fim" in campos:
         horario.hora_fim = campos["hora_fim"]
 
+    db.flush()
+    _registrar_evento_mapa_servico(db, horario, "editado", usuario.id)
     db.commit()
     db.refresh(horario)
     return serializar_horario(horario)
@@ -1318,7 +1378,10 @@ def remover_horario(
     horario = db.get(HorarioServico, horario_id)
     if horario is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario nao encontrado")
-    db.delete(horario)
+    if horario.data_fim is not None:
+        return
+    horario.data_fim = date.today()
+    _registrar_evento_mapa_servico(db, horario, "encerrado", usuario.id)
     db.commit()
 
 
@@ -2333,7 +2396,7 @@ def relatorio_por_cliente(
 
     horarios = (
         db.query(HorarioServico)
-        .filter(HorarioServico.cliente_id == cliente_id)
+        .filter(HorarioServico.cliente_id == cliente_id, HorarioServico.data_fim.is_(None))
         .all()
     )
     quem_atende = sorted({h.colaborador.nome for h in horarios})
@@ -2913,6 +2976,109 @@ def excluir_metlife(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lancamento nao encontrado")
     db.delete(lancamento)
     db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Historico do mapa de servico
+# ---------------------------------------------------------------------------
+
+def _calcular_duracao_dias(data_inicio: date, data_fim: date | None) -> int:
+    fim = data_fim or date.today()
+    return (fim - data_inicio).days
+
+
+def _formatar_duracao(dias: int) -> str:
+    if dias < 30:
+        return f"{dias} dia(s)"
+    meses = dias // 30
+    dias_restantes = dias % 30
+    if meses < 12:
+        texto = f"{meses} mes(es)"
+        if dias_restantes:
+            texto += f" e {dias_restantes} dia(s)"
+        return texto
+    anos = meses // 12
+    meses_restantes = meses % 12
+    texto = f"{anos} ano(s)"
+    if meses_restantes:
+        texto += f" e {meses_restantes} mes(es)"
+    return texto
+
+
+@app.get("/mapa-servico-historico")
+def listar_historico_mapa_servico(
+    colaborador_id: int | None = None,
+    cliente_id: int | None = None,
+    status_vinculo: str = "todos",
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("mapa_servico")),
+):
+    query = db.query(HorarioServico)
+    if colaborador_id is not None:
+        query = query.filter(HorarioServico.colaborador_id == colaborador_id)
+    if cliente_id is not None:
+        query = query.filter(HorarioServico.cliente_id == cliente_id)
+    if status_vinculo == "ativos":
+        query = query.filter(HorarioServico.data_fim.is_(None))
+    elif status_vinculo == "encerrados":
+        query = query.filter(HorarioServico.data_fim.isnot(None))
+
+    registros = query.order_by(HorarioServico.data_inicio.desc()).all()
+
+    resultado = []
+    for h in registros:
+        dias = _calcular_duracao_dias(h.data_inicio, h.data_fim)
+        resultado.append(
+            {
+                "id": h.id,
+                "colaborador_id": h.colaborador_id,
+                "colaborador_nome": h.colaborador.nome,
+                "cliente_id": h.cliente_id,
+                "cliente_nome": h.cliente.nome,
+                "dia_semana": h.dia_semana,
+                "dia_semana_label": DIAS_SEMANA_LABEL.get(h.dia_semana, h.dia_semana),
+                "turno": h.turno,
+                "hora_inicio": h.hora_inicio,
+                "hora_fim": h.hora_fim,
+                "data_inicio": h.data_inicio.isoformat(),
+                "data_fim": h.data_fim.isoformat() if h.data_fim else None,
+                "ativo": h.data_fim is None,
+                "duracao_dias": dias,
+                "duracao_texto": _formatar_duracao(dias),
+            }
+        )
+    return resultado
+
+
+@app.get("/mapa-servico-historico/{horario_id}/eventos")
+def listar_eventos_horario(
+    horario_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("mapa_servico")),
+):
+    if db.get(HorarioServico, horario_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario nao encontrado")
+
+    eventos = (
+        db.query(HistoricoMapaServico)
+        .filter_by(horario_servico_id=horario_id)
+        .order_by(HistoricoMapaServico.criado_em.asc())
+        .all()
+    )
+    return [
+        {
+            "id": e.id,
+            "tipo_evento": e.tipo_evento,
+            "dia_semana": e.dia_semana,
+            "turno": e.turno,
+            "hora_inicio": e.hora_inicio,
+            "hora_fim": e.hora_fim,
+            "motivo": e.motivo,
+            "registrado_por": e.registrado_por.nome,
+            "criado_em": e.criado_em.isoformat(),
+        }
+        for e in eventos
+    ]
 
 
 
