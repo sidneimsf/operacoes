@@ -1,5 +1,29 @@
 const auth = Shell.montar('dashboard', 'Painel');
 
+const CORES_AVATAR = ['#7d5f11', '#2f5b9e', '#8a3fa8', '#1f6b41', '#c13327', '#17354f'];
+
+function corAvatar(nome) {
+  let soma = 0;
+  for (let i = 0; i < nome.length; i++) soma += nome.charCodeAt(i);
+  return CORES_AVATAR[soma % CORES_AVATAR.length];
+}
+
+function iniciais(nome) {
+  const partes = nome.trim().split(/\s+/);
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+function avatarHtml(nome) {
+  return `<div class="pessoa-avatar" style="background:${corAvatar(nome)}">${iniciais(nome)}</div>`;
+}
+
+function popularIconesEstaticos() {
+  document.querySelectorAll('[data-icone]').forEach((el) => {
+    el.innerHTML = Shell.icone(el.dataset.icone);
+  });
+}
+
 function formatarData(isoString) {
   const data = new Date(isoString);
   return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
@@ -59,10 +83,10 @@ function renderizarAvisoConfirmar(chamados) {
     });
   });
 }
+
 function renderizarAvisoMeusChamados(meusChamados) {
   const container = document.getElementById('aviso-meus-chamados');
 
-  // meusChamados so vem preenchido quando quem logou e' supervisor.
   if (!meusChamados || meusChamados.length === 0) {
     container.innerHTML = '';
     return;
@@ -92,56 +116,53 @@ function renderizarAvisoMeusChamados(meusChamados) {
   `;
 }
 
-const MESES_LABEL = {
-  1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 5: 'Maio', 6: 'Junho',
-  7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro',
-};
-
 function renderizarLembretes(dados) {
   const container = document.getElementById('lembretes-aniversarios');
   const { aniversarios_nascimento: nascimento, aniversarios_empresa: empresa } = dados;
+  const todos = [...nascimento, ...empresa];
 
-  if (nascimento.length === 0 && empresa.length === 0) {
-    container.innerHTML = '<div class="empty-state">Nenhum aniversário este mês.</div>';
+  document.getElementById('contador-aniversarios').textContent = todos.length;
+
+  if (todos.length === 0) {
+    container.innerHTML = '<div class="empty-state">Ninguém faz aniversário este mês.</div>';
     return;
   }
 
-  const listaNascimento = nascimento
+  const linhasNascimento = nascimento
+    .sort((a, b) => a.dia - b.dia)
     .map(
       (a) => `
-      <div class="lembrete-item">
-        <span class="lembrete-dia">${String(a.dia).padStart(2, '0')}</span>
-        <a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a>
-        ${a.hoje ? '<span class="lembrete-hoje">hoje 🎂</span>' : ''}
+      <div class="pessoa-linha">
+        ${avatarHtml(a.colaborador_nome)}
+        <div class="pessoa-info">
+          <a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a>
+          <span class="pessoa-detalhe">Aniversário · dia ${String(a.dia).padStart(2, '0')}</span>
+        </div>
+        ${a.hoje ? '<span class="pessoa-tag" style="background: rgba(193,51,39,0.10); color: var(--danger);">hoje 🎂</span>' : ''}
       </div>
     `
     )
     .join('');
 
-  const listaEmpresa = empresa
+  const linhasEmpresa = empresa
+    .sort((a, b) => a.dia - b.dia)
     .map(
       (a) => `
-      <div class="lembrete-item">
-        <span class="lembrete-dia">${String(a.dia).padStart(2, '0')}</span>
-        <a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a>
-        <span class="lembrete-anos">${a.anos_completos} ano${a.anos_completos !== 1 ? 's' : ''} de empresa</span>
-        ${a.hoje ? '<span class="lembrete-hoje">hoje 🎉</span>' : ''}
+      <div class="pessoa-linha">
+        ${avatarHtml(a.colaborador_nome)}
+        <div class="pessoa-info">
+          <a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a>
+          <span class="pessoa-detalhe">${a.anos_completos} ano${a.anos_completos !== 1 ? 's' : ''} de empresa · dia ${String(a.dia).padStart(2, '0')}</span>
+        </div>
+        ${a.hoje ? '<span class="pessoa-tag" style="background: rgba(125,95,17,0.12); color: var(--accent);">hoje 🎉</span>' : ''}
       </div>
     `
     )
     .join('');
 
   container.innerHTML = `
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
-      <div>
-        <div class="lembrete-subtitulo">🎂 Aniversário (nascimento)</div>
-        ${nascimento.length > 0 ? listaNascimento : '<div class="empty-state">Ninguém este mês.</div>'}
-      </div>
-      <div>
-        <div class="lembrete-subtitulo">🎉 Aniversário de empresa</div>
-        ${empresa.length > 0 ? listaEmpresa : '<div class="empty-state">Ninguém este mês.</div>'}
-      </div>
-    </div>
+    ${nascimento.length > 0 ? linhasNascimento : ''}
+    ${empresa.length > 0 ? linhasEmpresa : ''}
   `;
 }
 
@@ -159,7 +180,7 @@ async function carregarLembretes() {
 
 function formatarDataExperiencia(isoString) {
   const [ano, mes, dia] = isoString.split('-');
-  return `${dia}/${mes}/${ano}`;
+  return `${dia}/${mes}`;
 }
 
 async function carregarExperiencias() {
@@ -168,21 +189,25 @@ async function carregarExperiencias() {
     const criticos = await Shell.chamarApi('/colaboradores-dados/experiencia/criticos');
     if (criticos === null) return;
 
+    document.getElementById('contador-experiencia').textContent = criticos.length;
+
     if (criticos.length === 0) {
-      container.innerHTML = '<div class="empty-state">Nenhum checkpoint de experiência vencendo em breve.</div>';
+      container.innerHTML = '<div class="empty-state">Nenhum checkpoint vencendo em breve.</div>';
       return;
     }
 
     container.innerHTML = criticos
       .map((c) => {
-        const situacao = c.dias_restantes < 0 ? `vencido há ${Math.abs(c.dias_restantes)} dia(s)` : `em ${c.dias_restantes} dia(s)`;
-        const cor = c.dias_restantes < 0 ? 'vencido' : 'proximo';
+        const situacao = c.dias_restantes < 0 ? `venceu há ${Math.abs(c.dias_restantes)}d` : `em ${c.dias_restantes}d`;
+        const corTag = c.dias_restantes < 0 ? 'rgba(193,51,39,0.10); color: var(--danger)' : 'rgba(125,95,17,0.12); color: var(--accent)';
         return `
-          <div class="lembrete-item">
-            <span class="aso-badge ${cor}" style="min-width: 70px; text-align: center;">${c.checkpoint}</span>
-            <span>${c.colaborador_nome}</span>
-            <span class="meta">${c.empresa_nome}</span>
-            <span class="lembrete-anos">${formatarDataExperiencia(c.data_checkpoint)} · ${situacao}</span>
+          <div class="pessoa-linha">
+            ${avatarHtml(c.colaborador_nome)}
+            <div class="pessoa-info">
+              <span class="pessoa-nome">${c.colaborador_nome}</span>
+              <span class="pessoa-detalhe">${c.checkpoint} · ${c.empresa_nome} · ${formatarDataExperiencia(c.data_checkpoint)}</span>
+            </div>
+            <span class="pessoa-tag" style="background: ${corTag};">${situacao}</span>
           </div>
         `;
       })
@@ -195,6 +220,8 @@ async function carregarExperiencias() {
 let TIPOS_CHAMADO = [];
 
 async function iniciar() {
+  popularIconesEstaticos();
+
   try {
     const [resumo, tiposEStatus] = await Promise.all([
       Shell.chamarApi('/dashboard/resumo'),
@@ -204,11 +231,11 @@ async function iniciar() {
     TIPOS_CHAMADO = tiposEStatus ? tiposEStatus.tipos : [];
 
     const cards = document.querySelectorAll('#kpi-grid .kpi-card .value');
-    cards[0].textContent = resumo.total_empresas;
-    cards[1].textContent = resumo.total_clientes;
-    cards[2].textContent = resumo.total_colaboradores;
-    cards[3].textContent = resumo.total_usuarios;
-    cards[4].textContent = resumo.total_chamados_abertos;
+    cards[0].textContent = resumo.total_clientes;
+    cards[1].textContent = resumo.total_colaboradores;
+    cards[2].textContent = resumo.total_empresas;
+    cards[3].textContent = resumo.total_chamados_abertos;
+    cards[4].textContent = resumo.total_usuarios;
 
     renderizarAvisoMeusChamados(resumo.meus_chamados);
     renderizarAvisoConfirmar(resumo.chamados_para_confirmar);

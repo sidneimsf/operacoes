@@ -19,26 +19,45 @@
       <div id="aviso-confirmar-chamados"></div>
 
       <div class="kpi-grid" id="kpi-grid">
-        <div class="kpi-card"><div class="label">empresas</div><div class="value">—</div></div>
-        <div class="kpi-card"><div class="label">clientes ativos</div><div class="value">—</div></div>
-        <div class="kpi-card"><div class="label">colaboradores</div><div class="value">—</div></div>
-        <div class="kpi-card"><div class="label">usuários do sistema</div><div class="value">—</div></div>
-        <div class="kpi-card"><div class="label">chamados em aberto</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="kpi-card-icon" data-icone="clientes"></div><div><div class="label">clientes ativos</div><div class="value">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-card-icon" data-icone="colaboradores"></div><div><div class="label">colaboradores</div><div class="value">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-card-icon" data-icone="empresas"></div><div><div class="label">empresas</div><div class="value">—</div></div></div>
+        <div class="kpi-card destaque"><div class="kpi-card-icon" data-icone="ocorrencias"></div><div><div class="label">chamados em aberto</div><div class="value">—</div></div></div>
+        <div class="kpi-card"><div class="kpi-card-icon" data-icone="usuarios"></div><div><div class="label">usuários do sistema</div><div class="value">—</div></div></div>
       </div>
 
-      <div class="section-title">Clientes por empresa</div>
-      <div id="breakdown-empresas">
-        <div class="loading-state">Carregando...</div>
-      </div>
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-icon" data-icone="clientes"></div>
+            <h3>Clientes por empresa</h3>
+          </div>
+          <div id="breakdown-empresas">
+            <div class="loading-state">Carregando...</div>
+          </div>
+        </div>
 
-      <div class="section-title" style="margin-top: 30px;">Aniversários deste mês</div>
-      <div id="lembretes-aniversarios">
-        <div class="loading-state">Carregando...</div>
-      </div>
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-icon" data-icone="avisos"></div>
+            <h3>Aniversários do mês</h3>
+            <span class="dash-card-count" id="contador-aniversarios"></span>
+          </div>
+          <div id="lembretes-aniversarios">
+            <div class="loading-state">Carregando...</div>
+          </div>
+        </div>
 
-      <div class="section-title" style="margin-top: 30px;">Período de experiência (30/90 dias)</div>
-      <div id="lembretes-experiencia">
-        <div class="loading-state">Carregando...</div>
+        <div class="dash-card">
+          <div class="dash-card-header">
+            <div class="dash-card-icon" data-icone="mapa-servico"></div>
+            <h3>Período de experiência</h3>
+            <span class="dash-card-count" id="contador-experiencia"></span>
+          </div>
+          <div id="lembretes-experiencia">
+            <div class="loading-state">Carregando...</div>
+          </div>
+        </div>
       </div>
 
     </div>

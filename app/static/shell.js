@@ -16,6 +16,7 @@ const Shell = (() => {
     'custos-diarios': '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="8" cy="14" r="1.5"/>',
     estoque: '<path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
     'mapa-servico': '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 7h6a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4H8"/>',
+    empresas: '<path d="M3 21h18M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16M9 8h1M13 8h1M9 12h1M13 12h1M9 16h1M13 16h1M14 21v-6h4a1 1 0 0 1 1 1v5"/>',
   };
 
   const NAV_ITEMS = [
