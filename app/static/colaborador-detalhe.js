@@ -32,7 +32,7 @@ const DIAS_LABEL = {
 const TURNOS_LABEL = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
 
 function celulaHorarioHtml(registros, campoNome, dia, turno) {
-  const lista = registros || [];
+  const lista = (registros || []).slice().sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
   const itensHtml = lista
     .map(
       (registro) => `
@@ -82,6 +82,7 @@ function montarGradeSemanal(horarios, campoNome) {
 
 let horariosAtuais = [];
 let clientesAgrupadosCache = null;
+let clientesListaPlanaCache = [];
 let celulaEmEdicao = null;
 
 async function carregarClientesAgrupados() {
@@ -107,8 +108,12 @@ function montarModalHorario() {
         </div>
         <form id="horario-form">
           <div class="field">
-            <label for="horario-cliente">Cliente</label>
-            <select id="horario-cliente" required></select>
+            <label for="horario-cliente-busca">Cliente</label>
+            <div class="busca-select">
+              <input type="text" id="horario-cliente-busca" placeholder="Digite pra buscar o cliente..." autocomplete="off" required>
+              <input type="hidden" id="horario-cliente-id">
+              <div class="busca-select-resultados" id="horario-cliente-resultados" hidden></div>
+            </div>
           </div>
           <div class="field">
             <label for="horario-hora-inicio">Início</label>
@@ -134,6 +139,26 @@ function montarModalHorario() {
     if (evento.target.id === 'horario-modal-overlay') fecharModalHorario();
   });
   document.getElementById('horario-form').addEventListener('submit', salvarHorario);
+
+  const inputBusca = document.getElementById('horario-cliente-busca');
+  inputBusca.addEventListener('input', () => {
+    document.getElementById('horario-cliente-id').value = '';
+    renderizarResultadosBuscaCliente(inputBusca.value);
+  });
+  inputBusca.addEventListener('focus', () => renderizarResultadosBuscaCliente(inputBusca.value));
+  document.getElementById('horario-cliente-resultados').addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    document.getElementById('horario-cliente-id').value = item.dataset.id;
+    inputBusca.value = item.dataset.nome;
+    document.getElementById('horario-cliente-resultados').hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!evento.target.closest('.busca-select')) {
+      const resultados = document.getElementById('horario-cliente-resultados');
+      if (resultados) resultados.hidden = true;
+    }
+  });
   document.getElementById('horario-modal-remover').addEventListener('click', removerHorarioAtual);
 }
 
@@ -145,19 +170,20 @@ async function abrirModalHorario(dia, turno, horarioId) {
   document.getElementById('horario-modal-titulo').textContent = `${DIAS_LABEL[dia]} · ${TURNOS_LABEL[turno]}`;
 
   const grupos = await carregarClientesAgrupados();
-  const selectCliente = document.getElementById('horario-cliente');
-  selectCliente.innerHTML = grupos
-    .map(
-      (g) =>
-        `<optgroup label="${g.empresa}">${g.clientes.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('')}</optgroup>`
-    )
-    .join('');
+  clientesListaPlanaCache = grupos.flatMap((g) => g.clientes.map((c) => ({ id: c.id, nome: c.nome, empresa: g.empresa })));
+
+  const inputBusca = document.getElementById('horario-cliente-busca');
+  const inputId = document.getElementById('horario-cliente-id');
+  inputBusca.value = '';
+  inputId.value = '';
+  document.getElementById('horario-cliente-resultados').hidden = true;
 
   const botaoRemover = document.getElementById('horario-modal-remover');
 
   if (celulaEmEdicao.horarioId) {
     const registro = horariosAtuais.find((h) => h.id === celulaEmEdicao.horarioId);
-    selectCliente.value = registro.cliente_id;
+    inputId.value = registro.cliente_id;
+    inputBusca.value = registro.cliente_nome;
     document.getElementById('horario-hora-inicio').value = registro.hora_inicio;
     document.getElementById('horario-hora-fim').value = registro.hora_fim;
     botaoRemover.hidden = false;
@@ -170,6 +196,31 @@ async function abrirModalHorario(dia, turno, horarioId) {
   document.getElementById('horario-modal-overlay').hidden = false;
 }
 
+function renderizarResultadosBuscaCliente(termo) {
+  const resultadosBox = document.getElementById('horario-cliente-resultados');
+  const termoNormalizado = termo.trim().toLowerCase();
+  const filtrados = termoNormalizado
+    ? clientesListaPlanaCache.filter((c) => c.nome.toLowerCase().includes(termoNormalizado))
+    : clientesListaPlanaCache;
+
+  if (filtrados.length === 0) {
+    resultadosBox.innerHTML = '<div class="busca-select-vazio">Nenhum cliente encontrado.</div>';
+  } else {
+    resultadosBox.innerHTML = filtrados
+      .slice(0, 50)
+      .map(
+        (c) => `
+        <div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">
+          <span class="busca-select-grupo">${c.empresa}</span>
+          ${c.nome}
+        </div>
+      `
+      )
+      .join('');
+  }
+  resultadosBox.hidden = false;
+}
+
 function fecharModalHorario() {
   document.getElementById('horario-modal-overlay').hidden = true;
 }
@@ -179,8 +230,15 @@ async function salvarHorario(evento) {
   const erroBox = document.getElementById('horario-modal-erro');
   erroBox.classList.remove('visible');
 
+  const clienteIdValor = document.getElementById('horario-cliente-id').value;
+  if (!clienteIdValor) {
+    erroBox.textContent = 'Escolha um cliente na lista de busca.';
+    erroBox.classList.add('visible');
+    return;
+  }
+
   const corpo = {
-    cliente_id: Number(document.getElementById('horario-cliente').value),
+    cliente_id: Number(clienteIdValor),
     hora_inicio: document.getElementById('horario-hora-inicio').value,
     hora_fim: document.getElementById('horario-hora-fim').value,
   };

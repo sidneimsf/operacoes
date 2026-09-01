@@ -78,7 +78,7 @@ const DIAS_LABEL = {
 const TURNOS_LABEL = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
 
 function celulaHorarioHtml(registros, campoNome, dia, turno) {
-  const lista = registros || [];
+  const lista = (registros || []).slice().sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
   const itensHtml = lista
     .map(
       (registro) => `
@@ -128,6 +128,7 @@ function montarGradeSemanal(horarios, campoNome) {
 
 let horariosAtuais = [];
 let colaboradoresAgrupadosCache = null;
+let colaboradoresListaPlanaCache = [];
 let celulaEmEdicao = null;
 
 async function carregarColaboradoresAgrupados() {
@@ -153,8 +154,12 @@ function montarModalHorario() {
         </div>
         <form id="horario-form">
           <div class="field">
-            <label for="horario-colaborador">Colaborador</label>
-            <select id="horario-colaborador" required></select>
+            <label for="horario-colaborador-busca">Colaborador</label>
+            <div class="busca-select">
+              <input type="text" id="horario-colaborador-busca" placeholder="Digite pra buscar o colaborador..." autocomplete="off" required>
+              <input type="hidden" id="horario-colaborador-id">
+              <div class="busca-select-resultados" id="horario-colaborador-resultados" hidden></div>
+            </div>
           </div>
           <div class="field">
             <label for="horario-hora-inicio">Início</label>
@@ -181,6 +186,51 @@ function montarModalHorario() {
   });
   document.getElementById('horario-form').addEventListener('submit', salvarHorario);
   document.getElementById('horario-modal-remover').addEventListener('click', removerHorarioAtual);
+
+  const inputBuscaColab = document.getElementById('horario-colaborador-busca');
+  inputBuscaColab.addEventListener('input', () => {
+    document.getElementById('horario-colaborador-id').value = '';
+    renderizarResultadosBuscaColaborador(inputBuscaColab.value);
+  });
+  inputBuscaColab.addEventListener('focus', () => renderizarResultadosBuscaColaborador(inputBuscaColab.value));
+  document.getElementById('horario-colaborador-resultados').addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    document.getElementById('horario-colaborador-id').value = item.dataset.id;
+    inputBuscaColab.value = item.dataset.nome;
+    document.getElementById('horario-colaborador-resultados').hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!evento.target.closest('.busca-select')) {
+      const resultados = document.getElementById('horario-colaborador-resultados');
+      if (resultados) resultados.hidden = true;
+    }
+  });
+}
+
+function renderizarResultadosBuscaColaborador(termo) {
+  const resultadosBox = document.getElementById('horario-colaborador-resultados');
+  const termoNormalizado = termo.trim().toLowerCase();
+  const filtrados = termoNormalizado
+    ? colaboradoresListaPlanaCache.filter((c) => c.nome.toLowerCase().includes(termoNormalizado))
+    : colaboradoresListaPlanaCache;
+
+  if (filtrados.length === 0) {
+    resultadosBox.innerHTML = '<div class="busca-select-vazio">Nenhum colaborador encontrado.</div>';
+  } else {
+    resultadosBox.innerHTML = filtrados
+      .slice(0, 50)
+      .map(
+        (c) => `
+        <div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">
+          <span class="busca-select-grupo">${c.empresa}</span>
+          ${c.nome}
+        </div>
+      `
+      )
+      .join('');
+  }
+  resultadosBox.hidden = false;
 }
 
 async function abrirModalHorario(dia, turno, horarioId) {
@@ -191,19 +241,20 @@ async function abrirModalHorario(dia, turno, horarioId) {
   document.getElementById('horario-modal-titulo').textContent = `${DIAS_LABEL[dia]} · ${TURNOS_LABEL[turno]}`;
 
   const grupos = await carregarColaboradoresAgrupados();
-  const selectColaborador = document.getElementById('horario-colaborador');
-  selectColaborador.innerHTML = grupos
-    .map(
-      (g) =>
-        `<optgroup label="${g.empresa}">${g.colaboradores.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('')}</optgroup>`
-    )
-    .join('');
+  colaboradoresListaPlanaCache = grupos.flatMap((g) => g.colaboradores.map((c) => ({ id: c.id, nome: c.nome, empresa: g.empresa })));
+
+  const inputBusca = document.getElementById('horario-colaborador-busca');
+  const inputId = document.getElementById('horario-colaborador-id');
+  inputBusca.value = '';
+  inputId.value = '';
+  document.getElementById('horario-colaborador-resultados').hidden = true;
 
   const botaoRemover = document.getElementById('horario-modal-remover');
 
   if (celulaEmEdicao.horarioId) {
     const registro = horariosAtuais.find((h) => h.id === celulaEmEdicao.horarioId);
-    selectColaborador.value = registro.colaborador_id;
+    inputId.value = registro.colaborador_id;
+    inputBusca.value = registro.colaborador_nome;
     document.getElementById('horario-hora-inicio').value = registro.hora_inicio;
     document.getElementById('horario-hora-fim').value = registro.hora_fim;
     botaoRemover.hidden = false;
@@ -225,8 +276,15 @@ async function salvarHorario(evento) {
   const erroBox = document.getElementById('horario-modal-erro');
   erroBox.classList.remove('visible');
 
+  const colaboradorIdValor = document.getElementById('horario-colaborador-id').value;
+  if (!colaboradorIdValor) {
+    erroBox.textContent = 'Escolha um colaborador na lista de busca.';
+    erroBox.classList.add('visible');
+    return;
+  }
+
   const corpo = {
-    colaborador_id: Number(document.getElementById('horario-colaborador').value),
+    colaborador_id: Number(colaboradorIdValor),
     hora_inicio: document.getElementById('horario-hora-inicio').value,
     hora_fim: document.getElementById('horario-hora-fim').value,
   };
