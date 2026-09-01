@@ -457,6 +457,7 @@ function renderizarHeaderCliente() {
   if (enderecoCompleto) {
     itens.push({
       label: 'Endereço',
+      largo: true,
       valor: `${enderecoCompleto} <a class="btn-icone-acao" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(enderecoCompleto)}" target="_blank" rel="noopener" title="Traçar rota no Google Maps">${ICONE_ROTA}</a>`,
     });
   }
@@ -470,7 +471,7 @@ function renderizarHeaderCliente() {
   itens.push({ label: 'Supervisor', valor: c.supervisor_nome || 'Não definido' });
 
   const gridHtml = itens
-    .map((item) => `<div class="info-item"><span class="info-label">${item.label}</span><span class="info-value">${item.valor}</span></div>`)
+    .map((item) => `<div class="info-item${item.largo ? ' info-item-largo' : ''}"><span class="info-label">${item.label}</span><span class="info-value">${item.valor}</span></div>`)
     .join('');
 
   const linhaAcesso = `

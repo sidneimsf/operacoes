@@ -703,9 +703,11 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-wrap: wrap;
+}
+
+.info-item.info-item-largo {
+  grid-column: span 2;
 }
 
 .btn-icone-acao {
