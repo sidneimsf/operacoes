@@ -431,18 +431,48 @@ function renderizarCampoAcesso(valor, idBase) {
   `;
 }
 
+const ICONE_COPIAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICONE_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+const ICONE_ROTA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21c-4-4.5-7-8.2-7-11a7 7 0 0 1 14 0c0 2.8-3 6.5-7 11Z"/></svg>';
+
+function copiarTexto(texto, botao) {
+  navigator.clipboard.writeText(texto).then(() => {
+    const original = botao.innerHTML;
+    botao.innerHTML = ICONE_CHECK;
+    botao.style.color = 'var(--success)';
+    setTimeout(() => {
+      botao.innerHTML = original;
+      botao.style.color = '';
+    }, 1500);
+  });
+}
+
 function renderizarHeaderCliente() {
   const c = clienteAtual;
   document.getElementById('topbar-title').textContent = c.nome;
 
   const enderecoCompleto = [c.endereco, c.bairro, c.cidade].filter(Boolean).join(', ');
-  const linhaEndereco = enderecoCompleto
-    ? `<div class="meta" style="margin-top: 8px;">📍 ${enderecoCompleto}</div>`
-    : '';
-  const linhaResponsavel = c.responsavel_nome || c.responsavel_telefone
-    ? `<div class="meta" style="margin-top: 4px;">Responsável no local: ${c.responsavel_nome || '—'}${c.responsavel_telefone ? ` · ${c.responsavel_telefone}` : ''}</div>`
-    : '';
-  const linhaSupervisor = `<div class="meta" style="margin-top: 4px;">Supervisor: ${c.supervisor_nome || 'Não definido'}</div>`;
+
+  const itens = [];
+  if (enderecoCompleto) {
+    itens.push({
+      label: 'Endereço',
+      valor: `${enderecoCompleto} <a class="btn-icone-acao" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(enderecoCompleto)}" target="_blank" rel="noopener" title="Traçar rota no Google Maps">${ICONE_ROTA}</a>`,
+    });
+  }
+  if (c.responsavel_nome) itens.push({ label: 'Responsável no local', valor: c.responsavel_nome });
+  if (c.responsavel_telefone) {
+    itens.push({
+      label: 'Telefone do responsável',
+      valor: `${c.responsavel_telefone} <button class="btn-icone-acao btn-copiar-contato" data-valor="${c.responsavel_telefone}" title="Copiar telefone">${ICONE_COPIAR}</button>`,
+    });
+  }
+  itens.push({ label: 'Supervisor', valor: c.supervisor_nome || 'Não definido' });
+
+  const gridHtml = itens
+    .map((item) => `<div class="info-item"><span class="info-label">${item.label}</span><span class="info-value">${item.valor}</span></div>`)
+    .join('');
+
   const linhaAcesso = `
     <div class="acesso-info">
       <span class="acesso-item"><strong>Senha:</strong> ${renderizarCampoAcesso(c.senha_acesso, 'valor-senha-acesso')}</span>
@@ -454,13 +484,16 @@ function renderizarHeaderCliente() {
     <span class="empresa-tag">${c.empresa_nome}${c.ativo ? '' : ' · INATIVO'}</span>
     <h2>${c.nome}</h2>
     <span class="cnpj">${c.cnpj || 'CNPJ não informado'}</span>
-    ${linhaEndereco}
-    ${linhaResponsavel}
-    ${linhaSupervisor}
+    <div class="info-grid">${gridHtml}</div>
     ${linhaAcesso}
+
   `;
   const btnToggle = document.getElementById('btn-toggle-cliente');
   btnToggle.textContent = c.ativo ? 'Remover cliente' : 'Reativar cliente';
+
+  document.querySelectorAll('.btn-copiar-contato').forEach((botao) => {
+    botao.addEventListener('click', () => copiarTexto(botao.dataset.valor, botao));
+  });
 }
 
 async function alternarStatusCliente() {

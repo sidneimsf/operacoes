@@ -64,7 +64,7 @@ function trocarAba(aba) {
     botao.classList.toggle('ativa', botao.dataset.aba === aba);
   });
   document.getElementById('campo-select-cliente').hidden = aba !== 'cliente';
-  document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador';
+  document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas';
   carregarRelatorio();
 }
 
@@ -77,9 +77,9 @@ async function carregarListasSelect() {
   }
   if (!colaboradoresCache) {
     colaboradoresCache = await Shell.chamarApi('/colaboradores-dados');
-    document.getElementById('filtro-colaborador').innerHTML = colaboradoresCache
-      .map((c) => `<option value="${c.id}">${c.nome}</option>`)
-      .join('');
+    document.getElementById('filtro-colaborador').innerHTML =
+      '<option value="">Todos</option>' +
+      colaboradoresCache.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('');
   }
 }
 
@@ -226,6 +226,54 @@ function renderizarPorColaborador(dados) {
   `;
 }
 
+function renderizarFaltasAtestados(dados) {
+  const container = document.getElementById('relatorio-conteudo');
+
+  const gruposHtml = dados.por_colaborador
+    .map((g) => {
+      const linhasEventos = g.eventos
+        .map(
+          (e) => `
+          <tr>
+            <td>${formatarDataBR(e.data)}</td>
+            <td>${e.tipo}</td>
+            <td>${e.descricao}</td>
+            <td>${e.registrado_por}</td>
+          </tr>
+        `
+        )
+        .join('');
+
+      return `
+        <div style="margin-bottom: 28px; break-inside: avoid;">
+          <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+            <strong style="font-size: 15px;">${g.colaborador_nome}</strong>
+            <span class="meta">${g.cargo || 'Cargo não informado'} · ${g.empresa_nome}</span>
+            <span class="meta" style="margin-left: auto;">Faltas: <strong>${g.total_faltas}</strong> · Atestados: <strong>${g.total_atestados}</strong></span>
+          </div>
+          <table class="table-list">
+            <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead>
+            <tbody>${linhasEventos}</tbody>
+          </table>
+        </div>
+      `;
+    })
+    .join('');
+
+  container.innerHTML = `
+    <div class="meta" style="margin-bottom: 20px;">Período: ${formatarDataBR(dados.periodo.inicio)} até ${formatarDataBR(dados.periodo.fim)}</div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">total de faltas</div><div class="value">${dados.total_faltas}</div></div>
+      <div class="kpi-card"><div class="label">total de atestados</div><div class="value">${dados.total_atestados}</div></div>
+      <div class="kpi-card"><div class="label">colaboradores com ocorrência</div><div class="value">${dados.colaboradores_com_ocorrencia}</div></div>
+    </div>
+
+    <div class="section-title" style="margin-top: 30px;">Detalhamento por colaborador</div>
+    ${dados.por_colaborador.length > 0 ? gruposHtml : '<div class="empty-state">Nenhuma falta ou atestado registrado nesse período.</div>'}
+  `;
+}
+
 async function carregarRelatorio() {
   const container = document.getElementById('relatorio-conteudo');
   container.innerHTML = '<div class="loading-state">Carregando...</div>';
@@ -264,6 +312,14 @@ async function carregarRelatorio() {
       if (dados === null) return;
       dadosAtuais = dados;
       renderizarPorColaborador(dados);
+    } else if (abaAtual === 'faltas') {
+      await carregarListasSelect();
+      const colaboradorId = document.getElementById('filtro-colaborador').value;
+      if (colaboradorId) params.set('colaborador_id', colaboradorId);
+      const dados = await Shell.chamarApi(`/relatorios-dados/faltas-atestados?${params.toString()}`);
+      if (dados === null) return;
+      dadosAtuais = dados;
+      renderizarFaltasAtestados(dados);
     }
   } catch (erro) {
     if (erro.status === 403) {
@@ -314,6 +370,18 @@ function exportarCSV() {
   } else if (abaAtual === 'colaborador') {
     const linhas = dadosAtuais.eventos.map((e) => [e.data, e.tipo, e.descricao, e.registrado_por]);
     baixarCSV(`relatorio-${dadosAtuais.colaborador.nome}.csv`, ['Data', 'Tipo', 'Descrição', 'Registrado por'], linhas);
+  } else if (abaAtual === 'faltas') {
+    const linhas = [];
+    dadosAtuais.por_colaborador.forEach((g) => {
+      g.eventos.forEach((e) => {
+        linhas.push([g.colaborador_nome, g.empresa_nome, e.data, e.tipo, e.descricao, e.registrado_por]);
+      });
+    });
+    baixarCSV(
+      'relatorio-faltas-e-atestados.csv',
+      ['Colaborador', 'Empresa', 'Data', 'Tipo', 'Descrição', 'Registrado por'],
+      linhas
+    );
   }
 }
 

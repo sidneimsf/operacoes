@@ -705,6 +705,7 @@ def serializar_colaborador(c: Colaborador) -> dict:
         "supervisor_id": c.supervisor_id,
         "supervisor_nome": c.supervisor.nome if c.supervisor else None,
         "status": c.status,
+        "data_desligamento": c.data_desligamento.isoformat() if c.data_desligamento else None,
     }
 
 
@@ -972,6 +973,9 @@ def editar_colaborador(
         if campos["status"] not in ("ativo", "afastado", "desligado"):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
         colaborador.status = campos["status"]
+    if "data_desligamento" in campos:
+        valor = campos["data_desligamento"]
+        colaborador.data_desligamento = date.fromisoformat(valor) if valor else None
 
     db.commit()
     db.refresh(colaborador)
@@ -3079,6 +3083,75 @@ def listar_eventos_horario(
         }
         for e in eventos
     ]
+
+
+@app.get("/relatorios-dados/faltas-atestados")
+def relatorio_faltas_atestados(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    colaborador_id: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    data_referencia = func.coalesce(ColaboradorEvento.data_inicio, func.date(ColaboradorEvento.criado_em))
+    query = (
+        db.query(ColaboradorEvento)
+        .filter(
+            ColaboradorEvento.tipo.in_(["falta", "atestado"]),
+            data_referencia.between(inicio, fim),
+        )
+    )
+    if colaborador_id is not None:
+        query = query.filter(ColaboradorEvento.colaborador_id == colaborador_id)
+
+    eventos = query.order_by(data_referencia.asc()).all()
+
+    por_colaborador: dict[int, dict] = {}
+    for e in eventos:
+        cid = e.colaborador_id
+        if cid not in por_colaborador:
+            por_colaborador[cid] = {
+                "colaborador_id": cid,
+                "colaborador_nome": e.colaborador.nome,
+                "empresa_nome": e.colaborador.empresa.nome,
+                "cargo": e.colaborador.cargo,
+                "total_faltas": 0,
+                "total_atestados": 0,
+                "eventos": [],
+            }
+        grupo = por_colaborador[cid]
+        if e.tipo == "falta":
+            grupo["total_faltas"] += 1
+        else:
+            grupo["total_atestados"] += 1
+        data_evento = e.data_inicio if e.data_inicio else e.criado_em.date()
+        grupo["eventos"].append(
+            {
+                "data": data_evento.isoformat(),
+                "tipo": "Falta" if e.tipo == "falta" else "Atestado médico",
+                "descricao": e.descricao or "—",
+                "registrado_por": e.registrado_por.nome,
+            }
+        )
+
+    lista_colaboradores = sorted(por_colaborador.values(), key=lambda g: g["colaborador_nome"])
+
+    total_faltas = sum(g["total_faltas"] for g in lista_colaboradores)
+    total_atestados = sum(g["total_atestados"] for g in lista_colaboradores)
+
+    return {
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "total_faltas": total_faltas,
+        "total_atestados": total_atestados,
+        "colaboradores_com_ocorrencia": len(lista_colaboradores),
+        "por_colaborador": lista_colaboradores,
+    }
 
 
 

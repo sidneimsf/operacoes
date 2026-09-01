@@ -93,6 +93,7 @@ class ColaboradorUpdate(BaseModel):
     seguro_vida_data_exclusao: str | None = None
     supervisor_id: int | None = None
     status: str | None = None
+    data_desligamento: str | None = None
 
 
 class MetlifeLancamentoCreate(BaseModel):

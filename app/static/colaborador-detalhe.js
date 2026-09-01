@@ -232,6 +232,68 @@ async function carregarMapaServicos() {
   }
 }
 
+function montarModalDesligar() {
+  const html = `
+    <div class="modal-overlay" id="desligar-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Desligar colaborador</h3>
+          <button class="modal-close" id="desligar-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="desligar-form">
+          <p class="meta" style="margin-bottom: 14px;">Isso marca <strong id="desligar-nome-colaborador"></strong> como desligado e some da lista de colaboradores ativos.</p>
+          <div class="field">
+            <label for="desligar-data">Data do desligamento</label>
+            <input type="date" id="desligar-data" required>
+          </div>
+          <div class="error-message" id="desligar-modal-erro"></div>
+          <button type="submit" class="btn-primary" style="background: var(--danger);" id="desligar-modal-enviar">Confirmar desligamento</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('desligar-modal-fechar').addEventListener('click', () => {
+    document.getElementById('desligar-modal-overlay').hidden = true;
+  });
+  document.getElementById('desligar-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'desligar-modal-overlay') document.getElementById('desligar-modal-overlay').hidden = true;
+  });
+  document.getElementById('desligar-form').addEventListener('submit', confirmarDesligamento);
+}
+
+function abrirModalDesligar() {
+  document.getElementById('desligar-nome-colaborador').textContent = colaboradorAtual.nome;
+  document.getElementById('desligar-data').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('desligar-modal-erro').classList.remove('visible');
+  document.getElementById('desligar-modal-overlay').hidden = false;
+}
+
+async function confirmarDesligamento(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('desligar-modal-erro');
+  const botao = document.getElementById('desligar-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+  try {
+    colaboradorAtual = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}`, {
+      method: 'PATCH',
+      body: { status: 'desligado', data_desligamento: document.getElementById('desligar-data').value },
+    });
+    document.getElementById('desligar-modal-overlay').hidden = true;
+    renderizarHeaderColaborador();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Confirmar desligamento';
+  }
+}
+
 function montarModalEditarColaborador() {
   const html = `
     <div class="modal-overlay" id="editar-colab-modal-overlay" hidden>
@@ -309,6 +371,10 @@ function montarModalEditarColaborador() {
               <option value="desligado">Desligado</option>
             </select>
           </div>
+          <div class="field">
+            <label for="editar-colab-data-desligamento">Data de desligamento (se aplicável)</label>
+            <input type="date" id="editar-colab-data-desligamento">
+          </div>
           <div class="error-message" id="editar-colab-modal-erro"></div>
           <button type="submit" class="btn-primary" id="editar-colab-modal-enviar">Salvar alterações</button>
         </form>
@@ -362,6 +428,7 @@ async function abrirModalEditarColaborador() {
   document.getElementById('editar-colab-seguro-inclusao').value = colaboradorAtual.seguro_vida_data_inclusao || '';
   document.getElementById('editar-colab-seguro-exclusao').value = colaboradorAtual.seguro_vida_data_exclusao || '';
   document.getElementById('editar-colab-status').value = colaboradorAtual.status;
+  document.getElementById('editar-colab-data-desligamento').value = colaboradorAtual.data_desligamento || '';
 
   document.getElementById('editar-colab-modal-overlay').hidden = false;
 }
@@ -405,6 +472,7 @@ async function salvarEdicaoColaborador(evento) {
     seguro_vida_data_exclusao: document.getElementById('editar-colab-seguro-exclusao').value || null,
     supervisor_id: supervisorValor ? Number(supervisorValor) : null,
     status: document.getElementById('editar-colab-status').value,
+    data_desligamento: document.getElementById('editar-colab-data-desligamento').value || null,
   };
 
   botao.disabled = true;
@@ -444,46 +512,70 @@ function calcularTempoDeCasa(dataAdmissaoIso) {
   return `${partes.join(' e ')} de empresa`;
 }
 
+const ICONE_COPIAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+const ICONE_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+function copiarTexto(texto, botao) {
+  navigator.clipboard.writeText(texto).then(() => {
+    const original = botao.innerHTML;
+    botao.innerHTML = ICONE_CHECK;
+    botao.style.color = 'var(--success)';
+    setTimeout(() => {
+      botao.innerHTML = original;
+      botao.style.color = '';
+    }, 1500);
+  });
+}
+
 function renderizarHeaderColaborador() {
   const c = colaboradorAtual;
   document.getElementById('topbar-title').textContent = c.nome;
 
   const tempoDeCasa = calcularTempoDeCasa(c.data_admissao);
-  const linhaTempoDeCasa = tempoDeCasa ? ` · 🎉 ${tempoDeCasa}` : '';
-  const linhaAniversario = c.aniversario_dia && c.aniversario_mes
-    ? ` · 🎂 Aniversário: ${String(c.aniversario_dia).padStart(2, '0')}/${String(c.aniversario_mes).padStart(2, '0')}`
-    : '';
 
-  let linhaExperiencia = '';
-  if (c.data_fim_experiencia_30 || c.data_fim_experiencia_90) {
-    const partes = [];
-    if (c.data_fim_experiencia_30) partes.push(`30 dias: ${formatarData(c.data_fim_experiencia_30)}`);
-    if (c.data_fim_experiencia_90) partes.push(`90 dias: ${formatarData(c.data_fim_experiencia_90)}`);
-    linhaExperiencia = `<div class="meta" style="margin-top: 4px;">📋 Período de experiência · ${partes.join(' · ')}</div>`;
+  const itens = [];
+  itens.push({
+    label: 'Contato',
+    valor: c.contato
+      ? `${c.contato} <button class="btn-icone-acao btn-copiar-contato" data-valor="${c.contato}" title="Copiar telefone">${ICONE_COPIAR}</button>`
+      : '—',
+  });
+  itens.push({ label: 'Admissão', valor: formatarData(c.data_admissao) });
+  itens.push({ label: 'Supervisor', valor: c.supervisor_nome || 'Administrativo' });
+  if (tempoDeCasa) itens.push({ label: 'Tempo de casa', valor: `🎉 ${tempoDeCasa}` });
+  if (c.aniversario_dia && c.aniversario_mes) {
+    itens.push({ label: 'Aniversário', valor: `🎂 ${String(c.aniversario_dia).padStart(2, '0')}/${String(c.aniversario_mes).padStart(2, '0')}` });
+  }
+  if (c.status === 'desligado' && c.data_desligamento) {
+    itens.push({ label: 'Desligamento', valor: formatarData(c.data_desligamento) });
+  }
+  if (c.data_fim_experiencia_30) itens.push({ label: 'Experiência · 30 dias', valor: formatarData(c.data_fim_experiencia_30) });
+  if (c.data_fim_experiencia_90) itens.push({ label: 'Experiência · 90 dias', valor: formatarData(c.data_fim_experiencia_90) });
+  if (c.vt_numero_cartao) {
+    itens.push({ label: 'Vale transporte', valor: `${c.vt_numero_cartao}${c.vt_situacao ? ` (${c.vt_situacao})` : ''}` });
+  }
+  if (c.vt_saldo != null) itens.push({ label: 'Saldo VT', valor: `R$ ${c.vt_saldo.toFixed(2)}` });
+  if (c.seguro_vida_data_inclusao) {
+    itens.push({
+      label: 'Seguro de vida',
+      valor: `desde ${formatarData(c.seguro_vida_data_inclusao)}${c.seguro_vida_data_exclusao ? ` até ${formatarData(c.seguro_vida_data_exclusao)}` : ''}`,
+    });
   }
 
-  let linhaBeneficios = '';
-  if (c.vt_numero_cartao || c.seguro_vida_data_inclusao) {
-    const partes = [];
-    if (c.vt_numero_cartao) {
-      partes.push(`VT: ${c.vt_numero_cartao}${c.vt_situacao ? ` (${c.vt_situacao})` : ''}${c.vt_saldo != null ? ` · saldo R$ ${c.vt_saldo.toFixed(2)}` : ''}`);
-    }
-    if (c.seguro_vida_data_inclusao) {
-      partes.push(`Seguro de vida: desde ${formatarData(c.seguro_vida_data_inclusao)}${c.seguro_vida_data_exclusao ? ` até ${formatarData(c.seguro_vida_data_exclusao)}` : ''}`);
-    }
-    linhaBeneficios = `<div class="meta" style="margin-top: 4px;">💳 ${partes.join(' · ')}</div>`;
-  }
+  const gridHtml = itens
+    .map((item) => `<div class="info-item"><span class="info-label">${item.label}</span><span class="info-value">${item.valor}</span></div>`)
+    .join('');
 
   document.getElementById('colaborador-header').innerHTML = `
     <span class="empresa-tag">${c.empresa_nome} · ${c.status === 'ativo' ? 'Ativo' : c.status === 'afastado' ? 'Afastado' : 'Desligado'}</span>
     <h2>${c.nome}</h2>
     <span class="cnpj">${c.cargo || 'Cargo não informado'} · Registro ${c.registro || '—'}</span>
-    <div class="meta" style="margin-top: 8px;">
-      Contato: ${c.contato || '—'} · Admissão: ${formatarData(c.data_admissao)} · Supervisor: ${c.supervisor_nome || 'Administrativo'}${linhaTempoDeCasa}${linhaAniversario}
-    </div>
-    ${linhaExperiencia}
-    ${linhaBeneficios}
+    <div class="info-grid">${gridHtml}</div>
   `;
+
+  document.querySelectorAll('.btn-copiar-contato').forEach((botao) => {
+    botao.addEventListener('click', () => copiarTexto(botao.dataset.valor, botao));
+  });
 }
 
 async function enviarFormData(caminho, formData) {
@@ -902,6 +994,8 @@ async function iniciar() {
 
     montarModalEditarColaborador();
     document.getElementById('btn-editar-colaborador').addEventListener('click', abrirModalEditarColaborador);
+    montarModalDesligar();
+    document.getElementById('btn-desligar-colaborador').addEventListener('click', abrirModalDesligar);
 
     montarModalHorario();
     document.getElementById('mapa-servicos').addEventListener('click', (evento) => {

@@ -185,7 +185,8 @@ class Colaborador(Base):
     seguro_vida_data_inclusao: Mapped[date | None] = mapped_column(Date, nullable=True)
     seguro_vida_data_exclusao: Mapped[date | None] = mapped_column(Date, nullable=True)
     supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo")  # ativo | afastado
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo")  # ativo | afastado | desligado
+    data_desligamento: Mapped[date | None] = mapped_column(Date, nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     empresa: Mapped["Empresa"] = relationship()
