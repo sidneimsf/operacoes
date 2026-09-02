@@ -1144,6 +1144,38 @@ DIAS_SEMANA_LABEL = {
     "segunda": "Segunda", "terca": "Terça", "quarta": "Quarta", "quinta": "Quinta",
     "sexta": "Sexta", "sabado": "Sábado", "domingo": "Domingo",
 }
+DIAS_SEMANA_PYTHON = {
+    "segunda": 0, "terca": 1, "quarta": 2, "quinta": 3, "sexta": 4, "sabado": 5, "domingo": 6,
+}
+
+
+def _horas_por_slot(hora_inicio: str, hora_fim: str) -> float:
+    h1, m1 = map(int, hora_inicio.split(":"))
+    h2, m2 = map(int, hora_fim.split(":"))
+    return ((h2 * 60 + m2) - (h1 * 60 + m1)) / 60
+
+
+def _contar_ocorrencias_dia_semana(dia_semana_python: int, inicio: date, fim: date) -> int:
+    """Conta quantas vezes um dia da semana ocorre entre inicio e fim, inclusive."""
+    if inicio > fim:
+        return 0
+    total_dias = (fim - inicio).days + 1
+    offset = (dia_semana_python - inicio.weekday()) % 7
+    if offset >= total_dias:
+        return 0
+    dias_restantes = total_dias - offset
+    return (dias_restantes - 1) // 7 + 1
+
+
+def _horas_do_horario_no_periodo(horario: HorarioServico, periodo_inicio: date, periodo_fim: date) -> float:
+    """Quantas horas esse vinculo (colaborador+cliente+dia+turno) rendeu dentro do periodo pedido."""
+    efetivo_inicio = max(horario.data_inicio, periodo_inicio)
+    efetivo_fim = min(horario.data_fim or periodo_fim, periodo_fim)
+    if efetivo_inicio > efetivo_fim:
+        return 0.0
+    dia_python = DIAS_SEMANA_PYTHON[horario.dia_semana]
+    ocorrencias = _contar_ocorrencias_dia_semana(dia_python, efetivo_inicio, efetivo_fim)
+    return ocorrencias * _horas_por_slot(horario.hora_inicio, horario.hora_fim)
 
 
 def serializar_horario(h: HorarioServico) -> dict:
@@ -3085,7 +3117,96 @@ def listar_eventos_horario(
     ]
 
 
-@app.get("/relatorios-dados/faltas-atestados")
+@app.get("/relatorios-dados/horas-trabalhadas")
+def relatorio_horas_trabalhadas(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    colaborador_id: int | None = None,
+    cliente_id: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    query = db.query(HorarioServico).filter(
+        HorarioServico.data_inicio <= fim,
+        (HorarioServico.data_fim.is_(None)) | (HorarioServico.data_fim >= inicio),
+    )
+    if colaborador_id is not None:
+        query = query.filter(HorarioServico.colaborador_id == colaborador_id)
+    if cliente_id is not None:
+        query = query.filter(HorarioServico.cliente_id == cliente_id)
+
+    horarios = query.all()
+
+    por_par: dict[tuple[int, int], dict] = {}
+    por_colaborador: dict[int, dict] = {}
+    por_cliente: dict[int, dict] = {}
+
+    for h in horarios:
+        horas = _horas_do_horario_no_periodo(h, inicio, fim)
+        if horas <= 0:
+            continue
+
+        chave_par = (h.colaborador_id, h.cliente_id)
+        if chave_par not in por_par:
+            por_par[chave_par] = {
+                "colaborador_id": h.colaborador_id,
+                "colaborador_nome": h.colaborador.nome,
+                "cliente_id": h.cliente_id,
+                "cliente_nome": h.cliente.nome,
+                "horas_totais": 0.0,
+                "detalhes": [],
+            }
+        por_par[chave_par]["horas_totais"] += horas
+        por_par[chave_par]["detalhes"].append(
+            {
+                "dia_semana": DIAS_SEMANA_LABEL.get(h.dia_semana, h.dia_semana),
+                "turno": h.turno,
+                "hora_inicio": h.hora_inicio,
+                "hora_fim": h.hora_fim,
+                "horas_no_periodo": round(horas, 2),
+            }
+        )
+
+        if h.colaborador_id not in por_colaborador:
+            por_colaborador[h.colaborador_id] = {
+                "colaborador_id": h.colaborador_id,
+                "colaborador_nome": h.colaborador.nome,
+                "empresa_nome": h.colaborador.empresa.nome,
+                "horas_totais": 0.0,
+            }
+        por_colaborador[h.colaborador_id]["horas_totais"] += horas
+
+        if h.cliente_id not in por_cliente:
+            por_cliente[h.cliente_id] = {
+                "cliente_id": h.cliente_id,
+                "cliente_nome": h.cliente.nome,
+                "empresa_nome": h.cliente.empresa.nome,
+                "horas_totais": 0.0,
+            }
+        por_cliente[h.cliente_id]["horas_totais"] += horas
+
+    def arredondar(lista, chave="horas_totais"):
+        for item in lista:
+            item[chave] = round(item[chave], 2)
+        return lista
+
+    lista_pares = arredondar(sorted(por_par.values(), key=lambda x: (-x["horas_totais"])))
+    lista_colaboradores = arredondar(sorted(por_colaborador.values(), key=lambda x: (-x["horas_totais"])))
+    lista_clientes = arredondar(sorted(por_cliente.values(), key=lambda x: (-x["horas_totais"])))
+
+    return {
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "total_horas": round(sum(p["horas_totais"] for p in lista_pares), 2),
+        "por_colaborador_cliente": lista_pares,
+        "por_colaborador": lista_colaboradores,
+        "por_cliente": lista_clientes,
+    }
 def relatorio_faltas_atestados(
     data_inicio: str | None = None,
     data_fim: str | None = None,

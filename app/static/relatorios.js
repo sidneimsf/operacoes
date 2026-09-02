@@ -22,7 +22,17 @@ function aplicarPreset(preset) {
   const hoje = new Date();
   let inicio, fim;
 
-  if (preset === 'mes-atual') {
+  if (preset === 'hoje') {
+    inicio = hoje;
+    fim = hoje;
+  } else if (preset === 'semana-atual') {
+    const diaSemana = hoje.getDay(); // 0=domingo
+    const deslocamentoSegunda = diaSemana === 0 ? 6 : diaSemana - 1;
+    inicio = new Date(hoje);
+    inicio.setDate(hoje.getDate() - deslocamentoSegunda);
+    fim = new Date(inicio);
+    fim.setDate(inicio.getDate() + 6);
+  } else if (preset === 'mes-atual') {
     inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     fim = hoje;
   } else if (preset === 'mes-passado') {
@@ -63,17 +73,17 @@ function trocarAba(aba) {
   document.querySelectorAll('.tab-relatorio').forEach((botao) => {
     botao.classList.toggle('ativa', botao.dataset.aba === aba);
   });
-  document.getElementById('campo-select-cliente').hidden = aba !== 'cliente';
-  document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas';
+  document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas';
+  document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas' && aba !== 'horas';
   carregarRelatorio();
 }
 
 async function carregarListasSelect() {
   if (!clientesCache) {
     clientesCache = await Shell.chamarApi('/clientes-dados');
-    document.getElementById('filtro-cliente').innerHTML = clientesCache
-      .map((c) => `<option value="${c.id}">${c.nome}</option>`)
-      .join('');
+    document.getElementById('filtro-cliente').innerHTML =
+      '<option value="">Todos</option>' +
+      clientesCache.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('');
   }
   if (!colaboradoresCache) {
     colaboradoresCache = await Shell.chamarApi('/colaboradores-dados');
@@ -226,6 +236,65 @@ function renderizarPorColaborador(dados) {
   `;
 }
 
+function renderizarHorasTrabalhadas(dados) {
+  const container = document.getElementById('relatorio-conteudo');
+
+  const linhasColaborador = dados.por_colaborador
+    .map((c) => `<tr><td>${c.colaborador_nome}</td><td>${c.empresa_nome}</td><td><strong>${c.horas_totais}h</strong></td></tr>`)
+    .join('');
+
+  const linhasCliente = dados.por_cliente
+    .map((c) => `<tr><td>${c.cliente_nome}</td><td>${c.empresa_nome}</td><td><strong>${c.horas_totais}h</strong></td></tr>`)
+    .join('');
+
+  const linhasDetalhe = dados.por_colaborador_cliente
+    .map((p) => {
+      const subDetalhe = p.detalhes
+        .map((d) => `${d.dia_semana} ${d.hora_inicio}-${d.hora_fim} (${d.horas_no_periodo}h)`)
+        .join(' · ');
+      return `
+        <tr>
+          <td>${p.colaborador_nome}</td>
+          <td>${p.cliente_nome}</td>
+          <td><strong>${p.horas_totais}h</strong></td>
+          <td class="meta" style="font-size: 12px;">${subDetalhe}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  container.innerHTML = `
+    <div class="meta" style="margin-bottom: 20px;">Período: ${formatarDataBR(dados.periodo.inicio)} até ${formatarDataBR(dados.periodo.fim)}</div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">total de horas no período</div><div class="value">${dados.total_horas}h</div></div>
+      <div class="kpi-card"><div class="label">colaboradores com registro</div><div class="value">${dados.por_colaborador.length}</div></div>
+      <div class="kpi-card"><div class="label">clientes atendidos</div><div class="value">${dados.por_cliente.length}</div></div>
+    </div>
+
+    <div class="section-title" style="margin-top: 30px;">Por colaborador</div>
+    ${
+      dados.por_colaborador.length > 0
+        ? `<table class="table-list"><thead><tr><th>Colaborador</th><th>Empresa</th><th>Horas no período</th></tr></thead><tbody>${linhasColaborador}</tbody></table>`
+        : '<div class="empty-state">Sem dados no período.</div>'
+    }
+
+    <div class="section-title" style="margin-top: 30px;">Por cliente</div>
+    ${
+      dados.por_cliente.length > 0
+        ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Horas no período</th></tr></thead><tbody>${linhasCliente}</tbody></table>`
+        : '<div class="empty-state">Sem dados no período.</div>'
+    }
+
+    <div class="section-title" style="margin-top: 30px;">Detalhamento colaborador × cliente</div>
+    ${
+      dados.por_colaborador_cliente.length > 0
+        ? `<table class="table-list"><thead><tr><th>Colaborador</th><th>Cliente</th><th>Horas</th><th>Detalhe (dia/turno)</th></tr></thead><tbody>${linhasDetalhe}</tbody></table>`
+        : '<div class="empty-state">Sem dados no período.</div>'
+    }
+  `;
+}
+
 function renderizarFaltasAtestados(dados) {
   const container = document.getElementById('relatorio-conteudo');
 
@@ -320,6 +389,16 @@ async function carregarRelatorio() {
       if (dados === null) return;
       dadosAtuais = dados;
       renderizarFaltasAtestados(dados);
+    } else if (abaAtual === 'horas') {
+      await carregarListasSelect();
+      const colaboradorId = document.getElementById('filtro-colaborador').value;
+      const clienteId = document.getElementById('filtro-cliente').value;
+      if (colaboradorId) params.set('colaborador_id', colaboradorId);
+      if (clienteId) params.set('cliente_id', clienteId);
+      const dados = await Shell.chamarApi(`/relatorios-dados/horas-trabalhadas?${params.toString()}`);
+      if (dados === null) return;
+      dadosAtuais = dados;
+      renderizarHorasTrabalhadas(dados);
     }
   } catch (erro) {
     if (erro.status === 403) {
@@ -382,6 +461,9 @@ function exportarCSV() {
       ['Colaborador', 'Empresa', 'Data', 'Tipo', 'Descrição', 'Registrado por'],
       linhas
     );
+  } else if (abaAtual === 'horas') {
+    const linhas = dadosAtuais.por_colaborador_cliente.map((p) => [p.colaborador_nome, p.cliente_nome, p.horas_totais]);
+    baixarCSV('relatorio-horas-trabalhadas.csv', ['Colaborador', 'Cliente', 'Horas no período'], linhas);
   }
 }
 
