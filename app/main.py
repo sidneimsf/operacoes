@@ -441,14 +441,14 @@ def quem_sou_eu(usuario: Usuario = Depends(usuario_atual)):
 def resumo_dashboard(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     """Indicadores gerais para a tela inicial, calculados a partir de dados reais."""
     total_empresas = db.query(Empresa).count()
-    total_clientes = db.query(Cliente).count()
-    total_colaboradores = db.query(Colaborador).count()
+    total_clientes = db.query(Cliente).filter_by(ativo=True).count()
+    total_colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado").count()
     total_usuarios = db.query(Usuario).filter_by(ativo=True).count()
     total_chamados_abertos = db.query(Chamado).filter(Chamado.status != "finalizado").count()
 
     empresas = db.query(Empresa).order_by(Empresa.nome).all()
     clientes_por_empresa = [
-        {"empresa": e.nome, "total": db.query(Cliente).filter_by(empresa_id=e.id).count()}
+        {"empresa": e.nome, "total": db.query(Cliente).filter_by(empresa_id=e.id, ativo=True).count()}
         for e in empresas
     ]
 
