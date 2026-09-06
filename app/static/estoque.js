@@ -214,7 +214,7 @@ function montarModalMovimento() {
             <input type="number" id="movimento-quantidade" min="1" value="1" required>
           </div>
           <div class="field" id="campo-movimento-colaborador">
-            <label for="movimento-colaborador">Entregue para (opcional)</label>
+            <label for="movimento-colaborador" id="label-movimento-colaborador">Entregue para</label>
             <select id="movimento-colaborador"><option value="">Não informado</option></select>
           </div>
           <div class="field">
@@ -248,8 +248,10 @@ function abrirModalMovimento(itemId, tipo) {
     tipo === 'entrada' ? `+ Entrada · ${item.tipo_peca} ${item.tamanho}` : `- Saída · ${item.tipo_peca} ${item.tamanho}`;
   document.getElementById('movimento-form').reset();
   document.getElementById('campo-movimento-colaborador').hidden = tipo !== 'saida';
+  document.getElementById('label-movimento-colaborador').textContent = tipo === 'saida' ? 'Entregue para (obrigatório)' : 'Entregue para';
   document.getElementById('movimento-colaborador').innerHTML =
-    '<option value="">Não informado</option>' + colaboradoresCache.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('');
+    (tipo === 'saida' ? '<option value="">Selecione o colaborador...</option>' : '<option value="">Não informado</option>') +
+    colaboradoresCache.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('');
   document.getElementById('movimento-modal-erro').classList.remove('visible');
   document.getElementById('movimento-modal-overlay').hidden = false;
 }
@@ -261,6 +263,12 @@ async function enviarMovimento(evento) {
   erroBox.classList.remove('visible');
 
   const colaboradorValor = document.getElementById('movimento-colaborador').value;
+  if (tipoMovimentoAtual === 'saida' && !colaboradorValor) {
+    erroBox.textContent = 'Escolha o colaborador que recebeu esse item.';
+    erroBox.classList.add('visible');
+    return;
+  }
+
   const corpo = {
     tipo: tipoMovimentoAtual,
     quantidade: Number(document.getElementById('movimento-quantidade').value),

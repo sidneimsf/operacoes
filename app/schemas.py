@@ -8,6 +8,7 @@ class LoginRequest(BaseModel):
 
 class ChamadoCreate(BaseModel):
     cliente_id: int
+    colaborador_id: int | None = None
     tipo: str
     prioridade: str = "normal"
     descricao: str
@@ -16,6 +17,10 @@ class ChamadoCreate(BaseModel):
 
 class ChamadoStatusUpdate(BaseModel):
     status: str
+
+
+class ChamadoEdicaoUpdate(BaseModel):
+    acao_corretiva: str | None = None
 
 
 class ChamadoFinalizar(BaseModel):

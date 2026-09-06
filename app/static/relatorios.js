@@ -74,7 +74,7 @@ function trocarAba(aba) {
     botao.classList.toggle('ativa', botao.dataset.aba === aba);
   });
   document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas';
-  document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas' && aba !== 'horas';
+  document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas' && aba !== 'horas' && aba !== 'estoque';
   carregarRelatorio();
 }
 
@@ -232,6 +232,42 @@ function renderizarPorColaborador(dados) {
       dados.eventos.length > 0
         ? `<table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead><tbody>${linhasEventos}</tbody></table>`
         : '<div class="empty-state">Nenhum registro nesse período.</div>'
+    }
+  `;
+}
+
+function renderizarMovimentacaoEstoque(dados) {
+  const container = document.getElementById('relatorio-conteudo');
+
+  const linhas = dados.movimentos
+    .map(
+      (m) => `
+      <tr>
+        <td>${formatarDataBR(m.data.slice(0, 10))}</td>
+        <td><span class="status-badge ${m.tipo === 'entrada' ? 'novo' : 'finalizado'}">${m.tipo === 'entrada' ? 'Entrada' : 'Saída'}</span></td>
+        <td>${m.item} <span class="meta">(${m.empresa_nome})</span></td>
+        <td>${m.quantidade}</td>
+        <td>${m.colaborador_nome || '—'}</td>
+        <td>${m.motivo || '—'}</td>
+        <td>${m.registrado_por}</td>
+      </tr>
+    `
+    )
+    .join('');
+
+  container.innerHTML = `
+    <div class="meta" style="margin-bottom: 20px;">Período: ${formatarDataBR(dados.periodo.inicio)} até ${formatarDataBR(dados.periodo.fim)}</div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">total de entradas</div><div class="value">${dados.total_entradas}</div></div>
+      <div class="kpi-card"><div class="label">total de saídas</div><div class="value">${dados.total_saidas}</div></div>
+    </div>
+
+    <div class="section-title" style="margin-top: 30px;">Histórico de movimentações</div>
+    ${
+      dados.movimentos.length > 0
+        ? `<table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th>Qtd</th><th>Entregue para</th><th>Motivo</th><th>Registrado por</th></tr></thead><tbody>${linhas}</tbody></table>`
+        : '<div class="empty-state">Nenhuma movimentação no período.</div>'
     }
   `;
 }
@@ -399,6 +435,14 @@ async function carregarRelatorio() {
       if (dados === null) return;
       dadosAtuais = dados;
       renderizarHorasTrabalhadas(dados);
+    } else if (abaAtual === 'estoque') {
+      await carregarListasSelect();
+      const colaboradorId = document.getElementById('filtro-colaborador').value;
+      if (colaboradorId) params.set('colaborador_id', colaboradorId);
+      const dados = await Shell.chamarApi(`/relatorios-dados/movimentacao-estoque?${params.toString()}`);
+      if (dados === null) return;
+      dadosAtuais = dados;
+      renderizarMovimentacaoEstoque(dados);
     }
   } catch (erro) {
     if (erro.status === 403) {
@@ -464,6 +508,15 @@ function exportarCSV() {
   } else if (abaAtual === 'horas') {
     const linhas = dadosAtuais.por_colaborador_cliente.map((p) => [p.colaborador_nome, p.cliente_nome, p.horas_totais]);
     baixarCSV('relatorio-horas-trabalhadas.csv', ['Colaborador', 'Cliente', 'Horas no período'], linhas);
+  } else if (abaAtual === 'estoque') {
+    const linhas = dadosAtuais.movimentos.map((m) => [
+      formatarDataBR(m.data.slice(0, 10)), m.tipo, m.item, m.empresa_nome, m.quantidade, m.colaborador_nome || '', m.motivo || '', m.registrado_por,
+    ]);
+    baixarCSV(
+      'relatorio-movimentacao-estoque.csv',
+      ['Data', 'Tipo', 'Item', 'Empresa', 'Quantidade', 'Entregue para', 'Motivo', 'Registrado por'],
+      linhas
+    );
   }
 }
 

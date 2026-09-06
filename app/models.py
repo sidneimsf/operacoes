@@ -30,9 +30,11 @@ class Chamado(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    colaborador_id: Mapped[int | None] = mapped_column(ForeignKey("colaboradores.id"), nullable=True)
     tipo: Mapped[str] = mapped_column(String(30), nullable=False)
     prioridade: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
     descricao: Mapped[str] = mapped_column(String(1000), nullable=False)
+    acao_corretiva: Mapped[str | None] = mapped_column(String(1500), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="novo")
     aberto_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     responsavel_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
@@ -52,6 +54,7 @@ class Chamado(Base):
     fechamento_observacoes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
 
     cliente: Mapped["Cliente"] = relationship()
+    colaborador: Mapped["Colaborador | None"] = relationship()
     aberto_por: Mapped["Usuario"] = relationship(foreign_keys=[aberto_por_id])
     responsavel: Mapped["Usuario | None"] = relationship(foreign_keys=[responsavel_id])
     finalizado_por: Mapped["Usuario | None"] = relationship(foreign_keys=[finalizado_por_id])

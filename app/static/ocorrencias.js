@@ -222,7 +222,10 @@ function renderizarTabela(chamados) {
       (c) => `
       <tr>
         <td>${formatarData(c.criado_em)}</td>
-        <td><a href="/cliente-detalhe?id=${c.cliente_id}">${c.cliente_nome}</a></td>
+        <td>
+          <a href="/cliente-detalhe?id=${c.cliente_id}">${c.cliente_nome}</a>
+          ${c.colaborador_nome ? `<div class="meta" style="font-size: 11px;">→ ${c.colaborador_nome}</div>` : ''}
+        </td>
         <td>${labelTipo(c.tipo)}</td>
         <td><span class="priority-badge ${c.prioridade}">${labelPrioridade(c.prioridade)}</span></td>
         <td class="chamado-descricao" title="${c.descricao}">${c.descricao}</td>
@@ -233,6 +236,11 @@ function renderizarTabela(chamados) {
             ${opcoesStatusHtml(c.status)}
           </select>
         </td>
+        <td>
+          <button class="btn-ghost btn-acao-corretiva" data-id="${c.id}" data-acao="${(c.acao_corretiva || '').replace(/"/g, '&quot;')}" style="padding: 5px 10px; font-size: 12px;">
+            ${c.acao_corretiva ? '✓ Ver ação' : '+ Ação corretiva'}
+          </button>
+        </td>
       </tr>
     `
     )
@@ -241,11 +249,15 @@ function renderizarTabela(chamados) {
   container.innerHTML = `
     <table class="table-list">
       <thead>
-        <tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Prioridade</th><th>Descrição</th><th>Responsável</th><th>Status</th><th>Alterar</th></tr>
+        <tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Prioridade</th><th>Descrição</th><th>Responsável</th><th>Status</th><th>Alterar</th><th>Ação corretiva</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
   `;
+
+  container.querySelectorAll('.btn-acao-corretiva').forEach((botao) => {
+    botao.addEventListener('click', () => abrirModalAcaoCorretiva(botao.dataset.id, botao.dataset.acao));
+  });
 
   container.querySelectorAll('.status-select').forEach((select) => {
     select.addEventListener('change', (evento) => {
@@ -345,4 +357,68 @@ async function iniciar() {
   carregarChamados();
 }
 
+function montarModalAcaoCorretiva() {
+  const html = `
+    <div class="modal-overlay" id="acao-corretiva-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Ação corretiva</h3>
+          <button class="modal-close" id="acao-corretiva-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="acao-corretiva-form">
+          <div class="field">
+            <label for="acao-corretiva-texto">O que foi feito, qual método usado, etc.</label>
+            <textarea id="acao-corretiva-texto" rows="5" placeholder="Descreva o que foi feito pra resolver esse chamado..."></textarea>
+          </div>
+          <div class="error-message" id="acao-corretiva-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="acao-corretiva-modal-enviar">Salvar</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('acao-corretiva-modal-fechar').addEventListener('click', () => {
+    document.getElementById('acao-corretiva-modal-overlay').hidden = true;
+  });
+  document.getElementById('acao-corretiva-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'acao-corretiva-modal-overlay') document.getElementById('acao-corretiva-modal-overlay').hidden = true;
+  });
+  document.getElementById('acao-corretiva-form').addEventListener('submit', salvarAcaoCorretiva);
+}
+
+let chamadoIdEmEdicaoAcao = null;
+
+function abrirModalAcaoCorretiva(chamadoId, acaoAtual) {
+  chamadoIdEmEdicaoAcao = chamadoId;
+  document.getElementById('acao-corretiva-texto').value = acaoAtual || '';
+  document.getElementById('acao-corretiva-modal-erro').classList.remove('visible');
+  document.getElementById('acao-corretiva-modal-overlay').hidden = false;
+}
+
+async function salvarAcaoCorretiva(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('acao-corretiva-modal-erro');
+  const botao = document.getElementById('acao-corretiva-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+  try {
+    await Shell.chamarApi(`/chamados-dados/${chamadoIdEmEdicaoAcao}/editar`, {
+      method: 'PATCH',
+      body: { acao_corretiva: document.getElementById('acao-corretiva-texto').value || null },
+    });
+    document.getElementById('acao-corretiva-modal-overlay').hidden = true;
+    carregarChamados();
+  } catch (erro) {
+    erroBox.textContent = 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar';
+  }
+}
+
+montarModalAcaoCorretiva();
 iniciar();

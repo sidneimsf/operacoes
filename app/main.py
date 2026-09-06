@@ -37,6 +37,7 @@ from models import (
 from schemas import (
     AvisoCreate,
     ChamadoCreate,
+    ChamadoEdicaoUpdate,
     ChamadoFinalizar,
     ChamadoStatusUpdate,
     ClienteCreate,
@@ -266,9 +267,12 @@ def serializar_chamado(c: Chamado) -> dict:
         "cliente_id": c.cliente_id,
         "cliente_nome": c.cliente.nome,
         "empresa_id": c.cliente.empresa_id,
+        "colaborador_id": c.colaborador_id,
+        "colaborador_nome": c.colaborador.nome if c.colaborador else None,
         "tipo": c.tipo,
         "prioridade": c.prioridade,
         "descricao": c.descricao,
+        "acao_corretiva": c.acao_corretiva,
         "status": c.status,
         "aberto_por": c.aberto_por.nome,
         "responsavel_id": c.responsavel_id,
@@ -1591,8 +1595,11 @@ def abrir_chamado(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
 
     responsavel = db.get(Usuario, dados.responsavel_id)
-    if responsavel is None or responsavel.papel != "supervisor" or not responsavel.ativo:
+    if responsavel is None or not responsavel.ativo:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Responsavel invalido")
+
+    if dados.colaborador_id is not None and db.get(Colaborador, dados.colaborador_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
 
     descricao = dados.descricao.strip()
     if not descricao:
@@ -1600,6 +1607,7 @@ def abrir_chamado(
 
     chamado = Chamado(
         cliente_id=dados.cliente_id,
+        colaborador_id=dados.colaborador_id,
         tipo=dados.tipo,
         prioridade=dados.prioridade,
         descricao=descricao,
@@ -1608,6 +1616,19 @@ def abrir_chamado(
         responsavel_id=dados.responsavel_id,
     )
     db.add(chamado)
+    db.flush()
+
+    if dados.colaborador_id is not None:
+        label_tipo = next((t["label"] for t in TIPOS_CHAMADO if t["chave"] == dados.tipo), dados.tipo)
+        db.add(
+            ColaboradorEvento(
+                colaborador_id=dados.colaborador_id,
+                tipo="anotacao",
+                descricao=f"Chamado aberto ({label_tipo}) referente a {cliente.nome}: {descricao}",
+                registrado_por_id=usuario.id,
+            )
+        )
+
     db.commit()
     db.refresh(chamado)
     return serializar_chamado(chamado)
@@ -1673,6 +1694,28 @@ def atualizar_status_chamado(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
 
     chamado.status = dados.status
+    db.commit()
+    db.refresh(chamado)
+    return serializar_chamado(chamado)
+
+
+@app.patch("/chamados-dados/{chamado_id}/editar")
+def editar_chamado(
+    chamado_id: int,
+    dados: ChamadoEdicaoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Edita campos gerais do chamado, como a acao corretiva - pode ser preenchida a qualquer momento."""
+    chamado = db.get(Chamado, chamado_id)
+    if chamado is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "acao_corretiva" in campos:
+        valor = campos["acao_corretiva"]
+        chamado.acao_corretiva = valor.strip() if valor else None
+
     db.commit()
     db.refresh(chamado)
     return serializar_chamado(chamado)
@@ -2892,6 +2935,8 @@ def criar_movimento_estoque(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quantidade deve ser maior que zero")
     if dados.colaborador_id is not None and db.get(Colaborador, dados.colaborador_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
+    if dados.tipo == "saida" and dados.colaborador_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Toda saída precisa estar vinculada a um colaborador")
 
     if dados.tipo == "saida" and dados.quantidade > item.quantidade_atual:
         raise HTTPException(
@@ -3272,6 +3317,55 @@ def relatorio_faltas_atestados(
         "total_atestados": total_atestados,
         "colaboradores_com_ocorrencia": len(lista_colaboradores),
         "por_colaborador": lista_colaboradores,
+    }
+
+
+@app.get("/relatorios-dados/movimentacao-estoque")
+def relatorio_movimentacao_estoque(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    colaborador_id: int | None = None,
+    tipo: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    query = db.query(EstoqueMovimento).filter(
+        func.date(EstoqueMovimento.criado_em).between(inicio, fim),
+    )
+    if colaborador_id is not None:
+        query = query.filter(EstoqueMovimento.colaborador_id == colaborador_id)
+    if tipo in ("entrada", "saida"):
+        query = query.filter(EstoqueMovimento.tipo == tipo)
+
+    movimentos = query.order_by(EstoqueMovimento.criado_em.desc()).all()
+
+    total_entradas = sum(m.quantidade for m in movimentos if m.tipo == "entrada")
+    total_saidas = sum(m.quantidade for m in movimentos if m.tipo == "saida")
+
+    return {
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "total_entradas": total_entradas,
+        "total_saidas": total_saidas,
+        "movimentos": [
+            {
+                "id": m.id,
+                "data": m.criado_em.isoformat(),
+                "tipo": m.tipo,
+                "item": f"{m.item.tipo_peca} {m.item.tamanho}",
+                "empresa_nome": m.item.empresa.nome if m.item.empresa_id else "Geral",
+                "quantidade": m.quantidade,
+                "colaborador_nome": m.colaborador.nome if m.colaborador else None,
+                "motivo": m.motivo,
+                "registrado_por": m.registrado_por.nome,
+            }
+            for m in movimentos
+        ],
     }
 
 

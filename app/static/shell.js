@@ -167,6 +167,9 @@ const Shell = (() => {
     }
   }
 
+  let clientesChamadoCache = [];
+  let colaboradoresChamadoCache = [];
+
   function montarModalChamado() {
     const html = `
       <div class="modal-overlay" id="chamado-modal-overlay" hidden>
@@ -177,14 +180,20 @@ const Shell = (() => {
           </div>
           <form id="chamado-form">
             <div class="field">
-              <label for="chamado-empresa">Empresa</label>
-              <select id="chamado-empresa" required></select>
+              <label for="chamado-cliente-busca">Cliente</label>
+              <div class="busca-select">
+                <input type="text" id="chamado-cliente-busca" placeholder="Digite pra buscar, ou deixe em branco pro Escritório ADM..." autocomplete="off" required>
+                <input type="hidden" id="chamado-cliente-id">
+                <div class="busca-select-resultados" id="chamado-cliente-resultados" hidden></div>
+              </div>
             </div>
             <div class="field">
-              <label for="chamado-cliente">Cliente</label>
-              <select id="chamado-cliente" required disabled>
-                <option value="">Selecione a empresa primeiro</option>
-              </select>
+              <label for="chamado-colaborador-busca">Colaborador (opcional, se o assunto for de alguém específico)</label>
+              <div class="busca-select">
+                <input type="text" id="chamado-colaborador-busca" placeholder="Digite pra buscar, ou deixe em branco..." autocomplete="off">
+                <input type="hidden" id="chamado-colaborador-id">
+                <div class="busca-select-resultados" id="chamado-colaborador-resultados" hidden></div>
+              </div>
             </div>
             <div class="field">
               <label for="chamado-tipo">Tipo de chamado</label>
@@ -215,39 +224,88 @@ const Shell = (() => {
       if (evento.target.id === 'chamado-modal-overlay') fecharModalChamado();
     });
 
-    document.getElementById('chamado-empresa').addEventListener('change', async (evento) => {
-      const empresaId = evento.target.value;
-      const selectCliente = document.getElementById('chamado-cliente');
-      selectCliente.disabled = true;
-      selectCliente.innerHTML = '<option value="">Carregando...</option>';
+    const inputBuscaCliente = document.getElementById('chamado-cliente-busca');
+    inputBuscaCliente.addEventListener('input', () => {
+      document.getElementById('chamado-cliente-id').value = '';
+      renderizarResultadosBusca(clientesChamadoCache, inputBuscaCliente.value, 'chamado-cliente-resultados');
+    });
+    inputBuscaCliente.addEventListener('focus', () => renderizarResultadosBusca(clientesChamadoCache, inputBuscaCliente.value, 'chamado-cliente-resultados'));
+    document.getElementById('chamado-cliente-resultados').addEventListener('click', (evento) => {
+      const item = evento.target.closest('.busca-select-item');
+      if (!item) return;
+      document.getElementById('chamado-cliente-id').value = item.dataset.id;
+      inputBuscaCliente.value = item.dataset.nome;
+      document.getElementById('chamado-cliente-resultados').hidden = true;
+    });
 
-      const clientes = await chamarApi(`/clientes-dados?empresa_id=${empresaId}`);
-      selectCliente.innerHTML = clientes
-        .map((c) => `<option value="${c.id}">${c.nome}</option>`)
-        .join('');
-      selectCliente.disabled = false;
+    const inputBuscaColaborador = document.getElementById('chamado-colaborador-busca');
+    inputBuscaColaborador.addEventListener('input', () => {
+      document.getElementById('chamado-colaborador-id').value = '';
+      renderizarResultadosBusca(colaboradoresChamadoCache, inputBuscaColaborador.value, 'chamado-colaborador-resultados');
+    });
+    inputBuscaColaborador.addEventListener('focus', () => renderizarResultadosBusca(colaboradoresChamadoCache, inputBuscaColaborador.value, 'chamado-colaborador-resultados'));
+    document.getElementById('chamado-colaborador-resultados').addEventListener('click', (evento) => {
+      const item = evento.target.closest('.busca-select-item');
+      if (!item) return;
+      document.getElementById('chamado-colaborador-id').value = item.dataset.id;
+      inputBuscaColaborador.value = item.dataset.nome;
+      document.getElementById('chamado-colaborador-resultados').hidden = true;
+    });
+
+    document.addEventListener('click', (evento) => {
+      if (!evento.target.closest('.busca-select')) {
+        document.querySelectorAll('.busca-select-resultados').forEach((el) => { el.hidden = true; });
+      }
     });
 
     document.getElementById('chamado-form').addEventListener('submit', enviarChamado);
+  }
+
+  function renderizarResultadosBusca(lista, termo, idResultados) {
+    const resultadosBox = document.getElementById(idResultados);
+    const termoNormalizado = termo.trim().toLowerCase();
+    const filtrados = termoNormalizado
+      ? lista.filter((c) => c.nome.toLowerCase().includes(termoNormalizado))
+      : lista;
+
+    if (filtrados.length === 0) {
+      resultadosBox.innerHTML = '<div class="busca-select-vazio">Nada encontrado.</div>';
+    } else {
+      resultadosBox.innerHTML = filtrados
+        .slice(0, 50)
+        .map(
+          (c) => `
+          <div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">
+            ${c.empresa ? `<span class="busca-select-grupo">${c.empresa}</span>` : ''}
+            ${c.nome}
+          </div>
+        `
+        )
+        .join('');
+    }
+    resultadosBox.hidden = false;
   }
 
   async function abrirModalChamado() {
     const erroBox = document.getElementById('chamado-modal-erro');
     erroBox.classList.remove('visible');
     document.getElementById('chamado-form').reset();
-    document.getElementById('chamado-cliente').innerHTML = '<option value="">Selecione a empresa primeiro</option>';
-    document.getElementById('chamado-cliente').disabled = true;
+    document.getElementById('chamado-cliente-id').value = '';
+    document.getElementById('chamado-colaborador-id').value = '';
 
-    const [empresas, tiposEStatus, supervisores] = await Promise.all([
-      chamarApi('/empresas'),
+    const [clientes, colaboradores, tiposEStatus, pessoas] = await Promise.all([
+      chamarApi('/clientes-dados'),
+      chamarApi('/colaboradores-dados'),
       chamarApi('/chamados-tipos'),
-      chamarApi('/supervisores'),
+      chamarApi('/pessoas'),
     ]);
 
-    const selectEmpresa = document.getElementById('chamado-empresa');
-    selectEmpresa.innerHTML =
-      '<option value="">Selecione...</option>' +
-      empresas.map((e) => `<option value="${e.id}">${e.nome}</option>`).join('');
+    // "ESCRITÓRIO ADM" sempre por primeiro na lista, pra ficar visível de cara
+    clientesChamadoCache = [
+      ...clientes.filter((c) => c.nome === 'ESCRITÓRIO ADM').map((c) => ({ id: c.id, nome: c.nome, empresa: null })),
+      ...clientes.filter((c) => c.nome !== 'ESCRITÓRIO ADM').map((c) => ({ id: c.id, nome: c.nome, empresa: c.empresa_nome })),
+    ];
+    colaboradoresChamadoCache = colaboradores.map((c) => ({ id: c.id, nome: c.nome, empresa: c.empresa_nome }));
 
     const selectTipo = document.getElementById('chamado-tipo');
     selectTipo.innerHTML = tiposEStatus.tipos
@@ -260,8 +318,8 @@ const Shell = (() => {
       .join('');
 
     const selectResponsavel = document.getElementById('chamado-responsavel');
-    selectResponsavel.innerHTML = supervisores
-      .map((s) => `<option value="${s.id}">${s.nome}</option>`)
+    selectResponsavel.innerHTML = pessoas
+      .map((p) => `<option value="${p.id}">${p.nome} (${p.papel === 'escritorio' ? 'Escritório' : 'Supervisor'})</option>`)
       .join('');
 
     document.getElementById('chamado-modal-overlay').hidden = false;
@@ -277,8 +335,18 @@ const Shell = (() => {
     const botao = document.getElementById('chamado-modal-enviar');
     erroBox.classList.remove('visible');
 
+    const clienteIdValor = document.getElementById('chamado-cliente-id').value;
+    if (!clienteIdValor) {
+      erroBox.textContent = 'Escolha um cliente na lista de busca (ou o Escritório ADM, pra assuntos internos).';
+      erroBox.classList.add('visible');
+      return;
+    }
+
+    const colaboradorIdValor = document.getElementById('chamado-colaborador-id').value;
+
     const corpo = {
-      cliente_id: Number(document.getElementById('chamado-cliente').value),
+      cliente_id: Number(clienteIdValor),
+      colaborador_id: colaboradorIdValor ? Number(colaboradorIdValor) : null,
       tipo: document.getElementById('chamado-tipo').value,
       prioridade: document.getElementById('chamado-prioridade').value,
       responsavel_id: Number(document.getElementById('chamado-responsavel').value),
