@@ -573,6 +573,55 @@ function calcularTempoDeCasa(dataAdmissaoIso) {
 const ICONE_COPIAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 const ICONE_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 
+const MESES_LABEL = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+function popularSeletorFolhaPonto() {
+  const select = document.getElementById('folha-ponto-mes');
+  const hoje = new Date();
+  const opcoes = [];
+  for (let i = 0; i < 6; i++) {
+    const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const mes = data.getMonth() + 1;
+    const ano = data.getFullYear();
+    opcoes.push(`<option value="${ano}-${mes}">${MESES_LABEL[mes]}/${ano}${i === 0 ? ' (atual)' : ''}</option>`);
+  }
+  select.innerHTML = opcoes.join('');
+}
+
+async function baixarFolhaPonto() {
+  const [ano, mes] = document.getElementById('folha-ponto-mes').value.split('-');
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return;
+
+  const botao = document.getElementById('btn-folha-ponto');
+  botao.disabled = true;
+  botao.textContent = 'Gerando...';
+
+  try {
+    const resposta = await fetch(`/colaboradores-dados/${colaboradorId}/folha-ponto?ano=${ano}&mes=${mes}`, {
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    });
+    if (resposta.status === 401) {
+      Shell.sair();
+      return;
+    }
+    if (!resposta.ok) throw new Error('Falha ao gerar a folha ponto');
+
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `folha-ponto-${colaboradorAtual.nome.replace(/\s+/g, '-')}-${mes}-${ano}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (erro) {
+    alert('Não foi possível gerar a folha ponto agora.');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Folha Ponto (PDF)';
+  }
+}
+
 function copiarTexto(texto, botao) {
   navigator.clipboard.writeText(texto).then(() => {
     const original = botao.innerHTML;
@@ -1054,6 +1103,8 @@ async function iniciar() {
     document.getElementById('btn-editar-colaborador').addEventListener('click', abrirModalEditarColaborador);
     montarModalDesligar();
     document.getElementById('btn-desligar-colaborador').addEventListener('click', abrirModalDesligar);
+    popularSeletorFolhaPonto();
+    document.getElementById('btn-folha-ponto').addEventListener('click', baixarFolhaPonto);
 
     montarModalHorario();
     document.getElementById('mapa-servicos').addEventListener('click', (evento) => {

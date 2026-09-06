@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
@@ -34,6 +34,7 @@ from models import (
     UsuarioPermissao,
     Veiculo,
 )
+from folha_ponto import gerar_folha_ponto_pdf
 from schemas import (
     AvisoCreate,
     ChamadoCreate,
@@ -3370,3 +3371,28 @@ def relatorio_movimentacao_estoque(
 
 
 
+
+
+@app.get("/colaboradores-dados/{colaborador_id}/folha-ponto")
+def baixar_folha_ponto(
+    colaborador_id: int,
+    ano: int,
+    mes: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if mes < 1 or mes > 12:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mes invalido")
+
+    colaborador = db.get(Colaborador, colaborador_id)
+    if colaborador is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+
+    pdf_bytes = gerar_folha_ponto_pdf(colaborador, ano, mes)
+
+    nome_arquivo = f"folha-ponto-{colaborador.nome.replace(chr(32), chr(45))}-{mes:02d}-{ano}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )

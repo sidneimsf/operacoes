@@ -115,6 +115,8 @@ class Empresa(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     nome: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    razao_social: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    cnpj: Mapped[str | None] = mapped_column(String(20), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     clientes: Mapped[list["Cliente"]] = relationship(
