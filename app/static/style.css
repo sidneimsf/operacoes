@@ -805,8 +805,12 @@ button {
 }
 
 .breakdown-row .nome-empresa {
-  width: 90px;
+  display: inline-block;
+  width: 130px;
   flex-shrink: 0;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .breakdown-row .bar-track {
