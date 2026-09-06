@@ -297,7 +297,7 @@ const Shell = (() => {
       chamarApi('/clientes-dados'),
       chamarApi('/colaboradores-dados'),
       chamarApi('/chamados-tipos'),
-      chamarApi('/pessoas'),
+      chamarApi('/pessoas?apenas_responsavel_chamado=true'),
     ]);
 
     // "ESCRITÓRIO ADM" sempre por primeiro na lista, pra ficar visível de cara

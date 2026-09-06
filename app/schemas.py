@@ -139,6 +139,7 @@ class HorarioServicoUpdate(BaseModel):
     turno: str | None = None
     hora_inicio: str | None = None
     hora_fim: str | None = None
+    data_mudanca: str | None = None
 
 
 class VeiculoCreate(BaseModel):
@@ -198,6 +199,7 @@ class PermissaoUpdate(BaseModel):
 
 
 class UsuarioAcessoUpdate(BaseModel):
+    nome: str | None = None
     email: str | None = None
     nova_senha: str | None = None
 

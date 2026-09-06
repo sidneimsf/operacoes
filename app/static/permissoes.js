@@ -100,6 +100,10 @@ function montarModalAcesso() {
         </div>
         <form id="acesso-form">
           <div class="field">
+            <label for="acesso-nome">Nome</label>
+            <input type="text" id="acesso-nome" required>
+          </div>
+          <div class="field">
             <label for="acesso-email">E-mail de login</label>
             <input type="email" id="acesso-email" required>
           </div>
@@ -132,6 +136,7 @@ let usuarioIdEmEdicaoAcesso = null;
 function abrirModalAcesso(usuarioId, nome, email) {
   usuarioIdEmEdicaoAcesso = usuarioId;
   document.getElementById('acesso-modal-titulo').textContent = `Editar acesso · ${nome}`;
+  document.getElementById('acesso-nome').value = nome;
   document.getElementById('acesso-email').value = email;
   document.getElementById('acesso-nova-senha').value = '';
   document.getElementById('acesso-modal-erro').classList.remove('visible');
@@ -147,7 +152,7 @@ async function salvarAcesso(evento) {
   erroBox.classList.remove('visible');
   sucessoBox.classList.remove('visible');
 
-  const corpo = { email: document.getElementById('acesso-email').value };
+  const corpo = { nome: document.getElementById('acesso-nome').value, email: document.getElementById('acesso-email').value };
   const novaSenha = document.getElementById('acesso-nova-senha').value;
   if (novaSenha) corpo.nova_senha = novaSenha;
 

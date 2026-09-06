@@ -98,6 +98,7 @@ class Usuario(Base):
     senha_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     papel: Mapped[str] = mapped_column(String(20), nullable=False)  # "supervisor" ou "escritorio"
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
+    disponivel_responsavel_chamado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     super_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # so Caroline e Sidnei - gerencia permissoes
     avisos_vistos_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
@@ -317,13 +318,20 @@ class CustoDiario(Base):
     descricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
     nome_beneficiario: Mapped[str | None] = mapped_column(String(150), nullable=True)
     chave_pix: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    colaborador_id: Mapped[int | None] = mapped_column(ForeignKey("colaboradores.id"), nullable=True)
+    status_diaria: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
+    cobertura_colaborador_id: Mapped[int | None] = mapped_column(ForeignKey("colaboradores.id"), nullable=True)
     comprovante_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
     comprovante_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
     reembolsado: Mapped[bool] = mapped_column(Boolean, default=False)
     notificado: Mapped[bool] = mapped_column(Boolean, default=False)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
-    usuario: Mapped["Usuario"] = relationship()
+    usuario: Mapped["Usuario"] = relationship(foreign_keys=[usuario_id])
+    colaborador: Mapped["Colaborador | None"] = relationship(foreign_keys=[colaborador_id])
+    cliente: Mapped["Cliente | None"] = relationship(foreign_keys=[cliente_id])
+    cobertura_colaborador: Mapped["Colaborador | None"] = relationship(foreign_keys=[cobertura_colaborador_id])
 
     def __repr__(self) -> str:
         return f"<CustoDiario {self.tipo} - usuario {self.usuario_id} - R${self.valor}>"

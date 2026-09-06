@@ -118,37 +118,67 @@ function montarModalNovoCusto() {
           <h3 id="custo-modal-titulo">Lançar custo</h3>
           <button class="modal-close" id="novo-custo-modal-fechar" aria-label="Fechar">&times;</button>
         </div>
-        <form id="novo-custo-form">
-          <div class="field">
+        <form id="novo-custo-form" style="display: flex; flex-direction: column;">
+          <div class="field" style="order: 1;">
             <label for="custo-tipo">Tipo de custo</label>
             <select id="custo-tipo" required></select>
           </div>
-          <div class="field">
-            <label for="custo-valor">Valor (R$)</label>
-            <input type="number" id="custo-valor" min="0.01" step="0.01" required>
-          </div>
-          <div class="field">
+          <div class="field" style="order: 2;">
             <label for="custo-data">Data</label>
             <input type="date" id="custo-data" required>
           </div>
-          <div class="field">
-            <label for="custo-descricao">Descrição (opcional)</label>
-            <textarea id="custo-descricao" rows="2" placeholder="Ex: Combustível pra visitar o cliente X"></textarea>
+
+          <div class="field" id="campo-custo-colaborador" style="order: 3; display: none;">
+            <label for="custo-colaborador-busca">Colaborador (quem estava faltando/o posto)</label>
+            <div class="busca-select">
+              <input type="text" id="custo-colaborador-busca" placeholder="Digite o nome, ou deixe em branco pra Posto vago..." autocomplete="off">
+              <input type="hidden" id="custo-colaborador-id">
+              <div class="busca-select-resultados" id="custo-colaborador-resultados" hidden></div>
+            </div>
           </div>
-          <div class="field">
+          <div class="field" id="campo-custo-status" style="order: 4; display: none;">
+            <label for="custo-status">Status</label>
+            <select id="custo-status"></select>
+          </div>
+          <div class="field" id="campo-custo-cliente" style="order: 5; display: none;">
+            <label for="custo-cliente-busca">Cliente</label>
+            <div class="busca-select">
+              <input type="text" id="custo-cliente-busca" placeholder="Digite pra buscar o cliente..." autocomplete="off">
+              <input type="hidden" id="custo-cliente-id">
+              <div class="busca-select-resultados" id="custo-cliente-resultados" hidden></div>
+            </div>
+          </div>
+          <div class="field" id="campo-custo-cobertura" style="order: 6; display: none;">
+            <label for="custo-cobertura-busca">Cobertura (quem foi cobrir)</label>
+            <div class="busca-select">
+              <input type="text" id="custo-cobertura-busca" placeholder="Digite o nome de quem cobriu..." autocomplete="off">
+              <input type="hidden" id="custo-cobertura-id">
+              <div class="busca-select-resultados" id="custo-cobertura-resultados" hidden></div>
+            </div>
+          </div>
+
+          <div class="field" id="campo-custo-beneficiario" style="order: 7;">
             <label for="custo-nome-beneficiario">Reembolsar para (nome, se for diferente de você)</label>
             <input type="text" id="custo-nome-beneficiario" placeholder="Deixe em branco se for você mesmo">
           </div>
-          <div class="field">
+          <div class="field" style="order: 8;">
             <label for="custo-chave-pix">Chave PIX pro reembolso</label>
             <input type="text" id="custo-chave-pix" placeholder="CPF, telefone, e-mail ou chave aleatória">
           </div>
-          <div class="field" id="campo-comprovante">
+          <div class="field" style="order: 9;">
+            <label for="custo-valor">Valor (R$)</label>
+            <input type="number" id="custo-valor" min="0.01" step="0.01" required>
+          </div>
+          <div class="field" style="order: 10;">
+            <label for="custo-descricao">Descrição (opcional)</label>
+            <textarea id="custo-descricao" rows="2" placeholder="Ex: Combustível pra visitar o cliente X"></textarea>
+          </div>
+          <div class="field" id="campo-comprovante" style="order: 11;">
             <label for="custo-comprovante">Comprovante (opcional, JPEG/PNG/PDF)</label>
             <input type="file" id="custo-comprovante" accept=".jpg,.jpeg,.png,.pdf">
           </div>
-          <div class="error-message" id="custo-modal-erro"></div>
-          <button type="submit" class="btn-primary" id="custo-modal-enviar">Salvar</button>
+          <div class="error-message" id="custo-modal-erro" style="order: 12;"></div>
+          <button type="submit" class="btn-primary" id="custo-modal-enviar" style="order: 13;">Salvar</button>
         </form>
       </div>
     </div>
@@ -160,9 +190,61 @@ function montarModalNovoCusto() {
     if (evento.target.id === 'novo-custo-modal-overlay') fecharModalCusto();
   });
   document.getElementById('novo-custo-form').addEventListener('submit', salvarCusto);
+  document.getElementById('custo-tipo').addEventListener('change', alternarCamposPorTipo);
+
+  ligarBuscaGenerica('custo-colaborador', () => colaboradoresCustoCache);
+  ligarBuscaGenerica('custo-cliente', () => clientesCustoCache);
+  ligarBuscaGenerica('custo-cobertura', () => colaboradoresCustoCache);
 }
 
-function abrirModalNovoCusto() {
+let colaboradoresCustoCache = [];
+let clientesCustoCache = [];
+let STATUS_DIARIA_CACHE = [];
+
+function ligarBuscaGenerica(prefixo, obterLista) {
+  const input = document.getElementById(`${prefixo}-busca`);
+  const idInput = document.getElementById(`${prefixo}-id`);
+  const resultadosBox = document.getElementById(`${prefixo}-resultados`);
+  const container = input.closest('.busca-select');
+
+  function renderizar(termo) {
+    const lista = obterLista();
+    const termoNormalizado = termo.trim().toLowerCase();
+    const filtrados = termoNormalizado ? lista.filter((c) => c.nome.toLowerCase().includes(termoNormalizado)) : lista;
+    resultadosBox.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Nada encontrado.</div>'
+        : filtrados.slice(0, 50).map((c) => `<div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">${c.nome}</div>`).join('');
+    resultadosBox.hidden = false;
+  }
+
+  input.addEventListener('input', () => {
+    idInput.value = '';
+    renderizar(input.value);
+  });
+  input.addEventListener('focus', () => renderizar(input.value));
+  resultadosBox.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    idInput.value = item.dataset.id;
+    input.value = item.dataset.nome;
+    resultadosBox.hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!container.contains(evento.target)) resultadosBox.hidden = true;
+  });
+}
+
+function alternarCamposPorTipo() {
+  const ehDiaria = document.getElementById('custo-tipo').value === 'diaria';
+  document.getElementById('campo-custo-colaborador').style.display = ehDiaria ? '' : 'none';
+  document.getElementById('campo-custo-status').style.display = ehDiaria ? '' : 'none';
+  document.getElementById('campo-custo-cliente').style.display = ehDiaria ? '' : 'none';
+  document.getElementById('campo-custo-cobertura').style.display = ehDiaria ? '' : 'none';
+  document.getElementById('campo-custo-beneficiario').style.display = ehDiaria ? 'none' : '';
+}
+
+async function abrirModalNovoCusto() {
   custoIdEmEdicao = null;
   document.getElementById('custo-modal-titulo').textContent = 'Lançar custo';
   document.getElementById('novo-custo-form').reset();
@@ -170,6 +252,22 @@ function abrirModalNovoCusto() {
   document.getElementById('custo-data').value = new Date().toISOString().slice(0, 10);
   document.getElementById('campo-comprovante').hidden = false;
   document.getElementById('custo-modal-erro').classList.remove('visible');
+
+  if (colaboradoresCustoCache.length === 0) {
+    colaboradoresCustoCache = await Shell.chamarApi('/colaboradores-dados');
+  }
+  if (clientesCustoCache.length === 0) {
+    clientesCustoCache = await Shell.chamarApi('/clientes-dados');
+  }
+  document.getElementById('custo-status').innerHTML =
+    '<option value="">Selecione...</option>' + STATUS_DIARIA_CACHE.map((s) => `<option value="${s.chave}">${s.label}</option>`).join('');
+
+  ['custo-colaborador', 'custo-cliente', 'custo-cobertura'].forEach((prefixo) => {
+    document.getElementById(`${prefixo}-busca`).value = '';
+    document.getElementById(`${prefixo}-id`).value = '';
+  });
+
+  alternarCamposPorTipo();
   document.getElementById('novo-custo-modal-overlay').hidden = false;
 }
 
@@ -247,6 +345,16 @@ async function salvarCusto(evento) {
       formData.append('descricao', document.getElementById('custo-descricao').value || '');
       formData.append('nome_beneficiario', document.getElementById('custo-nome-beneficiario').value || '');
       formData.append('chave_pix', document.getElementById('custo-chave-pix').value || '');
+      if (document.getElementById('custo-tipo').value === 'diaria') {
+        const colaboradorId = document.getElementById('custo-colaborador-id').value;
+        const clienteId = document.getElementById('custo-cliente-id').value;
+        const coberturaId = document.getElementById('custo-cobertura-id').value;
+        const statusValor = document.getElementById('custo-status').value;
+        if (colaboradorId) formData.append('colaborador_id', colaboradorId);
+        if (clienteId) formData.append('cliente_id', clienteId);
+        if (coberturaId) formData.append('cobertura_colaborador_id', coberturaId);
+        if (statusValor) formData.append('status_diaria', statusValor);
+      }
       const arquivo = document.getElementById('custo-comprovante').files[0];
       if (arquivo) formData.append('comprovante', arquivo);
       await enviarFormData('/custos-diarios-dados', formData);
@@ -312,6 +420,7 @@ async function iniciar() {
   const tiposResposta = await Shell.chamarApi('/custos-diarios-dados-tipos');
   if (tiposResposta === null) return;
   TIPOS_CUSTO = tiposResposta.tipos;
+  STATUS_DIARIA_CACHE = tiposResposta.status_diaria || [];
 
   if (auth.papel === 'escritorio') {
     document.getElementById('btn-testar-email-custos').hidden = false;

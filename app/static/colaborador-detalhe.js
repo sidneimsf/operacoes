@@ -123,6 +123,10 @@ function montarModalHorario() {
             <label for="horario-hora-fim">Fim</label>
             <input type="time" id="horario-hora-fim" required>
           </div>
+          <div class="field" id="campo-data-mudanca" hidden>
+            <label for="horario-data-mudanca">Se estiver trocando de cliente, data em que isso ocorreu</label>
+            <input type="date" id="horario-data-mudanca">
+          </div>
           <div class="error-message" id="horario-modal-erro"></div>
           <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn-primary" id="horario-modal-enviar" style="flex: 1;">Salvar</button>
@@ -179,6 +183,7 @@ async function abrirModalHorario(dia, turno, horarioId) {
   document.getElementById('horario-cliente-resultados').hidden = true;
 
   const botaoRemover = document.getElementById('horario-modal-remover');
+  const campoDataMudanca = document.getElementById('campo-data-mudanca');
 
   if (celulaEmEdicao.horarioId) {
     const registro = horariosAtuais.find((h) => h.id === celulaEmEdicao.horarioId);
@@ -186,10 +191,13 @@ async function abrirModalHorario(dia, turno, horarioId) {
     inputBusca.value = registro.cliente_nome;
     document.getElementById('horario-hora-inicio').value = registro.hora_inicio;
     document.getElementById('horario-hora-fim').value = registro.hora_fim;
+    document.getElementById('horario-data-mudanca').value = new Date().toISOString().slice(0, 10);
+    campoDataMudanca.hidden = false;
     botaoRemover.hidden = false;
   } else {
     document.getElementById('horario-hora-inicio').value = '';
     document.getElementById('horario-hora-fim').value = '';
+    campoDataMudanca.hidden = true;
     botaoRemover.hidden = true;
   }
 
@@ -242,6 +250,9 @@ async function salvarHorario(evento) {
     hora_inicio: document.getElementById('horario-hora-inicio').value,
     hora_fim: document.getElementById('horario-hora-fim').value,
   };
+  if (celulaEmEdicao.horarioId && document.getElementById('horario-data-mudanca').value) {
+    corpo.data_mudanca = document.getElementById('horario-data-mudanca').value;
+  }
 
   try {
     if (celulaEmEdicao.horarioId) {

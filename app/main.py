@@ -133,6 +133,19 @@ TIPOS_CUSTO_DIARIO = [
 ]
 CHAVES_TIPO_CUSTO_VALIDAS = {t["chave"] for t in TIPOS_CUSTO_DIARIO}
 
+STATUS_DIARIA = [
+    {"chave": "falta", "label": "Falta"},
+    {"chave": "posto_vago", "label": "Posto vago"},
+    {"chave": "treinamento", "label": "Treinamento"},
+    {"chave": "reposicao", "label": "Reposição"},
+    {"chave": "ferias", "label": "Férias"},
+    {"chave": "demissao", "label": "Demissão"},
+    {"chave": "pos_obra", "label": "Pós-obra"},
+    {"chave": "atestado", "label": "Atestado"},
+    {"chave": "outros", "label": "Outros"},
+]
+CHAVES_STATUS_DIARIA_VALIDAS = {s["chave"] for s in STATUS_DIARIA}
+
 TIPOS_EVENTO_COLABORADOR = [
     {"chave": "anotacao", "label": "Anotação"},
     {"chave": "documento", "label": "Documento"},
@@ -682,6 +695,15 @@ def editar_cliente(
         cliente.supervisor_id = campos["supervisor_id"]
     if "ativo" in campos:
         cliente.ativo = campos["ativo"]
+        if campos["ativo"] is False:
+            horarios_ativos = (
+                db.query(HorarioServico)
+                .filter(HorarioServico.cliente_id == cliente.id, HorarioServico.data_fim.is_(None))
+                .all()
+            )
+            for h in horarios_ativos:
+                h.data_fim = date.today()
+                _registrar_evento_mapa_servico(db, h, "encerrado", usuario.id, motivo="Cliente removido")
 
     db.commit()
     db.refresh(cliente)
@@ -1361,9 +1383,23 @@ def editar_horario(
         if db.get(Cliente, campos["cliente_id"]) is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
 
+        data_mudanca = date.today()
+        if campos.get("data_mudanca"):
+            try:
+                data_mudanca = date.fromisoformat(campos["data_mudanca"])
+            except ValueError:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data da mudança invalida")
+            if data_mudanca > date.today():
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data da mudança não pode ser no futuro")
+            if data_mudanca < horario.data_inicio:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"A data da mudança não pode ser antes de {horario.data_inicio.isoformat()} (início deste vínculo)",
+                )
+
         _checar_conflito_horario(db, novo_colaborador_id, novo_dia, nova_hora_inicio, nova_hora_fim, ignorar_id=horario_id)
 
-        horario.data_fim = date.today()
+        horario.data_fim = data_mudanca
         _registrar_evento_mapa_servico(db, horario, "encerrado", usuario.id, motivo="Mudou de cliente")
 
         novo_horario = HorarioServico(
@@ -1373,7 +1409,7 @@ def editar_horario(
             turno=novo_turno,
             hora_inicio=nova_hora_inicio,
             hora_fim=nova_hora_fim,
-            data_inicio=date.today(),
+            data_inicio=data_mudanca,
         )
         db.add(novo_horario)
         db.flush()
@@ -1475,9 +1511,16 @@ def listar_supervisores(db: Session = Depends(get_db), usuario: Usuario = Depend
 
 
 @app.get("/pessoas")
-def listar_pessoas(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
-    """Lista enxuta (id + nome + papel) de todos os usuarios ativos, usada para escolher destinatario de aviso."""
-    pessoas = db.query(Usuario).filter_by(ativo=True).order_by(Usuario.nome).all()
+def listar_pessoas(
+    apenas_responsavel_chamado: bool = False,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Lista enxuta (id + nome + papel) de todos os usuarios ativos, usada para escolher destinatario de aviso ou responsavel de chamado."""
+    query = db.query(Usuario).filter_by(ativo=True)
+    if apenas_responsavel_chamado:
+        query = query.filter_by(disponivel_responsavel_chamado=True)
+    pessoas = query.order_by(Usuario.nome).all()
     return [{"id": p.id, "nome": p.nome, "papel": p.papel} for p in pessoas]
 
 
@@ -2236,8 +2279,14 @@ def redefinir_acesso_usuario(
     if alvo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado")
 
-    if not dados.email and not dados.nova_senha:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe um novo e-mail ou uma nova senha")
+    if not dados.nome and not dados.email and not dados.nova_senha:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe um novo nome, e-mail ou senha")
+
+    if dados.nome:
+        novo_nome = dados.nome.strip()
+        if not novo_nome:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nome nao pode ficar vazio")
+        alvo.nome = novo_nome
 
     if dados.email:
         novo_email = dados.email.strip().lower()
@@ -2252,7 +2301,7 @@ def redefinir_acesso_usuario(
         alvo.senha_hash = hash_senha(dados.nova_senha)
 
     db.commit()
-    return {"id": alvo.id, "email": alvo.email, "senha_alterada": bool(dados.nova_senha)}
+    return {"id": alvo.id, "nome": alvo.nome, "email": alvo.email, "senha_alterada": bool(dados.nova_senha)}
 
 
 # ---------------------------------------------------------------------------
@@ -2564,7 +2613,7 @@ def relatorio_por_colaborador(
 
 @app.get("/custos-diarios-dados-tipos")
 def tipos_custo_diario(usuario: Usuario = Depends(usuario_atual)):
-    return {"tipos": TIPOS_CUSTO_DIARIO}
+    return {"tipos": TIPOS_CUSTO_DIARIO, "status_diaria": STATUS_DIARIA}
 
 
 def serializar_custo(c: CustoDiario) -> dict:
@@ -2578,6 +2627,14 @@ def serializar_custo(c: CustoDiario) -> dict:
         "descricao": c.descricao,
         "nome_beneficiario": c.nome_beneficiario,
         "chave_pix": c.chave_pix,
+        "colaborador_id": c.colaborador_id,
+        "colaborador_nome": c.colaborador.nome if c.colaborador else None,
+        "status_diaria": c.status_diaria,
+        "status_diaria_label": next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), None),
+        "cliente_id": c.cliente_id,
+        "cliente_nome": c.cliente.nome if c.cliente else None,
+        "cobertura_colaborador_id": c.cobertura_colaborador_id,
+        "cobertura_colaborador_nome": c.cobertura_colaborador.nome if c.cobertura_colaborador else None,
         "tem_comprovante": c.comprovante_path is not None,
         "comprovante_nome_original": c.comprovante_nome_original,
         "reembolsado": c.reembolsado,
@@ -2612,6 +2669,10 @@ def criar_custo_diario(
     descricao: str | None = Form(None),
     nome_beneficiario: str | None = Form(None),
     chave_pix: str | None = Form(None),
+    colaborador_id: int | None = Form(None),
+    status_diaria: str | None = Form(None),
+    cliente_id: int | None = Form(None),
+    cobertura_colaborador_id: int | None = Form(None),
     comprovante: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
@@ -2620,6 +2681,21 @@ def criar_custo_diario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de custo invalido")
     if valor <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O valor deve ser maior que zero")
+
+    if colaborador_id is not None and db.get(Colaborador, colaborador_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
+    if status_diaria is not None and status_diaria not in CHAVES_STATUS_DIARIA_VALIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
+    if cliente_id is not None and db.get(Cliente, cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+
+    cobertura = None
+    if cobertura_colaborador_id is not None:
+        cobertura = db.get(Colaborador, cobertura_colaborador_id)
+        if cobertura is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador de cobertura invalido")
+        # pra diaria, quem recebe o reembolso e quem foi cobrir - preenche automaticamente
+        nome_beneficiario = cobertura.nome
 
     comprovante_path_salvo = None
     comprovante_nome_original = None
@@ -2647,6 +2723,10 @@ def criar_custo_diario(
         descricao=descricao.strip() if descricao else None,
         nome_beneficiario=nome_beneficiario.strip() if nome_beneficiario else None,
         chave_pix=chave_pix.strip() if chave_pix else None,
+        colaborador_id=colaborador_id,
+        status_diaria=status_diaria,
+        cliente_id=cliente_id,
+        cobertura_colaborador_id=cobertura_colaborador_id,
         comprovante_path=comprovante_path_salvo,
         comprovante_nome_original=comprovante_nome_original,
     )
