@@ -7,6 +7,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
     UniqueConstraint,
 )
@@ -463,3 +464,44 @@ class UsuarioPermissao(Base):
 
     def __repr__(self) -> str:
         return f"<UsuarioPermissao usuario={self.usuario_id} modulo={self.modulo} habilitado={self.habilitado}>"
+
+
+class ClienteCronograma(Base):
+    """
+    Cronograma de atividades de um cliente (o que precisa ser feito, em
+    quais dias). Pode ser digitado direto no sistema (campo grupos, em
+    JSON) ou substituido por um arquivo anexado (PDF/Excel que o
+    cliente ja tinha pronto) - os dois formatos convivem, mas quando ha
+    arquivo anexado ele e o que conta pra visualizacao/impressao.
+
+    Formato de "grupos" (lista de dicionarios):
+    [
+      {
+        "nome": "Diariamente",
+        "atividades": [
+          {"descricao": "Banheiros (Fem./Masc.)", "dias": ["terca", "sexta"]},
+          ...
+        ]
+      },
+      ...
+    ]
+    """
+    __tablename__ = "cliente_cronogramas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), unique=True, nullable=False)
+    responsavel: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    funcionario: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    carga_horaria: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    grupos: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    arquivo_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    arquivo_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc, onupdate=agora_utc)
+    atualizado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+
+    cliente: Mapped["Cliente"] = relationship()
+    atualizado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<ClienteCronograma cliente={self.cliente_id}>"

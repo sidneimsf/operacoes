@@ -240,3 +240,21 @@ class EstoqueMovimentoCreate(BaseModel):
     quantidade: int
     motivo: str | None = None
     colaborador_id: int | None = None
+
+
+class AtividadeCronograma(BaseModel):
+    descricao: str
+    dias: list[str] = []
+
+
+class GrupoCronograma(BaseModel):
+    nome: str
+    atividades: list[AtividadeCronograma] = []
+
+
+class ClienteCronogramaUpdate(BaseModel):
+    responsavel: str | None = None
+    funcionario: str | None = None
+    carga_horaria: str | None = None
+    observacoes: str | None = None
+    grupos: list[GrupoCronograma] | None = None

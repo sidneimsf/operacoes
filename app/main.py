@@ -20,6 +20,7 @@ from models import (
     Aviso,
     Chamado,
     Cliente,
+    ClienteCronograma,
     Colaborador,
     ColaboradorEvento,
     CustoDiario,
@@ -38,6 +39,7 @@ from folha_ponto import gerar_folha_ponto_pdf
 from schemas import (
     AvisoCreate,
     ChamadoCreate,
+    ClienteCronogramaUpdate,
     ChamadoEdicaoUpdate,
     ChamadoFinalizar,
     ChamadoStatusUpdate,
@@ -3491,3 +3493,137 @@ def baixar_folha_ponto(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Cronograma de atividades do cliente
+# ---------------------------------------------------------------------------
+
+PASTA_UPLOADS_CRONOGRAMAS = Path("uploads/cronogramas")
+EXTENSOES_CRONOGRAMA_PERMITIDAS = {".pdf", ".xls", ".xlsx"}
+
+
+def serializar_cronograma(c: ClienteCronograma) -> dict:
+    return {
+        "id": c.id,
+        "cliente_id": c.cliente_id,
+        "responsavel": c.responsavel,
+        "funcionario": c.funcionario,
+        "carga_horaria": c.carga_horaria,
+        "observacoes": c.observacoes,
+        "grupos": c.grupos or [],
+        "tem_arquivo": c.arquivo_path is not None,
+        "arquivo_nome_original": c.arquivo_nome_original,
+        "atualizado_em": c.atualizado_em.isoformat(),
+        "atualizado_por": c.atualizado_por.nome,
+    }
+
+
+@app.get("/clientes-dados/{cliente_id}/cronograma")
+def obter_cronograma_cliente(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if db.get(Cliente, cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
+    if cronograma is None:
+        return None
+    return serializar_cronograma(cronograma)
+
+
+@app.put("/clientes-dados/{cliente_id}/cronograma")
+def salvar_cronograma_cliente(
+    cliente_id: int,
+    dados: ClienteCronogramaUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
+):
+    if db.get(Cliente, cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+
+    cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
+    if cronograma is None:
+        cronograma = ClienteCronograma(cliente_id=cliente_id, atualizado_por_id=usuario.id)
+        db.add(cronograma)
+
+    cronograma.responsavel = dados.responsavel
+    cronograma.funcionario = dados.funcionario
+    cronograma.carga_horaria = dados.carga_horaria
+    cronograma.observacoes = dados.observacoes
+    if dados.grupos is not None:
+        cronograma.grupos = [g.model_dump() for g in dados.grupos]
+    cronograma.atualizado_por_id = usuario.id
+
+    db.commit()
+    db.refresh(cronograma)
+    return serializar_cronograma(cronograma)
+
+
+@app.post("/clientes-dados/{cliente_id}/cronograma/arquivo")
+def enviar_arquivo_cronograma(
+    cliente_id: int,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
+):
+    if db.get(Cliente, cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+
+    extensao = Path(arquivo.filename).suffix.lower()
+    if extensao not in EXTENSOES_CRONOGRAMA_PERMITIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O arquivo deve ser PDF ou Excel (.xls/.xlsx)")
+    conteudo = arquivo.file.read()
+    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+
+    cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
+    if cronograma is None:
+        cronograma = ClienteCronograma(cliente_id=cliente_id, atualizado_por_id=usuario.id)
+        db.add(cronograma)
+        db.flush()
+
+    if cronograma.arquivo_path and os.path.exists(cronograma.arquivo_path):
+        os.remove(cronograma.arquivo_path)
+
+    pasta_cliente = PASTA_UPLOADS_CRONOGRAMAS / str(cliente_id)
+    pasta_cliente.mkdir(parents=True, exist_ok=True)
+    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+    caminho_completo = pasta_cliente / nome_arquivo
+    caminho_completo.write_bytes(conteudo)
+
+    cronograma.arquivo_path = str(caminho_completo)
+    cronograma.arquivo_nome_original = arquivo.filename
+    cronograma.atualizado_por_id = usuario.id
+    db.commit()
+    db.refresh(cronograma)
+    return serializar_cronograma(cronograma)
+
+
+@app.get("/clientes-dados/{cliente_id}/cronograma/arquivo")
+def baixar_arquivo_cronograma(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
+    if cronograma is None or not cronograma.arquivo_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum arquivo anexado")
+    return FileResponse(cronograma.arquivo_path, filename=cronograma.arquivo_nome_original or "cronograma")
+
+
+@app.delete("/clientes-dados/{cliente_id}/cronograma/arquivo", status_code=status.HTTP_204_NO_CONTENT)
+def remover_arquivo_cronograma(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
+):
+    cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
+    if cronograma is None or not cronograma.arquivo_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum arquivo anexado")
+    if os.path.exists(cronograma.arquivo_path):
+        os.remove(cronograma.arquivo_path)
+    cronograma.arquivo_path = None
+    cronograma.arquivo_nome_original = None
+    db.commit()

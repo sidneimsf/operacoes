@@ -627,9 +627,311 @@ async function iniciar() {
     renderizarResumo(chamados);
     renderizarTimeline(chamados);
     carregarMapaServicos();
+
+    montarModalCronograma();
+    document.getElementById('btn-editar-cronograma').addEventListener('click', abrirModalCronograma);
+    document.getElementById('cronograma-container').addEventListener('click', (evento) => {
+      if (evento.target.closest('.btn-remover-arquivo-cronograma')) removerArquivoCronograma();
+    });
+    carregarCronograma();
   } catch (erro) {
     document.getElementById('cliente-header').innerHTML =
       '<div class="empty-state">Não foi possível carregar os dados agora.</div>';
+  }
+}
+
+const DIAS_CRONOGRAMA = [
+  { chave: 'segunda', label: 'Seg' },
+  { chave: 'terca', label: 'Ter' },
+  { chave: 'quarta', label: 'Qua' },
+  { chave: 'quinta', label: 'Qui' },
+  { chave: 'sexta', label: 'Sex' },
+  { chave: 'sabado', label: 'Sáb' },
+  { chave: 'domingo', label: 'Dom' },
+];
+
+let cronogramaAtual = null;
+
+async function carregarCronograma() {
+  const container = document.getElementById('cronograma-container');
+  try {
+    cronogramaAtual = await Shell.chamarApi(`/clientes-dados/${clienteId}/cronograma`);
+    renderizarCronograma();
+  } catch (erro) {
+    container.innerHTML = '<div class="empty-state">Não foi possível carregar o cronograma agora.</div>';
+  }
+}
+
+function renderizarCronograma() {
+  const container = document.getElementById('cronograma-container');
+
+  const cartaoUpload = `
+    <div style="margin-top: 10px;">
+      <label class="btn-ghost" style="display: inline-block; cursor: pointer; padding: 8px 14px; font-size: 12.5px;">
+        📎 Anexar arquivo (PDF ou Excel)
+        <input type="file" id="cronograma-upload-input" accept=".pdf,.xls,.xlsx" hidden>
+      </label>
+    </div>
+  `;
+
+  if (!cronogramaAtual) {
+    container.innerHTML = `<div class="empty-state">Nenhum cronograma cadastrado ainda.</div>${cartaoUpload}`;
+    return;
+  }
+
+  if (cronogramaAtual.tem_arquivo) {
+    container.innerHTML = `
+      <div class="cronograma-arquivo-card">
+        📄 <a href="/clientes-dados/${clienteId}/cronograma/arquivo" target="_blank" rel="noopener" style="flex: 1;">${cronogramaAtual.arquivo_nome_original}</a>
+        <button class="btn-ghost btn-remover-arquivo-cronograma" style="color: var(--danger);">Remover arquivo</button>
+      </div>
+      <div class="meta" style="margin-top: 8px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarData(cronogramaAtual.atualizado_em.slice(0, 10))}</div>
+      ${cartaoUpload}
+    `;
+    document.getElementById('cronograma-upload-input').addEventListener('change', (evento) => {
+      const arquivo = evento.target.files[0];
+      if (arquivo) enviarArquivoCronograma(arquivo);
+    });
+    return;
+  }
+
+  const grupos = cronogramaAtual.grupos || [];
+  if (grupos.length === 0) {
+    container.innerHTML = `<div class="empty-state">Nenhuma atividade cadastrada ainda. Clique em "Editar cronograma digitado" pra começar.</div>${cartaoUpload}`;
+    document.getElementById('cronograma-upload-input').addEventListener('change', (evento) => {
+      const arquivo = evento.target.files[0];
+      if (arquivo) enviarArquivoCronograma(arquivo);
+    });
+    return;
+  }
+
+  const infoTopoHtml = `
+    <div class="meta" style="margin-bottom: 14px;">
+      ${cronogramaAtual.responsavel ? `<strong>Responsável:</strong> ${cronogramaAtual.responsavel} · ` : ''}
+      ${cronogramaAtual.funcionario ? `<strong>Funcionário:</strong> ${cronogramaAtual.funcionario} · ` : ''}
+      ${cronogramaAtual.carga_horaria ? `<strong>Carga horária:</strong> ${cronogramaAtual.carga_horaria}` : ''}
+    </div>
+  `;
+
+  const gruposHtml = grupos
+    .map((grupo) => {
+      const linhasHtml = grupo.atividades
+        .map((atividade) => {
+          const celulasDias = DIAS_CRONOGRAMA.map((d) => {
+            const marcado = atividade.dias.includes(d.chave);
+            return `<td class="${marcado ? 'marcado' : ''}">${marcado ? 'X' : ''}</td>`;
+          }).join('');
+          return `<tr><td>${atividade.descricao}</td>${celulasDias}</tr>`;
+        })
+        .join('');
+
+      return `
+        <div class="cronograma-grupo">
+          <div class="cronograma-grupo-titulo">▶ ${grupo.nome}</div>
+          <table class="cronograma-tabela">
+            <thead><tr><th></th>${DIAS_CRONOGRAMA.map((d) => `<th>${d.label}</th>`).join('')}</tr></thead>
+            <tbody>${linhasHtml}</tbody>
+          </table>
+        </div>
+      `;
+    })
+    .join('');
+
+  container.innerHTML = `
+    ${infoTopoHtml}
+    ${gruposHtml}
+    ${cronogramaAtual.observacoes ? `<div class="meta" style="margin-top: 10px; color: var(--danger);">${cronogramaAtual.observacoes}</div>` : ''}
+    <div class="meta" style="margin-top: 10px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarData(cronogramaAtual.atualizado_em.slice(0, 10))}</div>
+    ${cartaoUpload}
+  `;
+  document.getElementById('cronograma-upload-input').addEventListener('change', (evento) => {
+    const arquivo = evento.target.files[0];
+    if (arquivo) enviarArquivoCronograma(arquivo);
+  });
+}
+
+async function enviarArquivoCronograma(arquivo) {
+  const formData = new FormData();
+  formData.append('arquivo', arquivo);
+  try {
+    const autenticacao = Shell.autenticacao();
+    const resposta = await fetch(`/clientes-dados/${clienteId}/cronograma/arquivo`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+      body: formData,
+    });
+    if (!resposta.ok) {
+      const erro = await resposta.json().catch(() => ({}));
+      throw new Error(erro.detail || 'Falha ao enviar arquivo');
+    }
+    cronogramaAtual = await resposta.json();
+    renderizarCronograma();
+  } catch (erro) {
+    alert(erro.message || 'Não foi possível enviar o arquivo agora.');
+  }
+}
+
+async function removerArquivoCronograma() {
+  if (!confirm('Tem certeza que quer remover esse arquivo?')) return;
+  try {
+    await Shell.chamarApi(`/clientes-dados/${clienteId}/cronograma/arquivo`, { method: 'DELETE' });
+    await carregarCronograma();
+  } catch (erro) {
+    alert('Não foi possível remover o arquivo agora.');
+  }
+}
+
+function montarModalCronograma() {
+  const html = `
+    <div class="modal-overlay" id="cronograma-modal-overlay" hidden>
+      <div class="modal" style="max-width: 700px;">
+        <div class="modal-header">
+          <h3>Editar cronograma digitado</h3>
+          <button class="modal-close" id="cronograma-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="cronograma-form">
+          <div class="field">
+            <label for="cronograma-responsavel">Responsável</label>
+            <input type="text" id="cronograma-responsavel">
+          </div>
+          <div class="field">
+            <label for="cronograma-funcionario">Funcionário</label>
+            <input type="text" id="cronograma-funcionario">
+          </div>
+          <div class="field">
+            <label for="cronograma-carga-horaria">Carga horária</label>
+            <input type="text" id="cronograma-carga-horaria" placeholder="Ex: 02 X SEMANA - 02 HORAS">
+          </div>
+          <div class="field">
+            <label for="cronograma-observacoes">Observações</label>
+            <textarea id="cronograma-observacoes" rows="2" placeholder="Ex: Toda limpeza inclui retirada de paranhos do teto..."></textarea>
+          </div>
+
+          <div id="cronograma-grupos-editor"></div>
+          <button type="button" class="btn-ghost" id="btn-add-grupo" style="margin-bottom: 16px;">+ Adicionar grupo (ex: Diariamente, Quinzenal...)</button>
+
+          <div class="error-message" id="cronograma-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="cronograma-modal-enviar">Salvar cronograma</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('cronograma-modal-fechar').addEventListener('click', () => {
+    document.getElementById('cronograma-modal-overlay').hidden = true;
+  });
+  document.getElementById('cronograma-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'cronograma-modal-overlay') document.getElementById('cronograma-modal-overlay').hidden = true;
+  });
+  document.getElementById('btn-add-grupo').addEventListener('click', () => adicionarGrupoEditor());
+  document.getElementById('cronograma-form').addEventListener('submit', salvarCronograma);
+}
+
+function criarLinhaAtividadeHtml(descricao, diasMarcados) {
+  const checkboxesHtml = DIAS_CRONOGRAMA.map(
+    (d) => `<label><input type="checkbox" value="${d.chave}" ${diasMarcados.includes(d.chave) ? 'checked' : ''}> ${d.label}</label>`
+  ).join('');
+  return `
+    <div class="cronograma-editor-atividade">
+      <input type="text" class="atividade-descricao" placeholder="Descrição da atividade" value="${descricao.replace(/"/g, '&quot;')}">
+      <div class="cronograma-editor-dias">${checkboxesHtml}</div>
+      <button type="button" class="btn-ghost btn-remover-atividade" style="padding: 3px 8px; font-size: 11px; color: var(--danger);">✕</button>
+    </div>
+  `;
+}
+
+function adicionarGrupoEditor(nome = '', atividades = []) {
+  const editorContainer = document.getElementById('cronograma-grupos-editor');
+  const grupoId = `grupo-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const atividadesHtml = atividades.map((a) => criarLinhaAtividadeHtml(a.descricao, a.dias)).join('');
+
+  const html = `
+    <div class="cronograma-editor-grupo" data-grupo-id="${grupoId}">
+      <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 10px;">
+        <input type="text" class="grupo-nome" placeholder="Nome do grupo (ex: Diariamente)" value="${nome.replace(/"/g, '&quot;')}" style="flex: 1;">
+        <button type="button" class="btn-ghost btn-remover-grupo" style="color: var(--danger); padding: 5px 10px; font-size: 12px;">Remover grupo</button>
+      </div>
+      <div class="grupo-atividades">${atividadesHtml}</div>
+      <button type="button" class="btn-ghost btn-add-atividade" style="padding: 5px 10px; font-size: 12px;">+ Adicionar atividade</button>
+    </div>
+  `;
+  editorContainer.insertAdjacentHTML('beforeend', html);
+
+  const grupoEl = editorContainer.querySelector(`[data-grupo-id="${grupoId}"]`);
+  grupoEl.querySelector('.btn-remover-grupo').addEventListener('click', () => grupoEl.remove());
+  grupoEl.querySelector('.btn-add-atividade').addEventListener('click', () => {
+    grupoEl.querySelector('.grupo-atividades').insertAdjacentHTML('beforeend', criarLinhaAtividadeHtml('', []));
+    ligarBotoesRemoverAtividade(grupoEl);
+  });
+  ligarBotoesRemoverAtividade(grupoEl);
+}
+
+function ligarBotoesRemoverAtividade(grupoEl) {
+  grupoEl.querySelectorAll('.btn-remover-atividade').forEach((botao) => {
+    botao.onclick = () => botao.closest('.cronograma-editor-atividade').remove();
+  });
+}
+
+function abrirModalCronograma() {
+  document.getElementById('cronograma-modal-erro').classList.remove('visible');
+  document.getElementById('cronograma-responsavel').value = cronogramaAtual?.responsavel || '';
+  document.getElementById('cronograma-funcionario').value = cronogramaAtual?.funcionario || '';
+  document.getElementById('cronograma-carga-horaria').value = cronogramaAtual?.carga_horaria || '';
+  document.getElementById('cronograma-observacoes').value = cronogramaAtual?.observacoes || '';
+
+  const editorContainer = document.getElementById('cronograma-grupos-editor');
+  editorContainer.innerHTML = '';
+  const grupos = cronogramaAtual?.grupos || [];
+  if (grupos.length === 0) {
+    adicionarGrupoEditor();
+  } else {
+    grupos.forEach((g) => adicionarGrupoEditor(g.nome, g.atividades));
+  }
+
+  document.getElementById('cronograma-modal-overlay').hidden = false;
+}
+
+async function salvarCronograma(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('cronograma-modal-erro');
+  const botao = document.getElementById('cronograma-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const grupos = [];
+  document.querySelectorAll('#cronograma-grupos-editor .cronograma-editor-grupo').forEach((grupoEl) => {
+    const nome = grupoEl.querySelector('.grupo-nome').value.trim();
+    if (!nome) return;
+    const atividades = [];
+    grupoEl.querySelectorAll('.cronograma-editor-atividade').forEach((atividadeEl) => {
+      const descricao = atividadeEl.querySelector('.atividade-descricao').value.trim();
+      if (!descricao) return;
+      const dias = Array.from(atividadeEl.querySelectorAll('input[type="checkbox"]:checked')).map((c) => c.value);
+      atividades.push({ descricao, dias });
+    });
+    grupos.push({ nome, atividades });
+  });
+
+  const corpo = {
+    responsavel: document.getElementById('cronograma-responsavel').value || null,
+    funcionario: document.getElementById('cronograma-funcionario').value || null,
+    carga_horaria: document.getElementById('cronograma-carga-horaria').value || null,
+    observacoes: document.getElementById('cronograma-observacoes').value || null,
+    grupos,
+  };
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+  try {
+    cronogramaAtual = await Shell.chamarApi(`/clientes-dados/${clienteId}/cronograma`, { method: 'PUT', body: corpo });
+    document.getElementById('cronograma-modal-overlay').hidden = true;
+    renderizarCronograma();
+  } catch (erro) {
+    erroBox.textContent = 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar cronograma';
   }
 }
 
