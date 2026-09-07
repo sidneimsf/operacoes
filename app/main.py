@@ -2851,9 +2851,9 @@ def listar_experiencias_criticas(
     usuario: Usuario = Depends(usuario_atual),
 ):
     """Colaboradores com checkpoint de experiencia vencendo em ate 7 dias - para o painel."""
-    from alertas_experiencia import buscar_experiencias_criticas
+    from alertas_experiencia import buscar_experiencia_painel
 
-    criticos = buscar_experiencias_criticas(db)
+    criticos = buscar_experiencia_painel(db)
     return [
         {
             "colaborador_nome": c["colaborador_nome"],

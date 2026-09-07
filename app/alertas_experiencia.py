@@ -8,6 +8,56 @@ from models import Colaborador
 DIAS_ANTECEDENCIA_ALERTA = 7
 
 
+def buscar_experiencia_painel(db: Session) -> list[dict]:
+    """
+    Versao usada no Painel: em vez de mostrar os dois checkpoints (30 e
+    90 dias) separadamente e um deles podendo aparecer "vencido", mostra
+    sempre UM unico checkpoint por colaborador - o que estiver
+    atualmente em contagem:
+
+    - Enquanto o checkpoint de 30 dias nao foi atingido, conta os dias
+      que faltam para ele.
+    - Assim que o de 30 dias e atingido, passa a contar os dias que
+      faltam para o de 90 dias (nunca mostra "venceu ha X dias").
+    - Depois que o de 90 dias tambem e atingido, o colaborador sai
+      dessa lista (o periodo de experiencia acabou).
+    """
+    hoje = date.today()
+
+    colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado").all()
+
+    resultado = []
+    for c in colaboradores:
+        checkpoint = None
+        data_checkpoint = None
+
+        if c.data_fim_experiencia_30 and hoje < c.data_fim_experiencia_30:
+            checkpoint = "30 dias"
+            data_checkpoint = c.data_fim_experiencia_30
+        elif c.data_fim_experiencia_90 and hoje < c.data_fim_experiencia_90:
+            checkpoint = "90 dias"
+            data_checkpoint = c.data_fim_experiencia_90
+
+        if checkpoint is None:
+            continue
+
+        dias_restantes = (data_checkpoint - hoje).days
+        if dias_restantes > DIAS_ANTECEDENCIA_ALERTA:
+            continue
+
+        resultado.append(
+            {
+                "colaborador_nome": c.nome,
+                "empresa_nome": c.empresa.nome,
+                "checkpoint": checkpoint,
+                "data_checkpoint": data_checkpoint,
+                "dias_restantes": dias_restantes,
+            }
+        )
+
+    return resultado
+
+
 def buscar_experiencias_criticas(db: Session) -> list[dict]:
     """
     Colaboradores ativos com o checkpoint de 30 ou 90 dias vencendo em
