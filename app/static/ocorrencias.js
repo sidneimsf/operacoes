@@ -240,6 +240,7 @@ function renderizarTabela(chamados) {
           <button class="btn-ghost btn-acao-corretiva" data-id="${c.id}" data-acao="${(c.acao_corretiva || '').replace(/"/g, '&quot;')}" style="padding: 5px 10px; font-size: 12px;">
             ${c.acao_corretiva ? '✓ Ver ação' : '+ Ação corretiva'}
           </button>
+          ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-chamado" data-id="${c.id}" style="padding: 5px 10px; font-size: 12px; color: var(--danger); margin-left: 4px;">Excluir</button>` : ''}
         </td>
       </tr>
     `
@@ -257,6 +258,10 @@ function renderizarTabela(chamados) {
 
   container.querySelectorAll('.btn-acao-corretiva').forEach((botao) => {
     botao.addEventListener('click', () => abrirModalAcaoCorretiva(botao.dataset.id, botao.dataset.acao));
+  });
+
+  container.querySelectorAll('.btn-excluir-chamado').forEach((botao) => {
+    botao.addEventListener('click', () => excluirChamado(botao.dataset.id));
   });
 
   container.querySelectorAll('.status-select').forEach((select) => {
@@ -417,6 +422,20 @@ async function salvarAcaoCorretiva(evento) {
   } finally {
     botao.disabled = false;
     botao.textContent = 'Salvar';
+  }
+}
+
+async function excluirChamado(chamadoId) {
+  if (!confirm('Tem certeza que quer excluir esse chamado? Essa ação não pode ser desfeita.')) return;
+  try {
+    await Shell.chamarApi(`/chamados-dados/${chamadoId}`, { method: 'DELETE' });
+    carregarChamados();
+  } catch (erro) {
+    if (erro.status === 403) {
+      alert('Você não tem permissão pra excluir chamados. Fale com o escritório.');
+    } else {
+      alert('Não foi possível excluir agora.');
+    }
   }
 }
 

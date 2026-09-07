@@ -229,6 +229,7 @@ MODULOS_PERMISSAO = [
     {"chave": "relatorios", "label": "Relatórios gerenciais", "padrao_escritorio_apenas": True},
     {"chave": "estoque", "label": "Controle de Estoque", "padrao_escritorio_apenas": True},
     {"chave": "mapa_servico", "label": "Histórico do Mapa de Serviço", "padrao_escritorio_apenas": True},
+    {"chave": "excluir_registros", "label": "Excluir custos, chamados e lançamentos", "padrao_escritorio_apenas": True},
 ]
 CHAVES_MODULOS_VALIDAS = {m["chave"] for m in MODULOS_PERMISSAO}
 
@@ -1153,7 +1154,7 @@ def editar_evento_colaborador(
 def excluir_evento_colaborador(
     evento_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(usuario_atual),
+    usuario: Usuario = Depends(exigir_modulo("excluir_registros")),
 ):
     evento = db.get(ColaboradorEvento, evento_id)
     if evento is None:
@@ -1763,6 +1764,19 @@ def editar_chamado(
     db.commit()
     db.refresh(chamado)
     return serializar_chamado(chamado)
+
+
+@app.delete("/chamados-dados/{chamado_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_chamado(
+    chamado_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("excluir_registros")),
+):
+    chamado = db.get(Chamado, chamado_id)
+    if chamado is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
+    db.delete(chamado)
+    db.commit()
 
 
 @app.post("/chamados-dados/{chamado_id}/finalizar")
@@ -2787,7 +2801,8 @@ def excluir_custo_diario(
     custo = db.get(CustoDiario, custo_id)
     if custo is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Custo nao encontrado")
-    if custo.usuario_id != usuario.id and usuario.papel != "escritorio":
+    eh_dono = custo.usuario_id == usuario.id
+    if not eh_dono and not tem_permissao(db, usuario, "excluir_registros"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Voce so pode excluir seus proprios custos")
 
     if custo.comprovante_path and os.path.exists(custo.comprovante_path):

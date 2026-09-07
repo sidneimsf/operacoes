@@ -887,6 +887,7 @@ function renderizarTimeline(eventos) {
             <div class="linha-topo">
               <span class="evento-tipo-badge ${e.tipo}">${labelTipoEvento(e.tipo)}</span>
               ${e.data_inicio ? `<span class="meta">${periodo}</span>` : ''}
+              ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-evento" data-id="${e.id}" style="padding: 3px 8px; font-size: 11px; color: var(--danger); margin-left: auto;">Excluir</button>` : ''}
             </div>
             ${e.descricao ? `<div class="descricao">${e.descricao}</div>` : ''}
             ${linhaRelacionado}
@@ -897,6 +898,20 @@ function renderizarTimeline(eventos) {
       `;
     })
     .join('');
+}
+
+async function excluirEventoTimeline(eventoId) {
+  if (!confirm('Tem certeza que quer excluir esse lançamento? Essa ação não pode ser desfeita.')) return;
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoId}`, { method: 'DELETE' });
+    carregarTimeline();
+  } catch (erro) {
+    if (erro.status === 403) {
+      alert('Você não tem permissão pra excluir lançamentos. Fale com o escritório.');
+    } else {
+      alert('Não foi possível excluir agora.');
+    }
+  }
 }
 
 async function abrirArquivoEvento(eventoId) {
@@ -1132,9 +1147,15 @@ async function iniciar() {
 
     document.getElementById('timeline').addEventListener('click', (evento) => {
       const link = evento.target.closest('.evento-arquivo-link');
-      if (!link) return;
-      evento.preventDefault();
-      abrirArquivoEvento(link.dataset.eventoId);
+      if (link) {
+        evento.preventDefault();
+        abrirArquivoEvento(link.dataset.eventoId);
+        return;
+      }
+      const botaoExcluir = evento.target.closest('.btn-excluir-evento');
+      if (botaoExcluir) {
+        excluirEventoTimeline(botaoExcluir.dataset.id);
+      }
     });
 
     montarModalMetlife();
