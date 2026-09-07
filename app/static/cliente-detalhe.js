@@ -674,76 +674,64 @@ function renderizarCronograma() {
     </div>
   `;
 
-  if (!cronogramaAtual) {
-    container.innerHTML = `<div class="empty-state">Nenhum cronograma cadastrado ainda.</div>${cartaoUpload}`;
-    return;
-  }
+  let corpoHtml;
 
-  if (cronogramaAtual.tem_arquivo) {
-    container.innerHTML = `
+  if (!cronogramaAtual) {
+    corpoHtml = `<div class="empty-state">Nenhum cronograma cadastrado ainda.</div>`;
+  } else if (cronogramaAtual.tem_arquivo) {
+    corpoHtml = `
       <div class="cronograma-arquivo-card">
         📄 <a href="/clientes-dados/${clienteId}/cronograma/arquivo" target="_blank" rel="noopener" style="flex: 1;">${cronogramaAtual.arquivo_nome_original}</a>
         <button class="btn-ghost btn-remover-arquivo-cronograma" style="color: var(--danger);">Remover arquivo</button>
       </div>
       <div class="meta" style="margin-top: 8px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarData(cronogramaAtual.atualizado_em.slice(0, 10))}</div>
-      ${cartaoUpload}
     `;
-    document.getElementById('cronograma-upload-input').addEventListener('change', (evento) => {
-      const arquivo = evento.target.files[0];
-      if (arquivo) enviarArquivoCronograma(arquivo);
-    });
-    return;
+  } else if (!cronogramaAtual.grupos || cronogramaAtual.grupos.length === 0) {
+    corpoHtml = `<div class="empty-state">Nenhuma atividade cadastrada ainda. Clique em "Editar cronograma digitado" pra começar.</div>`;
+  } else {
+    const grupos = cronogramaAtual.grupos;
+    const infoTopoHtml = `
+      <div class="meta" style="margin-bottom: 14px;">
+        ${cronogramaAtual.responsavel ? `<strong>Responsável:</strong> ${cronogramaAtual.responsavel} · ` : ''}
+        ${cronogramaAtual.funcionario ? `<strong>Funcionário:</strong> ${cronogramaAtual.funcionario} · ` : ''}
+        ${cronogramaAtual.carga_horaria ? `<strong>Carga horária:</strong> ${cronogramaAtual.carga_horaria}` : ''}
+      </div>
+    `;
+
+    const gruposHtml = grupos
+      .map((grupo) => {
+        const linhasHtml = grupo.atividades
+          .map((atividade) => {
+            const celulasDias = DIAS_CRONOGRAMA.map((d) => {
+              const marcado = atividade.dias.includes(d.chave);
+              return `<td class="${marcado ? 'marcado' : ''}">${marcado ? 'X' : ''}</td>`;
+            }).join('');
+            return `<tr><td>${atividade.descricao}</td>${celulasDias}</tr>`;
+          })
+          .join('');
+
+        return `
+          <div class="cronograma-grupo">
+            <div class="cronograma-grupo-titulo">▶ ${grupo.nome}</div>
+            <table class="cronograma-tabela">
+              <thead><tr><th></th>${DIAS_CRONOGRAMA.map((d) => `<th>${d.label}</th>`).join('')}</tr></thead>
+              <tbody>${linhasHtml}</tbody>
+            </table>
+          </div>
+        `;
+      })
+      .join('');
+
+    corpoHtml = `
+      ${infoTopoHtml}
+      ${gruposHtml}
+      ${cronogramaAtual.observacoes ? `<div class="meta" style="margin-top: 10px; color: var(--danger);">${cronogramaAtual.observacoes}</div>` : ''}
+      <div class="meta" style="margin-top: 10px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarData(cronogramaAtual.atualizado_em.slice(0, 10))}</div>
+    `;
   }
 
-  const grupos = cronogramaAtual.grupos || [];
-  if (grupos.length === 0) {
-    container.innerHTML = `<div class="empty-state">Nenhuma atividade cadastrada ainda. Clique em "Editar cronograma digitado" pra começar.</div>${cartaoUpload}`;
-    document.getElementById('cronograma-upload-input').addEventListener('change', (evento) => {
-      const arquivo = evento.target.files[0];
-      if (arquivo) enviarArquivoCronograma(arquivo);
-    });
-    return;
-  }
+  container.innerHTML = corpoHtml + cartaoUpload;
 
-  const infoTopoHtml = `
-    <div class="meta" style="margin-bottom: 14px;">
-      ${cronogramaAtual.responsavel ? `<strong>Responsável:</strong> ${cronogramaAtual.responsavel} · ` : ''}
-      ${cronogramaAtual.funcionario ? `<strong>Funcionário:</strong> ${cronogramaAtual.funcionario} · ` : ''}
-      ${cronogramaAtual.carga_horaria ? `<strong>Carga horária:</strong> ${cronogramaAtual.carga_horaria}` : ''}
-    </div>
-  `;
-
-  const gruposHtml = grupos
-    .map((grupo) => {
-      const linhasHtml = grupo.atividades
-        .map((atividade) => {
-          const celulasDias = DIAS_CRONOGRAMA.map((d) => {
-            const marcado = atividade.dias.includes(d.chave);
-            return `<td class="${marcado ? 'marcado' : ''}">${marcado ? 'X' : ''}</td>`;
-          }).join('');
-          return `<tr><td>${atividade.descricao}</td>${celulasDias}</tr>`;
-        })
-        .join('');
-
-      return `
-        <div class="cronograma-grupo">
-          <div class="cronograma-grupo-titulo">▶ ${grupo.nome}</div>
-          <table class="cronograma-tabela">
-            <thead><tr><th></th>${DIAS_CRONOGRAMA.map((d) => `<th>${d.label}</th>`).join('')}</tr></thead>
-            <tbody>${linhasHtml}</tbody>
-          </table>
-        </div>
-      `;
-    })
-    .join('');
-
-  container.innerHTML = `
-    ${infoTopoHtml}
-    ${gruposHtml}
-    ${cronogramaAtual.observacoes ? `<div class="meta" style="margin-top: 10px; color: var(--danger);">${cronogramaAtual.observacoes}</div>` : ''}
-    <div class="meta" style="margin-top: 10px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarData(cronogramaAtual.atualizado_em.slice(0, 10))}</div>
-    ${cartaoUpload}
-  `;
   document.getElementById('cronograma-upload-input').addEventListener('change', (evento) => {
     const arquivo = evento.target.files[0];
     if (arquivo) enviarArquivoCronograma(arquivo);
