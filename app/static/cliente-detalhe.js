@@ -27,6 +27,11 @@ function formatarDataCurta(isoString) {
   return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
+function formatarDataCompleta(isoString) {
+  const data = new Date(isoString);
+  return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function renderizarResumo(chamados) {
   const agora = new Date();
   const esteMes = chamados.filter((c) => {
@@ -684,7 +689,7 @@ function renderizarCronograma() {
         📄 <a href="/clientes-dados/${clienteId}/cronograma/arquivo" target="_blank" rel="noopener" style="flex: 1;">${cronogramaAtual.arquivo_nome_original}</a>
         <button class="btn-ghost btn-remover-arquivo-cronograma" style="color: var(--danger);">Remover arquivo</button>
       </div>
-      <div class="meta" style="margin-top: 8px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarData(cronogramaAtual.atualizado_em.slice(0, 10))}</div>
+      <div class="meta" style="margin-top: 8px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarDataCompleta(cronogramaAtual.atualizado_em)}</div>
     `;
   } else if (!cronogramaAtual.grupos || cronogramaAtual.grupos.length === 0) {
     corpoHtml = `<div class="empty-state">Nenhuma atividade cadastrada ainda. Clique em "Editar cronograma digitado" pra começar.</div>`;
@@ -726,7 +731,7 @@ function renderizarCronograma() {
       ${infoTopoHtml}
       ${gruposHtml}
       ${cronogramaAtual.observacoes ? `<div class="meta" style="margin-top: 10px; color: var(--danger);">${cronogramaAtual.observacoes}</div>` : ''}
-      <div class="meta" style="margin-top: 10px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarData(cronogramaAtual.atualizado_em.slice(0, 10))}</div>
+      <div class="meta" style="margin-top: 10px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarDataCompleta(cronogramaAtual.atualizado_em)}</div>
     `;
   }
 
