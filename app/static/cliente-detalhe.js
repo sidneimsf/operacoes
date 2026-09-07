@@ -812,11 +812,16 @@ function montarModalCronograma() {
         <form id="cronograma-form">
           <div class="field">
             <label for="cronograma-responsavel">Responsável</label>
-            <input type="text" id="cronograma-responsavel">
+            <select id="cronograma-responsavel">
+              <option value="">Selecione...</option>
+            </select>
           </div>
           <div class="field">
-            <label for="cronograma-funcionario">Funcionário</label>
-            <input type="text" id="cronograma-funcionario">
+            <label for="cronograma-colaborador">Colaborador</label>
+            <div class="busca-select">
+              <input type="text" id="cronograma-colaborador" placeholder="Digite pra buscar o colaborador..." autocomplete="off">
+              <div class="busca-select-resultados" id="cronograma-colaborador-resultados" hidden></div>
+            </div>
           </div>
           <div class="field">
             <label for="cronograma-carga-horaria">Carga horária</label>
@@ -846,6 +851,33 @@ function montarModalCronograma() {
   });
   document.getElementById('btn-add-grupo').addEventListener('click', () => adicionarGrupoEditor());
   document.getElementById('cronograma-form').addEventListener('submit', salvarCronograma);
+
+  const inputColaboradorCronograma = document.getElementById('cronograma-colaborador');
+  const resultadosColaboradorCronograma = document.getElementById('cronograma-colaborador-resultados');
+  function renderizarBuscaColaboradorCronograma(termo) {
+    const termoNormalizado = termo.trim().toLowerCase();
+    const filtrados = termoNormalizado
+      ? colaboradoresListaPlanaCache.filter((c) => c.nome.toLowerCase().includes(termoNormalizado))
+      : colaboradoresListaPlanaCache;
+    resultadosColaboradorCronograma.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Nenhum colaborador encontrado.</div>'
+        : filtrados.slice(0, 50).map((c) => `<div class="busca-select-item" data-nome="${c.nome}">${c.nome}</div>`).join('');
+    resultadosColaboradorCronograma.hidden = false;
+  }
+  inputColaboradorCronograma.addEventListener('focus', () => renderizarBuscaColaboradorCronograma(inputColaboradorCronograma.value));
+  inputColaboradorCronograma.addEventListener('input', () => renderizarBuscaColaboradorCronograma(inputColaboradorCronograma.value));
+  resultadosColaboradorCronograma.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    inputColaboradorCronograma.value = item.dataset.nome;
+    resultadosColaboradorCronograma.hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!inputColaboradorCronograma.closest('.busca-select').contains(evento.target)) {
+      resultadosColaboradorCronograma.hidden = true;
+    }
+  });
 }
 
 function criarLinhaAtividadeHtml(descricao, diasMarcados) {
@@ -893,10 +925,20 @@ function ligarBotoesRemoverAtividade(grupoEl) {
   });
 }
 
-function abrirModalCronograma() {
+async function abrirModalCronograma() {
   document.getElementById('cronograma-modal-erro').classList.remove('visible');
+
+  document.getElementById('cronograma-responsavel').innerHTML =
+    '<option value="">Selecione...</option>' +
+    supervisoresCache.map((s) => `<option value="${s.nome}">${s.nome}</option>`).join('');
   document.getElementById('cronograma-responsavel').value = cronogramaAtual?.responsavel || '';
-  document.getElementById('cronograma-funcionario').value = cronogramaAtual?.funcionario || '';
+
+  if (colaboradoresListaPlanaCache.length === 0) {
+    const grupos = await carregarColaboradoresAgrupados();
+    colaboradoresListaPlanaCache = grupos.flatMap((g) => g.colaboradores.map((c) => ({ id: c.id, nome: c.nome, empresa: g.empresa })));
+  }
+  document.getElementById('cronograma-colaborador').value = cronogramaAtual?.funcionario || '';
+
   document.getElementById('cronograma-carga-horaria').value = cronogramaAtual?.carga_horaria || '';
   document.getElementById('cronograma-observacoes').value = cronogramaAtual?.observacoes || '';
 
@@ -934,7 +976,7 @@ async function salvarCronograma(evento) {
 
   const corpo = {
     responsavel: document.getElementById('cronograma-responsavel').value || null,
-    funcionario: document.getElementById('cronograma-funcionario').value || null,
+    funcionario: document.getElementById('cronograma-colaborador').value || null,
     carga_horaria: document.getElementById('cronograma-carga-horaria').value || null,
     observacoes: document.getElementById('cronograma-observacoes').value || null,
     grupos,
