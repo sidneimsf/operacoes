@@ -637,6 +637,11 @@ async function iniciar() {
     document.getElementById('btn-editar-cronograma').addEventListener('click', abrirModalCronograma);
     document.getElementById('cronograma-container').addEventListener('click', (evento) => {
       if (evento.target.closest('.btn-remover-arquivo-cronograma')) removerArquivoCronograma();
+      const linkArquivo = evento.target.closest('.btn-abrir-arquivo-cronograma');
+      if (linkArquivo) {
+        evento.preventDefault();
+        abrirArquivoCronograma();
+      }
     });
     carregarCronograma();
   } catch (erro) {
@@ -686,7 +691,7 @@ function renderizarCronograma() {
   } else if (cronogramaAtual.tem_arquivo) {
     corpoHtml = `
       <div class="cronograma-arquivo-card">
-        📄 <a href="/clientes-dados/${clienteId}/cronograma/arquivo" target="_blank" rel="noopener" style="flex: 1;">${cronogramaAtual.arquivo_nome_original}</a>
+        📄 <a href="#" class="btn-abrir-arquivo-cronograma" style="flex: 1;">${cronogramaAtual.arquivo_nome_original}</a>
         <button class="btn-ghost btn-remover-arquivo-cronograma" style="color: var(--danger);">Remover arquivo</button>
       </div>
       <div class="meta" style="margin-top: 8px;">Atualizado por ${cronogramaAtual.atualizado_por} em ${formatarDataCompleta(cronogramaAtual.atualizado_em)}</div>
@@ -741,6 +746,28 @@ function renderizarCronograma() {
     const arquivo = evento.target.files[0];
     if (arquivo) enviarArquivoCronograma(arquivo);
   });
+}
+
+async function abrirArquivoCronograma() {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return;
+
+  try {
+    const resposta = await fetch(`/clientes-dados/${clienteId}/cronograma/arquivo`, {
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    });
+    if (resposta.status === 401) {
+      Shell.sair();
+      return;
+    }
+    if (!resposta.ok) throw new Error('Falha ao baixar arquivo');
+
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (erro) {
+    alert('Não foi possível abrir o arquivo agora.');
+  }
 }
 
 async function enviarArquivoCronograma(arquivo) {
