@@ -87,6 +87,12 @@ const Shell = (() => {
     return resposta.json();
   }
 
+  function linkWhatsApp(telefone) {
+    const digitos = telefone.replace(/\D/g, '');
+    const comCodigoPais = digitos.startsWith('55') ? digitos : `55${digitos}`;
+    return `https://wa.me/${comCodigoPais}`;
+  }
+
   function icone(chave) {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[chave] || ''}</svg>`;
   }
@@ -367,5 +373,5 @@ const Shell = (() => {
     }
   }
 
-  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos };
+  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, linkWhatsApp };
 })();
