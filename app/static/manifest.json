@@ -1,0 +1,16 @@
+{
+  "name": "Operações - Grupo Star Sul",
+  "short_name": "Operações",
+  "description": "Sistema de gestão de operações do Grupo Star Sul",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#eef2f8",
+  "theme_color": "#17354f",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

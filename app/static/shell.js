@@ -375,3 +375,11 @@ const Shell = (() => {
 
   return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, linkWhatsApp };
 })();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {
+      // se falhar, o sistema continua funcionando normal pelo navegador
+    });
+  });
+}

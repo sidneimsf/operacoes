@@ -71,6 +71,20 @@ from security import criar_token, decodificar_token, hash_senha, verificar_senha
 app = FastAPI(title="Operacoes SolarSync", version="0.1.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
+@app.get("/service-worker.js", include_in_schema=False)
+def service_worker():
+    """
+    Serve o service worker a partir da raiz (nao de /static/) pra que o
+    escopo dele cubra o site inteiro, nao so a pasta static - sem isso o
+    navegador nao considera o sistema "instalavel" como app.
+    """
+    return FileResponse(
+        "static/service-worker.js",
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/"},
+    )
+
 seguranca = HTTPBearer()
 
 
