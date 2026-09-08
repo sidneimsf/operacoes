@@ -15,10 +15,13 @@ def buscar_experiencia_painel(db: Session) -> list[dict]:
     sempre UM unico checkpoint por colaborador - o que estiver
     atualmente em contagem:
 
-    - Enquanto o checkpoint de 30 dias nao foi atingido, conta os dias
-      que faltam para ele.
+    - Enquanto o checkpoint de 30 dias nao foi atingido, mostra os dias
+      que faltam pra ele - so entra na lista se faltar ate 7 dias
+      (pra nao lotar o painel com gente que acabou de entrar).
     - Assim que o de 30 dias e atingido, passa a contar os dias que
-      faltam para o de 90 dias (nunca mostra "venceu ha X dias").
+      faltam pro de 90 dias e MOSTRA SEMPRE (nao so nos ultimos 7 dias),
+      ja que esse e o unico jeito de acompanhar quem esta nessa fase -
+      nunca mostra "venceu ha X dias".
     - Depois que o de 90 dias tambem e atingido, o colaborador sai
       dessa lista (o periodo de experiencia acabou).
     """
@@ -28,21 +31,18 @@ def buscar_experiencia_painel(db: Session) -> list[dict]:
 
     resultado = []
     for c in colaboradores:
-        checkpoint = None
-        data_checkpoint = None
-
         if c.data_fim_experiencia_30 and hoje < c.data_fim_experiencia_30:
+            dias_restantes = (c.data_fim_experiencia_30 - hoje).days
+            if dias_restantes > DIAS_ANTECEDENCIA_ALERTA:
+                continue
             checkpoint = "30 dias"
             data_checkpoint = c.data_fim_experiencia_30
         elif c.data_fim_experiencia_90 and hoje < c.data_fim_experiencia_90:
+            # ja passou dos 30 (ou nunca teve esse campo) - mostra sempre, sem limite de dias
             checkpoint = "90 dias"
             data_checkpoint = c.data_fim_experiencia_90
-
-        if checkpoint is None:
-            continue
-
-        dias_restantes = (data_checkpoint - hoje).days
-        if dias_restantes > DIAS_ANTECEDENCIA_ALERTA:
+            dias_restantes = (data_checkpoint - hoje).days
+        else:
             continue
 
         resultado.append(
