@@ -832,6 +832,17 @@ button {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
+}
+
+.cronograma-tabela th:first-child,
+.cronograma-tabela td:first-child {
+  width: auto;
+}
+
+.cronograma-tabela th:not(:first-child),
+.cronograma-tabela td:not(:first-child) {
+  width: 60px;
 }
 
 .cronograma-tabela th,
