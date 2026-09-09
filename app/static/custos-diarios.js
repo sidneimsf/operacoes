@@ -60,6 +60,7 @@ function renderizarLista(custos) {
         <td>${formatarMoeda(c.valor)}</td>
         <td>${c.nome_beneficiario || c.usuario_nome}${c.chave_pix ? ` <span class="meta">(${c.chave_pix})</span>` : ''}</td>
         <td>${c.descricao || '—'}</td>
+        <td>${c.cliente_nome || '—'}</td>
         <td>${linhaComprovante}</td>
         <td><span class="aso-badge ${c.reembolsado ? 'ok' : 'proximo'}">${c.reembolsado ? 'Reembolsado' : 'Pendente'}</span></td>
         <td style="white-space: nowrap;">${botaoReembolso} ${botoesEdicao}</td>
@@ -71,7 +72,7 @@ function renderizarLista(custos) {
   container.innerHTML = `
     <table class="table-list">
       <thead>
-        <tr><th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Descrição</th><th>Comprovante</th><th>Status</th><th>Ações</th></tr>
+        <tr><th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Descrição</th><th>Cliente</th><th>Comprovante</th><th>Status</th><th>Ações</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>

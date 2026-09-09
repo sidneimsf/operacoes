@@ -3641,3 +3641,69 @@ def remover_arquivo_cronograma(
     cronograma.arquivo_path = None
     cronograma.arquivo_nome_original = None
     db.commit()
+
+
+@app.get("/relatorios-dados/custos-diarios")
+def relatorio_custos_diarios(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    tipo: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    query = db.query(CustoDiario).filter(CustoDiario.data.between(inicio, fim))
+    if tipo in CHAVES_TIPO_CUSTO_VALIDAS:
+        query = query.filter(CustoDiario.tipo == tipo)
+
+    custos = query.order_by(CustoDiario.data.asc()).all()
+
+    total_valor = sum(c.valor for c in custos)
+    total_pendente = sum(c.valor for c in custos if not c.reembolsado)
+    total_reembolsado = sum(c.valor for c in custos if c.reembolsado)
+
+    por_tipo: dict[str, float] = {}
+    por_dia: dict[str, float] = {}
+    for c in custos:
+        por_tipo[c.tipo] = por_tipo.get(c.tipo, 0) + c.valor
+        chave_dia = c.data.isoformat()
+        por_dia[chave_dia] = por_dia.get(chave_dia, 0) + c.valor
+
+    lista_por_tipo = sorted(
+        (
+            {"tipo": t, "label": next((x["label"] for x in TIPOS_CUSTO_DIARIO if x["chave"] == t), t), "total": round(v, 2)}
+            for t, v in por_tipo.items()
+        ),
+        key=lambda x: -x["total"],
+    )
+    lista_por_dia = [{"data": d, "total": round(v, 2)} for d, v in sorted(por_dia.items())]
+
+    return {
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "total_valor": round(total_valor, 2),
+        "total_pendente": round(total_pendente, 2),
+        "total_reembolsado": round(total_reembolsado, 2),
+        "por_tipo": lista_por_tipo,
+        "por_dia": lista_por_dia,
+        "movimentos": [
+            {
+                "id": c.id,
+                "data": c.data.isoformat(),
+                "usuario_nome": c.usuario.nome,
+                "tipo": c.tipo,
+                "tipo_label": next((x["label"] for x in TIPOS_CUSTO_DIARIO if x["chave"] == c.tipo), c.tipo),
+                "valor": c.valor,
+                "nome_beneficiario": c.nome_beneficiario or c.usuario.nome,
+                "chave_pix": c.chave_pix,
+                "descricao": c.descricao,
+                "cliente_nome": c.cliente.nome if c.cliente_id else None,
+                "reembolsado": c.reembolsado,
+            }
+            for c in custos
+        ],
+    }
