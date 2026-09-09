@@ -778,15 +778,15 @@ function montarModalRegistro() {
 function atualizarCamposConformeTipo() {
   const tipo = document.getElementById('registro-tipo').value;
   const precisaData = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
-  const mostraDataFim = tipo === 'atestado' || tipo === 'ferias' || tipo === 'aso';
+  const mostraDataFim = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
   const mostraSubstituto = tipo === 'falta';
 
   document.getElementById('label-data-obrigatoria').textContent = precisaData ? '(obrigatória)' : '(opcional)';
   document.getElementById('campo-data-fim').hidden = !mostraDataFim;
   document.getElementById('campo-substituto').hidden = !mostraSubstituto;
 
-  const labelDataInicio = tipo === 'aso' ? 'Data do exame' : 'Data';
-  const labelDataFim = tipo === 'aso' ? 'Data de vencimento' : 'Data final (se souber)';
+  const labelDataInicio = tipo === 'aso' ? 'Data do exame' : tipo === 'falta' ? 'Data inicial' : 'Data';
+  const labelDataFim = tipo === 'aso' ? 'Data de vencimento' : tipo === 'falta' ? 'Data final (obrigatória)' : 'Data final (se souber)';
   document.querySelector('label[for="registro-data-inicio"]').firstChild.textContent = `${labelDataInicio} `;
   document.querySelector('label[for="registro-data-fim"]').textContent = labelDataFim;
 }
@@ -888,7 +888,8 @@ function renderizarTimeline(eventos) {
             <div class="linha-topo">
               <span class="evento-tipo-badge ${e.tipo}">${labelTipoEvento(e.tipo)}</span>
               ${e.data_inicio ? `<span class="meta">${periodo}</span>` : ''}
-              ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-evento" data-id="${e.id}" style="padding: 3px 8px; font-size: 11px; color: var(--danger); margin-left: auto;">Excluir</button>` : ''}
+              <button class="btn-ghost btn-editar-evento" data-id="${e.id}" style="padding: 3px 8px; font-size: 11px; margin-left: auto;">Editar</button>
+              ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-evento" data-id="${e.id}" style="padding: 3px 8px; font-size: 11px; color: var(--danger);">Excluir</button>` : ''}
             </div>
             ${e.descricao ? `<div class="descricao">${e.descricao}</div>` : ''}
             ${linhaRelacionado}
@@ -915,6 +916,101 @@ async function excluirEventoTimeline(eventoId) {
   }
 }
 
+function montarModalEditarEvento() {
+  const html = `
+    <div class="modal-overlay" id="editar-evento-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Editar lançamento</h3>
+          <button class="modal-close" id="editar-evento-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="editar-evento-form">
+          <div class="field">
+            <label for="editar-evento-tipo">Tipo</label>
+            <select id="editar-evento-tipo"></select>
+          </div>
+          <div class="field">
+            <label for="editar-evento-descricao">Descrição / observação</label>
+            <textarea id="editar-evento-descricao" rows="3"></textarea>
+          </div>
+          <div class="field" id="editar-campo-data-inicio">
+            <label for="editar-evento-data-inicio">Data inicial</label>
+            <input type="date" id="editar-evento-data-inicio">
+          </div>
+          <div class="field" id="editar-campo-data-fim" hidden>
+            <label for="editar-evento-data-fim">Data final</label>
+            <input type="date" id="editar-evento-data-fim">
+          </div>
+          <div class="error-message" id="editar-evento-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="editar-evento-modal-enviar">Salvar alterações</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('editar-evento-modal-fechar').addEventListener('click', () => {
+    document.getElementById('editar-evento-modal-overlay').hidden = true;
+  });
+  document.getElementById('editar-evento-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'editar-evento-modal-overlay') document.getElementById('editar-evento-modal-overlay').hidden = true;
+  });
+  document.getElementById('editar-evento-tipo').addEventListener('change', () => {
+    const tipo = document.getElementById('editar-evento-tipo').value;
+    const mostraDataFim = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
+    document.getElementById('editar-campo-data-fim').hidden = !mostraDataFim;
+  });
+  document.getElementById('editar-evento-form').addEventListener('submit', salvarEdicaoEvento);
+}
+
+let eventoIdEmEdicao = null;
+
+function abrirModalEditarEvento(eventoId) {
+  const evento = eventosAtuais.find((e) => e.id === Number(eventoId));
+  if (!evento) return;
+  eventoIdEmEdicao = eventoId;
+
+  document.getElementById('editar-evento-modal-erro').classList.remove('visible');
+  document.getElementById('editar-evento-tipo').innerHTML = TIPOS_EVENTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
+  document.getElementById('editar-evento-tipo').value = evento.tipo;
+  document.getElementById('editar-evento-descricao').value = evento.descricao || '';
+  document.getElementById('editar-evento-data-inicio').value = evento.data_inicio || '';
+  document.getElementById('editar-evento-data-fim').value = evento.data_fim || '';
+
+  const mostraDataFim = ['atestado', 'falta', 'ferias', 'aso'].includes(evento.tipo);
+  document.getElementById('editar-campo-data-fim').hidden = !mostraDataFim;
+
+  document.getElementById('editar-evento-modal-overlay').hidden = false;
+}
+
+async function salvarEdicaoEvento(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('editar-evento-modal-erro');
+  const botao = document.getElementById('editar-evento-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const corpo = {
+    tipo: document.getElementById('editar-evento-tipo').value,
+    descricao: document.getElementById('editar-evento-descricao').value || null,
+    data_inicio: document.getElementById('editar-evento-data-inicio').value || null,
+    data_fim: document.getElementById('editar-evento-data-fim').value || null,
+  };
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoIdEmEdicao}`, { method: 'PATCH', body: corpo });
+    document.getElementById('editar-evento-modal-overlay').hidden = true;
+    carregarTimeline();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar alterações';
+  }
+}
+
 async function abrirArquivoEvento(eventoId) {
   const autenticacao = Shell.autenticacao();
   if (!autenticacao) return;
@@ -937,12 +1033,15 @@ async function abrirArquivoEvento(eventoId) {
   }
 }
 
+let eventosAtuais = [];
+
 async function carregarTimeline() {
   const container = document.getElementById('timeline');
   container.innerHTML = '<div class="loading-state">Carregando histórico...</div>';
   try {
     const eventos = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/eventos`);
     if (eventos === null) return;
+    eventosAtuais = eventos;
     renderizarTimeline(eventos);
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar o histórico agora.</div>';
@@ -1156,8 +1255,15 @@ async function iniciar() {
       const botaoExcluir = evento.target.closest('.btn-excluir-evento');
       if (botaoExcluir) {
         excluirEventoTimeline(botaoExcluir.dataset.id);
+        return;
+      }
+      const botaoEditar = evento.target.closest('.btn-editar-evento');
+      if (botaoEditar) {
+        abrirModalEditarEvento(botaoEditar.dataset.id);
       }
     });
+
+    montarModalEditarEvento();
 
     montarModalMetlife();
     document.getElementById('btn-novo-metlife').addEventListener('click', () => abrirModalMetlife(null));

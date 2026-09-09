@@ -21,6 +21,7 @@ from models import (
     Chamado,
     Cliente,
     ClienteCronograma,
+    TarefaAgendada,
     Colaborador,
     ColaboradorEvento,
     CustoDiario,
@@ -40,6 +41,8 @@ from schemas import (
     AvisoCreate,
     ChamadoCreate,
     ClienteCronogramaUpdate,
+    TarefaAgendadaCreate,
+    TarefaAgendadaUpdate,
     ChamadoEdicaoUpdate,
     ChamadoFinalizar,
     ChamadoStatusUpdate,
@@ -427,6 +430,11 @@ def pagina_ocorrencias():
 @app.get("/avisos", include_in_schema=False)
 def pagina_avisos():
     return FileResponse("static/avisos.html")
+
+
+@app.get("/agendar", include_in_schema=False)
+def pagina_agendar():
+    return FileResponse("static/agendar.html")
 
 
 @app.get("/cliente-detalhe", include_in_schema=False)
@@ -1063,6 +1071,9 @@ def criar_evento_colaborador(
     if tipo in ("atestado", "falta", "ferias") and not data_inicio:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data")
 
+    if tipo == "falta" and not data_fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data final da falta (pode ser igual à data inicial, se for só um dia)")
+
     if tipo == "aso" and (not data_inicio or not data_fim):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1071,6 +1082,9 @@ def criar_evento_colaborador(
 
     data_inicio_obj = date.fromisoformat(data_inicio) if data_inicio else None
     data_fim_obj = date.fromisoformat(data_fim) if data_fim else None
+
+    if tipo == "falta" and data_fim_obj < data_inicio_obj:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data final não pode ser antes da inicial")
 
     relacionado = None
     if colaborador_relacionado_id is not None:
@@ -1154,12 +1168,26 @@ def editar_evento_colaborador(
 
     campos = dados.model_dump(exclude_unset=True)
 
+    if "tipo" in campos:
+        novo_tipo = campos["tipo"]
+        if novo_tipo not in CHAVES_TIPO_EVENTO_VALIDAS or novo_tipo == "cobertura":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de evento invalido")
+        evento.tipo = novo_tipo
+
     if "descricao" in campos:
         evento.descricao = campos["descricao"].strip() if campos["descricao"] else None
     if "data_inicio" in campos:
         evento.data_inicio = date.fromisoformat(campos["data_inicio"]) if campos["data_inicio"] else None
     if "data_fim" in campos:
         evento.data_fim = date.fromisoformat(campos["data_fim"]) if campos["data_fim"] else None
+
+    tipo_final = campos.get("tipo", evento.tipo)
+    if tipo_final in ("atestado", "falta", "ferias") and evento.data_inicio is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data")
+    if tipo_final == "falta" and evento.data_fim is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data final da falta")
+    if tipo_final == "falta" and evento.data_fim < evento.data_inicio:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data final não pode ser antes da inicial")
 
     db.commit()
     db.refresh(evento)
@@ -3669,10 +3697,14 @@ def relatorio_custos_diarios(
 
     por_tipo: dict[str, float] = {}
     por_dia: dict[str, float] = {}
+    por_cliente: dict[str, float] = {}
     for c in custos:
         por_tipo[c.tipo] = por_tipo.get(c.tipo, 0) + c.valor
         chave_dia = c.data.isoformat()
         por_dia[chave_dia] = por_dia.get(chave_dia, 0) + c.valor
+        if c.cliente_id:
+            nome_cliente = c.cliente.nome
+            por_cliente[nome_cliente] = por_cliente.get(nome_cliente, 0) + c.valor
 
     lista_por_tipo = sorted(
         (
@@ -3682,6 +3714,10 @@ def relatorio_custos_diarios(
         key=lambda x: -x["total"],
     )
     lista_por_dia = [{"data": d, "total": round(v, 2)} for d, v in sorted(por_dia.items())]
+    lista_por_cliente = sorted(
+        ({"cliente_nome": nome, "total": round(v, 2)} for nome, v in por_cliente.items()),
+        key=lambda x: -x["total"],
+    )
 
     return {
         "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
@@ -3690,6 +3726,7 @@ def relatorio_custos_diarios(
         "total_reembolsado": round(total_reembolsado, 2),
         "por_tipo": lista_por_tipo,
         "por_dia": lista_por_dia,
+        "por_cliente": lista_por_cliente,
         "movimentos": [
             {
                 "id": c.id,
@@ -3707,3 +3744,115 @@ def relatorio_custos_diarios(
             for c in custos
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Agendador de tarefas (calendario de lembretes)
+# ---------------------------------------------------------------------------
+
+def serializar_tarefa(t: TarefaAgendada) -> dict:
+    return {
+        "id": t.id,
+        "titulo": t.titulo,
+        "descricao": t.descricao,
+        "data": t.data.isoformat(),
+        "concluida": t.concluida,
+        "criado_por": t.criado_por.nome,
+        "criado_em": t.criado_em.isoformat(),
+    }
+
+
+@app.get("/tarefas-dados")
+def listar_tarefas(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    query = db.query(TarefaAgendada)
+    if data_inicio:
+        query = query.filter(TarefaAgendada.data >= date.fromisoformat(data_inicio))
+    if data_fim:
+        query = query.filter(TarefaAgendada.data <= date.fromisoformat(data_fim))
+    tarefas = query.order_by(TarefaAgendada.data.asc()).all()
+    return [serializar_tarefa(t) for t in tarefas]
+
+
+@app.get("/tarefas-dados/hoje")
+def tarefas_de_hoje(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Tarefas de hoje (ou atrasadas) ainda nao concluidas - pro alerta na entrada do sistema."""
+    hoje = date.today()
+    tarefas = (
+        db.query(TarefaAgendada)
+        .filter(TarefaAgendada.data <= hoje, TarefaAgendada.concluida.is_(False))
+        .order_by(TarefaAgendada.data.asc())
+        .all()
+    )
+    return [serializar_tarefa(t) for t in tarefas]
+
+
+@app.post("/tarefas-dados", status_code=status.HTTP_201_CREATED)
+def criar_tarefa(
+    dados: TarefaAgendadaCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    titulo = dados.titulo.strip()
+    if not titulo:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe um título")
+
+    tarefa = TarefaAgendada(
+        titulo=titulo,
+        descricao=dados.descricao.strip() if dados.descricao else None,
+        data=date.fromisoformat(dados.data),
+        criado_por_id=usuario.id,
+    )
+    db.add(tarefa)
+    db.commit()
+    db.refresh(tarefa)
+    return serializar_tarefa(tarefa)
+
+
+@app.patch("/tarefas-dados/{tarefa_id}")
+def editar_tarefa(
+    tarefa_id: int,
+    dados: TarefaAgendadaUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    tarefa = db.get(TarefaAgendada, tarefa_id)
+    if tarefa is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa nao encontrada")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "titulo" in campos:
+        novo_titulo = campos["titulo"].strip()
+        if not novo_titulo:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Título não pode ficar vazio")
+        tarefa.titulo = novo_titulo
+    if "descricao" in campos:
+        tarefa.descricao = campos["descricao"].strip() if campos["descricao"] else None
+    if "data" in campos:
+        tarefa.data = date.fromisoformat(campos["data"])
+    if "concluida" in campos:
+        tarefa.concluida = campos["concluida"]
+
+    db.commit()
+    db.refresh(tarefa)
+    return serializar_tarefa(tarefa)
+
+
+@app.delete("/tarefas-dados/{tarefa_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_tarefa(
+    tarefa_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    tarefa = db.get(TarefaAgendada, tarefa_id)
+    if tarefa is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa nao encontrada")
+    db.delete(tarefa)
+    db.commit()

@@ -34,6 +34,46 @@ function labelTipoChamado(chave) {
   return encontrado ? encontrado.label : chave;
 }
 
+function formatarDataCurtaBR(dataISO) {
+  const [, mes, dia] = dataISO.split('-');
+  return `${dia}/${mes}`;
+}
+
+async function carregarAlertaTarefas() {
+  const container = document.getElementById('aviso-tarefas');
+  try {
+    const tarefas = await Shell.chamarApi('/tarefas-dados/hoje');
+    if (!tarefas || tarefas.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const hojeISO = new Date().toISOString().slice(0, 10);
+    const itensHtml = tarefas
+      .map((t) => {
+        const quando = t.data === hojeISO ? 'Hoje' : `${formatarDataCurtaBR(t.data)} (atrasada)`;
+        return `<a class="alerta-tarefas-item" href="/agendar">⚠ ${t.titulo} <span class="meta">${quando}</span></a>`;
+      })
+      .join('');
+
+    container.innerHTML = `
+      <div class="alerta-tarefas">
+        <svg class="alerta-tarefas-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div class="alerta-tarefas-conteudo">
+          <div class="alerta-tarefas-titulo">${tarefas.length === 1 ? 'Você tem 1 tarefa pendente' : `Você tem ${tarefas.length} tarefas pendentes`}</div>
+          ${itensHtml}
+        </div>
+      </div>
+    `;
+  } catch (erro) {
+    container.innerHTML = '';
+  }
+}
+
 function renderizarAvisoConfirmar(chamados) {
   const container = document.getElementById('aviso-confirmar-chamados');
 
@@ -239,6 +279,7 @@ async function iniciar() {
 
     renderizarAvisoMeusChamados(resumo.meus_chamados);
     renderizarAvisoConfirmar(resumo.chamados_para_confirmar);
+    carregarAlertaTarefas();
 
     const container = document.getElementById('breakdown-empresas');
     container.innerHTML = '';

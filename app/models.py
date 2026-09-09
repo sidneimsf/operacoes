@@ -505,3 +505,25 @@ class ClienteCronograma(Base):
 
     def __repr__(self) -> str:
         return f"<ClienteCronograma cliente={self.cliente_id}>"
+
+
+class TarefaAgendada(Base):
+    """
+    Lembrete/tarefa marcada numa data especifica - tipo um calendario
+    simples. Quando a data chega, aparece um alerta na entrada do
+    sistema (Painel) e um contador no menu.
+    """
+    __tablename__ = "tarefas_agendadas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    titulo: Mapped[str] = mapped_column(String(150), nullable=False)
+    descricao: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    data: Mapped[date] = mapped_column(Date, nullable=False)
+    concluida: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    criado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    criado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<TarefaAgendada titulo={self.titulo} data={self.data}>"

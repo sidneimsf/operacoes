@@ -31,6 +31,7 @@
         <button class="tab-relatorio" data-aba="faltas">Faltas e Atestados</button>
         <button class="tab-relatorio" data-aba="horas">Horas Trabalhadas</button>
         <button class="tab-relatorio" data-aba="estoque">Movimentação de Estoque</button>
+        <button class="tab-relatorio" data-aba="custos">Custos Diários</button>
       </div>
 
       <div class="filter-row" id="filtros-geral" style="align-items: flex-end;">
@@ -52,6 +53,10 @@
         <div class="field" id="campo-select-colaborador" hidden>
           <label for="filtro-colaborador">Colaborador</label>
           <select id="filtro-colaborador" style="min-width: 220px;"></select>
+        </div>
+        <div class="field" id="campo-select-tipo-custo" hidden>
+          <label for="filtro-tipo-custo">Tipo de custo</label>
+          <select id="filtro-tipo-custo" style="min-width: 180px;"></select>
         </div>
         <div class="field">
           <label for="filtro-data-inicio">De</label>

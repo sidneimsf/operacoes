@@ -118,6 +118,7 @@ class MetlifeLancamentoUpdate(BaseModel):
 
 
 class ColaboradorEventoUpdate(BaseModel):
+    tipo: str | None = None
     descricao: str | None = None
     data_inicio: str | None = None
     data_fim: str | None = None
@@ -258,3 +259,16 @@ class ClienteCronogramaUpdate(BaseModel):
     carga_horaria: str | None = None
     observacoes: str | None = None
     grupos: list[GrupoCronograma] | None = None
+
+
+class TarefaAgendadaCreate(BaseModel):
+    titulo: str
+    descricao: str | None = None
+    data: str
+
+
+class TarefaAgendadaUpdate(BaseModel):
+    titulo: str | None = None
+    descricao: str | None = None
+    data: str | None = None
+    concluida: bool | None = None

@@ -1999,3 +1999,175 @@ button {
   color: var(--text);
   cursor: pointer;
 }
+
+.calendario-navegacao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.calendario-titulo-mes {
+  font-weight: 600;
+  font-size: 16px;
+  min-width: 160px;
+  text-align: center;
+}
+
+.calendario-mes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.calendario-dia-semana {
+  flex: 0 0 calc(14.2857% - 1px);
+  background: var(--surface-2);
+  padding: 8px;
+  text-align: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  box-sizing: border-box;
+}
+
+.calendario-celula {
+  flex: 0 0 calc(14.2857% - 1px);
+  box-sizing: border-box;
+  background: var(--surface);
+  min-height: 90px;
+  padding: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.calendario-celula:hover {
+  background: var(--surface-2);
+}
+
+.calendario-celula.vazia {
+  cursor: default;
+  background: var(--bg);
+}
+
+.calendario-celula.vazia:hover {
+  background: var(--bg);
+}
+
+.calendario-celula.hoje {
+  background: rgba(125, 95, 17, 0.08);
+}
+
+.calendario-numero-dia {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.calendario-celula.hoje .calendario-numero-dia {
+  color: var(--accent);
+}
+
+.calendario-tarefas-dia {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.calendario-tarefa-chip {
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendario-tarefa-chip.concluida {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.calendario-tarefa-mais {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  padding: 0 6px;
+}
+
+.pendente-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.pendente-titulo {
+  font-weight: 600;
+  flex: 1;
+}
+
+@media (max-width: 780px) {
+  .calendario-celula {
+    min-height: 60px;
+  }
+  .calendario-tarefa-chip {
+    font-size: 9.5px;
+  }
+}
+
+.alerta-tarefas {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(193, 51, 39, 0.08);
+  border: 1px solid rgba(193, 51, 39, 0.25);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.alerta-tarefas-icone {
+  color: var(--danger);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+}
+
+.alerta-tarefas-conteudo {
+  flex: 1;
+}
+
+.alerta-tarefas-titulo {
+  font-weight: 600;
+  color: var(--danger);
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.alerta-tarefas-item {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+  padding: 3px 0;
+}
+
+.alerta-tarefas-item:hover {
+  text-decoration: underline;
+}
+
+.alerta-tarefas-item .meta {
+  margin-left: 6px;
+}

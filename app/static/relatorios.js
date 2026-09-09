@@ -3,6 +3,16 @@ const auth = Shell.montar('relatorios', 'Relatórios');
 let abaAtual = 'geral';
 let dadosAtuais = null;
 let clientesCache = null;
+let tiposCustoCache = null;
+
+async function popularFiltroTipoCusto() {
+  if (!tiposCustoCache) {
+    const resposta = await Shell.chamarApi('/custos-diarios-dados-tipos');
+    tiposCustoCache = resposta.tipos;
+    document.getElementById('filtro-tipo-custo').innerHTML =
+      '<option value="">Todos</option>' + tiposCustoCache.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
+  }
+}
 let colaboradoresCache = null;
 
 function formatarDataISO(d) {
@@ -75,6 +85,7 @@ function trocarAba(aba) {
   });
   document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas';
   document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas' && aba !== 'horas' && aba !== 'estoque';
+  document.getElementById('campo-select-tipo-custo').hidden = aba !== 'custos';
   carregarRelatorio();
 }
 
@@ -232,6 +243,70 @@ function renderizarPorColaborador(dados) {
       dados.eventos.length > 0
         ? `<table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead><tbody>${linhasEventos}</tbody></table>`
         : '<div class="empty-state">Nenhum registro nesse período.</div>'
+    }
+  `;
+}
+
+function renderizarCustosDiarios(dados) {
+  const container = document.getElementById('relatorio-conteudo');
+
+  function barrasHtml(lista, chaveLabel, chaveValor) {
+    if (lista.length === 0) return '<div class="empty-state">Sem dados no período.</div>';
+    const maior = Math.max(...lista.map((i) => i[chaveValor]), 1);
+    return lista
+      .map(
+        (item) => `
+        <div class="breakdown-row">
+          <span class="nome-empresa">${item[chaveLabel]}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round((item[chaveValor] / maior) * 100)}%"></div></div>
+          <span class="total">R$ ${item[chaveValor].toFixed(2).replace('.', ',')}</span>
+        </div>
+      `
+      )
+      .join('');
+  }
+
+  const linhasMovimentos = dados.movimentos
+    .map(
+      (m) => `
+      <tr>
+        <td>${formatarDataBR(m.data.slice(0, 10))}</td>
+        <td>${m.usuario_nome}</td>
+        <td>${m.tipo_label}</td>
+        <td>R$ ${m.valor.toFixed(2).replace('.', ',')}</td>
+        <td>${m.nome_beneficiario}</td>
+        <td>${m.cliente_nome || '—'}</td>
+        <td>${m.reembolsado ? 'Reembolsado' : 'Pendente'}</td>
+      </tr>
+    `
+    )
+    .join('');
+
+  container.innerHTML = `
+    <div class="meta" style="margin-bottom: 20px;">Período: ${formatarDataBR(dados.periodo.inicio)} até ${formatarDataBR(dados.periodo.fim)}</div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">total no período</div><div class="value">R$ ${dados.total_valor.toFixed(2).replace('.', ',')}</div></div>
+      <div class="kpi-card"><div class="label">pendente de reembolso</div><div class="value">R$ ${dados.total_pendente.toFixed(2).replace('.', ',')}</div></div>
+      <div class="kpi-card"><div class="label">já reembolsado</div><div class="value">R$ ${dados.total_reembolsado.toFixed(2).replace('.', ',')}</div></div>
+    </div>
+
+    <div class="dash-grid" style="margin-top: 30px;">
+      <div class="dash-card">
+        <div class="dash-card-header"><h3>Por tipo (o que mais gerou custo)</h3></div>
+        ${barrasHtml(dados.por_tipo, 'label', 'total')}
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-header"><h3>Por cliente (onde mais teve custo)</h3></div>
+        ${barrasHtml(dados.por_cliente, 'cliente_nome', 'total')}
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top: 30px;">Detalhamento</div>
+    ${
+      dados.movimentos.length > 0
+        ? `<table class="table-list"><thead><tr><th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Cliente</th><th>Status</th></tr></thead><tbody>${linhasMovimentos}</tbody></table>`
+        : '<div class="empty-state">Nenhum custo no período.</div>'
     }
   `;
 }
@@ -443,6 +518,14 @@ async function carregarRelatorio() {
       if (dados === null) return;
       dadosAtuais = dados;
       renderizarMovimentacaoEstoque(dados);
+    } else if (abaAtual === 'custos') {
+      await popularFiltroTipoCusto();
+      const tipoCusto = document.getElementById('filtro-tipo-custo').value;
+      if (tipoCusto) params.set('tipo', tipoCusto);
+      const dados = await Shell.chamarApi(`/relatorios-dados/custos-diarios?${params.toString()}`);
+      if (dados === null) return;
+      dadosAtuais = dados;
+      renderizarCustosDiarios(dados);
     }
   } catch (erro) {
     if (erro.status === 403) {
@@ -517,6 +600,15 @@ function exportarCSV() {
       ['Data', 'Tipo', 'Item', 'Empresa', 'Quantidade', 'Entregue para', 'Motivo', 'Registrado por'],
       linhas
     );
+  } else if (abaAtual === 'custos') {
+    const linhas = dadosAtuais.movimentos.map((m) => [
+      formatarDataBR(m.data.slice(0, 10)), m.usuario_nome, m.tipo_label, m.valor, m.nome_beneficiario, m.chave_pix || '', m.cliente_nome || '', m.reembolsado ? 'Reembolsado' : 'Pendente',
+    ]);
+    baixarCSV(
+      'relatorio-custos-diarios.csv',
+      ['Data', 'Quem lançou', 'Tipo', 'Valor', 'Reembolsar para', 'Pix', 'Cliente', 'Status'],
+      linhas
+    );
   }
 }
 
@@ -529,6 +621,7 @@ document.querySelectorAll('.periodo-preset').forEach((botao) => {
 document.getElementById('btn-aplicar-periodo').addEventListener('click', carregarRelatorio);
 document.getElementById('filtro-cliente').addEventListener('change', carregarRelatorio);
 document.getElementById('filtro-colaborador').addEventListener('change', carregarRelatorio);
+document.getElementById('filtro-tipo-custo').addEventListener('change', carregarRelatorio);
 document.getElementById('btn-exportar-pdf').addEventListener('click', () => window.print());
 document.getElementById('btn-exportar-csv').addEventListener('click', exportarCSV);
 
