@@ -1738,6 +1738,11 @@ def listar_chamados(
 ):
     query = db.query(Chamado).join(Cliente)
 
+    if usuario.papel == "supervisor":
+        query = query.filter(
+            (Chamado.aberto_por_id == usuario.id) | (Chamado.responsavel_id == usuario.id)
+        )
+
     if status_filtro == "aberto":
         query = query.filter(Chamado.status != "finalizado")
     elif status_filtro:
@@ -1763,6 +1768,13 @@ def listar_chamados(
     return [serializar_chamado(c) for c in chamados]
 
 
+def _pode_ver_chamado(usuario: Usuario, chamado: Chamado) -> bool:
+    """Escritorio ve tudo. Supervisor so ve chamados que abriu ou dos quais e responsavel."""
+    if usuario.papel == "escritorio":
+        return True
+    return chamado.aberto_por_id == usuario.id or chamado.responsavel_id == usuario.id
+
+
 @app.patch("/chamados-dados/{chamado_id}")
 def atualizar_status_chamado(
     chamado_id: int,
@@ -1779,7 +1791,7 @@ def atualizar_status_chamado(
         )
 
     chamado = db.get(Chamado, chamado_id)
-    if chamado is None:
+    if chamado is None or not _pode_ver_chamado(usuario, chamado):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
 
     chamado.status = dados.status
@@ -1797,7 +1809,7 @@ def editar_chamado(
 ):
     """Edita campos gerais do chamado, como a acao corretiva - pode ser preenchida a qualquer momento."""
     chamado = db.get(Chamado, chamado_id)
-    if chamado is None:
+    if chamado is None or not _pode_ver_chamado(usuario, chamado):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
 
     campos = dados.model_dump(exclude_unset=True)
@@ -1831,7 +1843,7 @@ def finalizar_chamado(
     usuario: Usuario = Depends(usuario_atual),
 ):
     chamado = db.get(Chamado, chamado_id)
-    if chamado is None:
+    if chamado is None or not _pode_ver_chamado(usuario, chamado):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
     if chamado.status == "finalizado":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chamado ja esta finalizado")
@@ -1863,7 +1875,7 @@ def confirmar_chamado_finalizado(
     usuario: Usuario = Depends(usuario_atual),
 ):
     chamado = db.get(Chamado, chamado_id)
-    if chamado is None:
+    if chamado is None or not _pode_ver_chamado(usuario, chamado):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
     if chamado.status != "finalizado":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Chamado ainda nao foi finalizado")
