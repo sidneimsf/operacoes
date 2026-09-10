@@ -150,7 +150,7 @@ function montarModalNovoCusto() {
             </div>
           </div>
           <div class="field" id="campo-custo-cobertura" style="order: 6; display: none;">
-            <label for="custo-cobertura-busca">Cobertura (quem foi cobrir) — obrigatório</label>
+            <label for="custo-cobertura-busca">Cobertura (quem foi cobrir) — escolha da lista ou digite o nome se for freelancer</label>
             <div class="busca-select">
               <input type="text" id="custo-cobertura-busca" placeholder="Digite o nome de quem cobriu..." autocomplete="off">
               <input type="hidden" id="custo-cobertura-id">
@@ -364,11 +364,9 @@ async function salvarCusto(evento) {
 
   const ehDiaria = document.getElementById('custo-tipo').value === 'diaria';
   if (ehDiaria) {
-    const temCoberturaSelecionada = custoIdEmEdicao
-      ? document.getElementById('custo-cobertura-busca').value.trim() !== ''
-      : document.getElementById('custo-cobertura-id').value !== '';
-    if (!temCoberturaSelecionada) {
-      erroBox.textContent = 'Selecione quem foi cobrir no campo Cobertura (escolha um nome da lista, não basta digitar).';
+    const temAlgumNomeDeCobertura = document.getElementById('custo-cobertura-busca').value.trim() !== '';
+    if (!temAlgumNomeDeCobertura) {
+      erroBox.textContent = 'Informe quem foi cobrir (escolha da lista, ou digite o nome se for freelancer/terceirizado).';
       erroBox.classList.add('visible');
       return;
     }
@@ -393,17 +391,25 @@ async function salvarCusto(evento) {
       };
       await Shell.chamarApi(`/custos-diarios-dados/${custoIdEmEdicao}`, { method: 'PATCH', body: corpo });
     } else {
+      const ehDiariaNaCriacao = document.getElementById('custo-tipo').value === 'diaria';
+      const coberturaId = document.getElementById('custo-cobertura-id').value;
+      const nomeCoberturaDigitado = document.getElementById('custo-cobertura-busca').value;
+
       const formData = new FormData();
       formData.append('tipo', document.getElementById('custo-tipo').value);
       formData.append('valor', document.getElementById('custo-valor').value);
       formData.append('data_custo', document.getElementById('custo-data').value);
       formData.append('descricao', document.getElementById('custo-descricao').value || '');
-      formData.append('nome_beneficiario', document.getElementById('custo-nome-beneficiario').value || '');
+      formData.append(
+        'nome_beneficiario',
+        ehDiariaNaCriacao
+          ? (coberturaId ? '' : nomeCoberturaDigitado) // se selecionou da lista, o backend preenche automatico; senao, manda o nome digitado (freelancer)
+          : document.getElementById('custo-nome-beneficiario').value || ''
+      );
       formData.append('chave_pix', document.getElementById('custo-chave-pix').value || '');
-      if (document.getElementById('custo-tipo').value === 'diaria') {
+      if (ehDiariaNaCriacao) {
         const colaboradorId = document.getElementById('custo-colaborador-id').value;
         const clienteId = document.getElementById('custo-cliente-id').value;
-        const coberturaId = document.getElementById('custo-cobertura-id').value;
         const statusValor = document.getElementById('custo-status').value;
         if (colaboradorId) formData.append('colaborador_id', colaboradorId);
         if (clienteId) formData.append('cliente_id', clienteId);

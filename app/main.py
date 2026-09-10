@@ -2824,8 +2824,11 @@ def criar_custo_diario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
     if cliente_id is not None and db.get(Cliente, cliente_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
-    if tipo == "diaria" and cobertura_colaborador_id is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selecione quem foi cobrir (campo Cobertura)")
+    if tipo == "diaria" and cobertura_colaborador_id is None and not (nome_beneficiario or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Informe quem foi cobrir (escolha da lista, ou digite o nome se for freelancer/terceirizado)",
+        )
 
     cobertura = None
     if cobertura_colaborador_id is not None:
@@ -3803,7 +3806,7 @@ def relatorio_custos_diarios(
         {
             "data": c.data.isoformat(),
             "colaborador_faltou_nome": c.colaborador.nome if c.colaborador else None,
-            "cobertura_colaborador_nome": c.cobertura_colaborador.nome if c.cobertura_colaborador else None,
+            "cobertura_colaborador_nome": (c.cobertura_colaborador.nome if c.cobertura_colaborador else None) or c.nome_beneficiario,
             "cliente_nome": c.cliente.nome if c.cliente else None,
             "status_label": next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), c.status_diaria),
         }
