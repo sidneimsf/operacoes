@@ -252,20 +252,19 @@ function renderizarTabela(chamados) {
         <td class="chamado-descricao">${celulaDescricaoHtml(c.id, c.descricao)}</td>
         <td>${c.responsavel_nome || '—'}</td>
         <td>
-          <span class="status-badge ${c.status}">${STATUS.find((s) => s.chave === c.status)?.label || c.status}</span>
+          <select class="status-select status-select-${c.status}" data-id="${c.id}" data-status-anterior="${c.status}" ${c.status === 'finalizado' ? 'disabled' : ''}>
+            ${opcoesStatusHtml(c.status)}
+          </select>
           ${c.status === 'finalizado' && c.finalizado_em ? `<div class="meta" style="margin-top: 4px; font-size: 11px;">finalizado em ${formatarDataHora(c.finalizado_em)}</div>` : ''}
         </td>
         <td>
-          <select class="status-select" data-id="${c.id}" data-status-anterior="${c.status}" ${c.status === 'finalizado' ? 'disabled' : ''}>
-            ${opcoesStatusHtml(c.status)}
-          </select>
-        </td>
-        <td>
-          <button class="btn-ghost btn-acao-corretiva" data-id="${c.id}" data-acao="${(c.acao_corretiva || '').replace(/"/g, '&quot;')}" style="padding: 5px 10px; font-size: 12px;">
-            ${c.acao_corretiva ? '✓ Ver ação' : '+ Ação corretiva'}
-          </button>
-          ${auth.id === c.aberto_por_id ? `<button class="btn-ghost btn-editar-chamado" data-id="${c.id}" style="padding: 5px 10px; font-size: 12px; margin-left: 4px;">Editar</button>` : ''}
-          ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-chamado" data-id="${c.id}" style="padding: 5px 10px; font-size: 12px; color: var(--danger); margin-left: 4px;">Excluir</button>` : ''}
+          <div class="grupo-acoes-tabela">
+            <button class="btn-ghost btn-acao-corretiva" data-id="${c.id}" data-acao="${(c.acao_corretiva || '').replace(/"/g, '&quot;')}">
+              ${c.acao_corretiva ? '✓ Ver ação' : '+ Ação corretiva'}
+            </button>
+            ${auth.id === c.aberto_por_id ? `<button class="btn-ghost btn-editar-chamado" data-id="${c.id}">Editar</button>` : ''}
+            ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-chamado" data-id="${c.id}" style="color: var(--danger);">Excluir</button>` : ''}
+          </div>
         </td>
       </tr>
     `
@@ -275,7 +274,7 @@ function renderizarTabela(chamados) {
   container.innerHTML = `
     <table class="table-list">
       <thead>
-        <tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Prioridade</th><th>Descrição</th><th>Responsável</th><th>Status</th><th>Alterar</th><th>Ação corretiva</th></tr>
+        <tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Prioridade</th><th>Descrição</th><th>Responsável</th><th>Status</th><th>Ações</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
