@@ -150,7 +150,7 @@ function montarModalNovoCusto() {
             </div>
           </div>
           <div class="field" id="campo-custo-cobertura" style="order: 6; display: none;">
-            <label for="custo-cobertura-busca">Cobertura (quem foi cobrir)</label>
+            <label for="custo-cobertura-busca">Cobertura (quem foi cobrir) — obrigatório</label>
             <div class="busca-select">
               <input type="text" id="custo-cobertura-busca" placeholder="Digite o nome de quem cobriu..." autocomplete="off">
               <input type="hidden" id="custo-cobertura-id">
@@ -289,7 +289,7 @@ async function abrirModalNovoCusto() {
   document.getElementById('novo-custo-modal-overlay').hidden = false;
 }
 
-function abrirModalEditarCusto(custoId, custo) {
+async function abrirModalEditarCusto(custoId, custo) {
   custoIdEmEdicao = custoId;
   document.getElementById('custo-modal-titulo').textContent = 'Editar custo';
   document.getElementById('novo-custo-form').reset();
@@ -302,6 +302,27 @@ function abrirModalEditarCusto(custoId, custo) {
   document.getElementById('custo-chave-pix').value = custo.chave_pix || '';
   document.getElementById('campo-comprovante').hidden = true;
   document.getElementById('custo-modal-erro').classList.remove('visible');
+
+  if (colaboradoresCustoCache.length === 0) {
+    colaboradoresCustoCache = await Shell.chamarApi('/colaboradores-dados');
+  }
+  if (clientesCustoCache.length === 0) {
+    clientesCustoCache = await Shell.chamarApi('/clientes-dados');
+  }
+
+  // campos especificos de diaria - precisam ser preenchidos com o que ja estava salvo,
+  // senao a edicao "esquece" a cobertura e acaba salvando o beneficiario errado
+  document.getElementById('custo-colaborador-busca').value = custo.colaborador_nome || '';
+  document.getElementById('custo-colaborador-id').value = custo.colaborador_id || '';
+  document.getElementById('custo-cliente-busca').value = custo.cliente_nome || '';
+  document.getElementById('custo-cliente-id').value = custo.cliente_id || '';
+  document.getElementById('custo-cobertura-busca').value = custo.cobertura_colaborador_nome || '';
+  document.getElementById('custo-cobertura-id').value = custo.cobertura_colaborador_id || '';
+  document.getElementById('custo-status').innerHTML =
+    '<option value="">Selecione...</option>' + STATUS_DIARIA_CACHE.map((s) => `<option value="${s.chave}">${s.label}</option>`).join('');
+  document.getElementById('custo-status').value = custo.status_diaria || '';
+
+  alternarCamposPorTipo();
   document.getElementById('novo-custo-modal-overlay').hidden = false;
 }
 
@@ -341,17 +362,33 @@ async function salvarCusto(evento) {
   const botao = document.getElementById('custo-modal-enviar');
   erroBox.classList.remove('visible');
 
+  const ehDiaria = document.getElementById('custo-tipo').value === 'diaria';
+  if (ehDiaria) {
+    const temCoberturaSelecionada = custoIdEmEdicao
+      ? document.getElementById('custo-cobertura-busca').value.trim() !== ''
+      : document.getElementById('custo-cobertura-id').value !== '';
+    if (!temCoberturaSelecionada) {
+      erroBox.textContent = 'Selecione quem foi cobrir no campo Cobertura (escolha um nome da lista, não basta digitar).';
+      erroBox.classList.add('visible');
+      return;
+    }
+  }
+
   botao.disabled = true;
   botao.textContent = 'Salvando...';
 
   try {
     if (custoIdEmEdicao) {
+      const ehDiariaNaEdicao = document.getElementById('custo-tipo').value === 'diaria';
+      const nomeCobertura = document.getElementById('custo-cobertura-busca').value;
       const corpo = {
         tipo: document.getElementById('custo-tipo').value,
         valor: Number(document.getElementById('custo-valor').value),
         data: document.getElementById('custo-data').value,
         descricao: document.getElementById('custo-descricao').value || null,
-        nome_beneficiario: document.getElementById('custo-nome-beneficiario').value || null,
+        nome_beneficiario: ehDiariaNaEdicao
+          ? (nomeCobertura || null)
+          : (document.getElementById('custo-nome-beneficiario').value || null),
         chave_pix: document.getElementById('custo-chave-pix').value || null,
       };
       await Shell.chamarApi(`/custos-diarios-dados/${custoIdEmEdicao}`, { method: 'PATCH', body: corpo });

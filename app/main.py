@@ -2824,6 +2824,8 @@ def criar_custo_diario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
     if cliente_id is not None and db.get(Cliente, cliente_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+    if tipo == "diaria" and cobertura_colaborador_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Selecione quem foi cobrir (campo Cobertura)")
 
     cobertura = None
     if cobertura_colaborador_id is not None:
