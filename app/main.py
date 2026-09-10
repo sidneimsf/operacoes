@@ -311,6 +311,7 @@ def serializar_chamado(c: Chamado) -> dict:
         "acao_corretiva_arquivo_nome": c.acao_corretiva_arquivo_nome_original,
         "status": c.status,
         "aberto_por": c.aberto_por.nome,
+        "aberto_por_id": c.aberto_por_id,
         "responsavel_id": c.responsavel_id,
         "responsavel_nome": c.responsavel.nome if c.responsavel else None,
         "criado_em": c.criado_em.isoformat(),
@@ -1828,15 +1829,50 @@ def editar_chamado(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    """Edita campos gerais do chamado, como a acao corretiva - pode ser preenchida a qualquer momento."""
+    """Edita campos gerais do chamado. A acao corretiva pode ser preenchida por quem
+    pode ver o chamado, a qualquer momento. Os demais campos (tipo, prioridade,
+    descricao, cliente, colaborador) so podem ser corrigidos por quem abriu o
+    chamado ou pelo escritorio - serve pra corrigir um erro de preenchimento."""
     chamado = db.get(Chamado, chamado_id)
     if chamado is None or not _pode_ver_chamado(usuario, chamado):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
 
     campos = dados.model_dump(exclude_unset=True)
+
     if "acao_corretiva" in campos:
         valor = campos["acao_corretiva"]
         chamado.acao_corretiva = valor.strip() if valor else None
+
+    campos_basicos = {"tipo", "prioridade", "descricao", "cliente_id", "colaborador_id"}
+    if campos_basicos & campos.keys():
+        pode_editar_basico = chamado.aberto_por_id == usuario.id or usuario.papel == "escritorio"
+        if not pode_editar_basico:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Só quem abriu o chamado (ou o escritório) pode corrigir esses campos",
+            )
+
+        if "tipo" in campos:
+            if campos["tipo"] not in CHAVES_TIPO_VALIDAS:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo invalido")
+            chamado.tipo = campos["tipo"]
+        if "prioridade" in campos:
+            if campos["prioridade"] not in CHAVES_PRIORIDADE_VALIDAS:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Prioridade invalida")
+            chamado.prioridade = campos["prioridade"]
+        if "descricao" in campos:
+            nova_descricao = (campos["descricao"] or "").strip()
+            if not nova_descricao:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Descreva o chamado")
+            chamado.descricao = nova_descricao
+        if "cliente_id" in campos:
+            if db.get(Cliente, campos["cliente_id"]) is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+            chamado.cliente_id = campos["cliente_id"]
+        if "colaborador_id" in campos:
+            if campos["colaborador_id"] is not None and db.get(Colaborador, campos["colaborador_id"]) is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
+            chamado.colaborador_id = campos["colaborador_id"]
 
     db.commit()
     db.refresh(chamado)

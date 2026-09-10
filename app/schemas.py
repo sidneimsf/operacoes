@@ -21,6 +21,11 @@ class ChamadoStatusUpdate(BaseModel):
 
 class ChamadoEdicaoUpdate(BaseModel):
     acao_corretiva: str | None = None
+    tipo: str | None = None
+    prioridade: str | None = None
+    descricao: str | None = None
+    cliente_id: int | None = None
+    colaborador_id: int | None = None
 
 
 class ChamadoFinalizar(BaseModel):

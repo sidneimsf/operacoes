@@ -250,6 +250,7 @@ function renderizarTabela(chamados) {
           <button class="btn-ghost btn-acao-corretiva" data-id="${c.id}" data-acao="${(c.acao_corretiva || '').replace(/"/g, '&quot;')}" style="padding: 5px 10px; font-size: 12px;">
             ${c.acao_corretiva ? '✓ Ver ação' : '+ Ação corretiva'}
           </button>
+          ${(auth.id === c.aberto_por_id || auth.papel === 'escritorio') ? `<button class="btn-ghost btn-editar-chamado" data-id="${c.id}" style="padding: 5px 10px; font-size: 12px; margin-left: 4px;">Editar</button>` : ''}
           ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-chamado" data-id="${c.id}" style="padding: 5px 10px; font-size: 12px; color: var(--danger); margin-left: 4px;">Excluir</button>` : ''}
         </td>
       </tr>
@@ -268,6 +269,10 @@ function renderizarTabela(chamados) {
 
   container.querySelectorAll('.btn-acao-corretiva').forEach((botao) => {
     botao.addEventListener('click', () => abrirModalAcaoCorretiva(botao.dataset.id, botao.dataset.acao));
+  });
+
+  container.querySelectorAll('.btn-editar-chamado').forEach((botao) => {
+    botao.addEventListener('click', () => abrirModalEditarChamado(botao.dataset.id));
   });
 
   container.querySelectorAll('.btn-excluir-chamado').forEach((botao) => {
@@ -373,6 +378,166 @@ async function iniciar() {
   });
 
   carregarChamados();
+}
+
+let clientesEditarChamadoCache = [];
+let colaboradoresEditarChamadoCache = [];
+
+function montarModalEditarChamado() {
+  const html = `
+    <div class="modal-overlay" id="editar-chamado-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Editar chamado</h3>
+          <button class="modal-close" id="editar-chamado-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <form id="editar-chamado-form">
+          <div class="field">
+            <label for="editar-chamado-cliente-busca">Cliente</label>
+            <div class="busca-select">
+              <input type="text" id="editar-chamado-cliente-busca" placeholder="Digite pra buscar..." autocomplete="off">
+              <input type="hidden" id="editar-chamado-cliente-id">
+              <div class="busca-select-resultados" id="editar-chamado-cliente-resultados" hidden></div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="editar-chamado-colaborador-busca">Colaborador (opcional)</label>
+            <div class="busca-select">
+              <input type="text" id="editar-chamado-colaborador-busca" placeholder="Digite pra buscar, ou deixe em branco..." autocomplete="off">
+              <input type="hidden" id="editar-chamado-colaborador-id">
+              <div class="busca-select-resultados" id="editar-chamado-colaborador-resultados" hidden></div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="editar-chamado-tipo">Tipo de chamado</label>
+            <select id="editar-chamado-tipo"></select>
+          </div>
+          <div class="field">
+            <label for="editar-chamado-prioridade">Prioridade</label>
+            <select id="editar-chamado-prioridade"></select>
+          </div>
+          <div class="field">
+            <label for="editar-chamado-descricao">Descrição</label>
+            <textarea id="editar-chamado-descricao" rows="4"></textarea>
+          </div>
+          <div class="error-message" id="editar-chamado-modal-erro"></div>
+          <button type="submit" class="btn-primary" id="editar-chamado-modal-enviar">Salvar correção</button>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('editar-chamado-modal-fechar').addEventListener('click', () => {
+    document.getElementById('editar-chamado-modal-overlay').hidden = true;
+  });
+  document.getElementById('editar-chamado-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'editar-chamado-modal-overlay') document.getElementById('editar-chamado-modal-overlay').hidden = true;
+  });
+
+  ligarBuscaEditarChamado('editar-chamado-cliente', () => clientesEditarChamadoCache);
+  ligarBuscaEditarChamado('editar-chamado-colaborador', () => colaboradoresEditarChamadoCache);
+
+  document.getElementById('editar-chamado-form').addEventListener('submit', salvarEdicaoChamado);
+}
+
+function ligarBuscaEditarChamado(prefixo, obterLista) {
+  const input = document.getElementById(`${prefixo}-busca`);
+  const idInput = document.getElementById(`${prefixo}-id`);
+  const resultadosBox = document.getElementById(`${prefixo}-resultados`);
+  const container = input.closest('.busca-select');
+
+  function renderizar(termo) {
+    const lista = obterLista();
+    const termoNormalizado = termo.trim().toLowerCase();
+    const filtrados = termoNormalizado ? lista.filter((c) => c.nome.toLowerCase().includes(termoNormalizado)) : lista;
+    resultadosBox.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Nada encontrado.</div>'
+        : filtrados.slice(0, 50).map((c) => `<div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">${c.nome}</div>`).join('');
+    resultadosBox.hidden = false;
+  }
+
+  input.addEventListener('input', () => {
+    idInput.value = '';
+    renderizar(input.value);
+  });
+  input.addEventListener('focus', () => renderizar(input.value));
+  resultadosBox.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    idInput.value = item.dataset.id;
+    input.value = item.dataset.nome;
+    resultadosBox.hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!container.contains(evento.target)) resultadosBox.hidden = true;
+  });
+}
+
+async function abrirModalEditarChamado(chamadoId) {
+  const chamado = chamadosAtuais.find((c) => c.id === Number(chamadoId));
+  if (!chamado) return;
+  chamadoIdEmEdicaoBasico = chamadoId;
+
+  if (clientesEditarChamadoCache.length === 0) {
+    clientesEditarChamadoCache = await Shell.chamarApi('/clientes-dados');
+  }
+  if (colaboradoresEditarChamadoCache.length === 0) {
+    colaboradoresEditarChamadoCache = await Shell.chamarApi('/colaboradores-dados');
+  }
+
+  document.getElementById('editar-chamado-modal-erro').classList.remove('visible');
+  document.getElementById('editar-chamado-cliente-busca').value = chamado.cliente_nome;
+  document.getElementById('editar-chamado-cliente-id').value = chamado.cliente_id;
+  document.getElementById('editar-chamado-colaborador-busca').value = chamado.colaborador_nome || '';
+  document.getElementById('editar-chamado-colaborador-id').value = chamado.colaborador_id || '';
+  document.getElementById('editar-chamado-tipo').innerHTML = TIPOS.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
+  document.getElementById('editar-chamado-tipo').value = chamado.tipo;
+  document.getElementById('editar-chamado-prioridade').innerHTML = PRIORIDADES.map((p) => `<option value="${p.chave}">${p.label}</option>`).join('');
+  document.getElementById('editar-chamado-prioridade').value = chamado.prioridade;
+  document.getElementById('editar-chamado-descricao').value = chamado.descricao;
+
+  document.getElementById('editar-chamado-modal-overlay').hidden = false;
+}
+
+let chamadoIdEmEdicaoBasico = null;
+
+async function salvarEdicaoChamado(evento) {
+  evento.preventDefault();
+  const erroBox = document.getElementById('editar-chamado-modal-erro');
+  const botao = document.getElementById('editar-chamado-modal-enviar');
+  erroBox.classList.remove('visible');
+
+  const clienteIdValor = document.getElementById('editar-chamado-cliente-id').value;
+  if (!clienteIdValor) {
+    erroBox.textContent = 'Escolha um cliente da lista de busca.';
+    erroBox.classList.add('visible');
+    return;
+  }
+
+  const colaboradorIdValor = document.getElementById('editar-chamado-colaborador-id').value;
+  const corpo = {
+    cliente_id: Number(clienteIdValor),
+    colaborador_id: colaboradorIdValor ? Number(colaboradorIdValor) : null,
+    tipo: document.getElementById('editar-chamado-tipo').value,
+    prioridade: document.getElementById('editar-chamado-prioridade').value,
+    descricao: document.getElementById('editar-chamado-descricao').value,
+  };
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+  try {
+    await Shell.chamarApi(`/chamados-dados/${chamadoIdEmEdicaoBasico}/editar`, { method: 'PATCH', body: corpo });
+    document.getElementById('editar-chamado-modal-overlay').hidden = true;
+    carregarChamados();
+  } catch (erro) {
+    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.classList.add('visible');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = 'Salvar correção';
+  }
 }
 
 function montarModalAcaoCorretiva() {
@@ -498,6 +663,7 @@ async function abrirArquivoAcaoCorretiva(chamadoId) {
   }
 }
 
+montarModalEditarChamado();
 montarModalAcaoCorretiva();
 
 document.getElementById('acao-corretiva-arquivo-atual').addEventListener('click', (evento) => {
