@@ -990,14 +990,12 @@ button {
 .table-list {
   width: 100%;
   border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 780px) {
-  .table-list {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
   .table-list th,
   .table-list td {
     white-space: nowrap;
@@ -1363,6 +1361,7 @@ button {
 .chamado-descricao {
   color: var(--text-muted);
   font-size: 13px;
+  min-width: 200px;
   max-width: 260px;
 }
 
