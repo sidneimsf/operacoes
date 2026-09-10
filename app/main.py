@@ -3769,7 +3769,7 @@ def listar_tarefas(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    query = db.query(TarefaAgendada)
+    query = db.query(TarefaAgendada).filter(TarefaAgendada.criado_por_id == usuario.id)
     if data_inicio:
         query = query.filter(TarefaAgendada.data >= date.fromisoformat(data_inicio))
     if data_fim:
@@ -3787,7 +3787,11 @@ def tarefas_de_hoje(
     hoje = date.today()
     tarefas = (
         db.query(TarefaAgendada)
-        .filter(TarefaAgendada.data <= hoje, TarefaAgendada.concluida.is_(False))
+        .filter(
+            TarefaAgendada.criado_por_id == usuario.id,
+            TarefaAgendada.data <= hoje,
+            TarefaAgendada.concluida.is_(False),
+        )
         .order_by(TarefaAgendada.data.asc())
         .all()
     )
@@ -3824,7 +3828,7 @@ def editar_tarefa(
     usuario: Usuario = Depends(usuario_atual),
 ):
     tarefa = db.get(TarefaAgendada, tarefa_id)
-    if tarefa is None:
+    if tarefa is None or tarefa.criado_por_id != usuario.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa nao encontrada")
 
     campos = dados.model_dump(exclude_unset=True)
@@ -3852,7 +3856,7 @@ def excluir_tarefa(
     usuario: Usuario = Depends(usuario_atual),
 ):
     tarefa = db.get(TarefaAgendada, tarefa_id)
-    if tarefa is None:
+    if tarefa is None or tarefa.criado_por_id != usuario.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa nao encontrada")
     db.delete(tarefa)
     db.commit()

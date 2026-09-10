@@ -1,4 +1,4 @@
-const auth = Shell.montar('agendar', 'Agendar');
+const auth = Shell.montar('agendar', 'Agenda');
 
 const DIAS_SEMANA_LABEL = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MESES_LABEL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];

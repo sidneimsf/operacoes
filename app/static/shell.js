@@ -26,7 +26,7 @@ const Shell = (() => {
     { key: 'colaboradores', label: 'Colaboradores', href: '/colaboradores' },
     { key: 'ocorrencias', label: 'Ocorrências', href: '/ocorrencias' },
     { key: 'avisos', label: 'Avisos', href: '/avisos' },
-    { key: 'agendar', label: 'Agendar', href: '/agendar' },
+    { key: 'agendar', label: 'Agenda', href: '/agendar' },
     { key: 'custos-diarios', label: 'Custos Diários', href: '/custos-diarios' },
     { key: 'asos', label: 'ASOs', href: '/asos', papeis: ['escritorio'] },
     { key: 'veiculos', label: 'Veículos', href: '/veiculos', papeis: ['escritorio'] },
