@@ -1363,10 +1363,18 @@ button {
 .chamado-descricao {
   color: var(--text-muted);
   font-size: 13px;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 260px;
+}
+
+.btn-ver-mais-descricao {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  text-decoration: underline;
 }
 
 .status-select {
