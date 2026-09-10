@@ -1,17 +1,18 @@
 /*
- * Service worker minimo, focado em seguranca de dados: so cacheia
- * arquivos ESTATICOS (css, js, imagens, icones). Paginas HTML e
- * chamadas de API (chamados, clientes, colaboradores, etc.) NUNCA
- * passam por aqui - sempre vao direto pra rede, pra nunca mostrar uma
- * informacao desatualizada num sistema onde os dados mudam o tempo
- * todo.
+ * Service worker minimo, focado em seguranca de dados E em sempre
+ * mostrar a versao mais recente: so cacheia arquivos ESTATICOS (css,
+ * js, imagens, icones), e mesmo assim sempre tenta buscar a versao
+ * nova da rede PRIMEIRO - o cache so entra em acao se o dispositivo
+ * estiver genuinamente sem internet. Isso evita o problema classico
+ * de PWA mostrando uma tela antiga depois de uma atualizacao.
  *
- * O objetivo aqui e so permitir que o navegador considere o site
- * "instalavel" (adicionar a tela inicial) e deixar os arquivos
- * estaticos carregando mais rapido - nao e sobre funcionar offline.
+ * Paginas HTML e chamadas de API (chamados, clientes, colaboradores,
+ * etc.) NUNCA passam por aqui - sempre vao direto pra rede, pra nunca
+ * mostrar uma informacao desatualizada num sistema onde os dados
+ * mudam o tempo todo.
  */
 
-const CACHE_NAME = 'operacoes-static-v1';
+const CACHE_NAME = 'operacoes-static-v2';
 
 self.addEventListener('install', (evento) => {
   self.skipWaiting();
@@ -39,15 +40,11 @@ self.addEventListener('fetch', (evento) => {
   }
 
   evento.respondWith(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const respostaCache = await cache.match(evento.request);
-      const buscarDaRede = fetch(evento.request)
-        .then((respostaRede) => {
-          cache.put(evento.request, respostaRede.clone());
-          return respostaRede;
-        })
-        .catch(() => respostaCache);
-      return respostaCache || buscarDaRede;
-    })
+    fetch(evento.request)
+      .then((respostaRede) => {
+        caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, respostaRede.clone()));
+        return respostaRede;
+      })
+      .catch(() => caches.open(CACHE_NAME).then((cache) => cache.match(evento.request)))
   );
 });
