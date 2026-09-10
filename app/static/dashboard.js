@@ -158,17 +158,16 @@ function renderizarAvisoMeusChamados(meusChamados) {
 
 function renderizarLembretes(dados) {
   const container = document.getElementById('lembretes-aniversarios');
-  const { aniversarios_nascimento: nascimento, aniversarios_empresa: empresa } = dados;
-  const todos = [...nascimento, ...empresa];
+  const { aniversarios_nascimento: nascimento } = dados;
 
-  document.getElementById('contador-aniversarios').textContent = todos.length;
+  document.getElementById('contador-aniversarios').textContent = nascimento.length;
 
-  if (todos.length === 0) {
-    container.innerHTML = '<div class="empty-state">Ninguém faz aniversário este mês.</div>';
+  if (nascimento.length === 0) {
+    container.innerHTML = '<div class="empty-state">Ninguém mais faz aniversário este mês.</div>';
     return;
   }
 
-  const linhasNascimento = nascimento
+  container.innerHTML = nascimento
     .sort((a, b) => a.dia - b.dia)
     .map(
       (a) => `
@@ -183,27 +182,6 @@ function renderizarLembretes(dados) {
     `
     )
     .join('');
-
-  const linhasEmpresa = empresa
-    .sort((a, b) => a.dia - b.dia)
-    .map(
-      (a) => `
-      <div class="pessoa-linha">
-        ${avatarHtml(a.colaborador_nome)}
-        <div class="pessoa-info">
-          <a href="/colaborador-detalhe?id=${a.colaborador_id}">${a.colaborador_nome}</a>
-          <span class="pessoa-detalhe">${a.anos_completos} ano${a.anos_completos !== 1 ? 's' : ''} de empresa · dia ${String(a.dia).padStart(2, '0')}</span>
-        </div>
-        ${a.hoje ? '<span class="pessoa-tag" style="background: rgba(125,95,17,0.12); color: var(--accent);">hoje 🎉</span>' : ''}
-      </div>
-    `
-    )
-    .join('');
-
-  container.innerHTML = `
-    ${nascimento.length > 0 ? linhasNascimento : ''}
-    ${empresa.length > 0 ? linhasEmpresa : ''}
-  `;
 }
 
 async function carregarLembretes() {

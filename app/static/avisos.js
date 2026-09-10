@@ -59,10 +59,12 @@ async function abrirModalAviso() {
 
   const pessoas = await Shell.chamarApi('/pessoas');
   const selectDestinatario = document.getElementById('aviso-destinatario');
-  selectDestinatario.innerHTML = pessoas
-    .filter((p) => p.id !== auth.id)
-    .map((p) => `<option value="${p.id}">${p.nome} (${p.papel})</option>`)
-    .join('');
+  selectDestinatario.innerHTML =
+    `<option value="${auth.id}">Eu mesmo (lembrete pessoal)</option>` +
+    pessoas
+      .filter((p) => p.id !== auth.id)
+      .map((p) => `<option value="${p.id}">${p.nome} (${p.papel})</option>`)
+      .join('');
 
   document.getElementById('aviso-modal-overlay').hidden = false;
 }

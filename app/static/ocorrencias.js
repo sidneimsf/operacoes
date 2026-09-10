@@ -65,6 +65,13 @@ function formatarData(isoString) {
   return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function formatarDataHora(isoString) {
+  const data = new Date(isoString);
+  const dataFormatada = data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const horaFormatada = data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `${dataFormatada} ${horaFormatada}`;
+}
+
 function labelTipo(chave) {
   const encontrado = TIPOS.find((t) => t.chave === chave);
   return encontrado ? encontrado.label : chave;
@@ -230,7 +237,10 @@ function renderizarTabela(chamados) {
         <td><span class="priority-badge ${c.prioridade}">${labelPrioridade(c.prioridade)}</span></td>
         <td class="chamado-descricao" title="${c.descricao}">${c.descricao}</td>
         <td>${c.responsavel_nome || '—'}</td>
-        <td><span class="status-badge ${c.status}">${STATUS.find((s) => s.chave === c.status)?.label || c.status}</span></td>
+        <td>
+          <span class="status-badge ${c.status}">${STATUS.find((s) => s.chave === c.status)?.label || c.status}</span>
+          ${c.status === 'finalizado' && c.finalizado_em ? `<div class="meta" style="margin-top: 4px; font-size: 11px;">finalizado em ${formatarDataHora(c.finalizado_em)}</div>` : ''}
+        </td>
         <td>
           <select class="status-select" data-id="${c.id}" data-status-anterior="${c.status}" ${c.status === 'finalizado' ? 'disabled' : ''}>
             ${opcoesStatusHtml(c.status)}
@@ -276,12 +286,15 @@ function renderizarTabela(chamados) {
   });
 }
 
+let chamadosAtuais = [];
+
 async function carregarChamados() {
   const container = document.getElementById('lista-chamados');
   container.innerHTML = '<div class="loading-state">Carregando chamados...</div>';
   try {
     const chamados = await Shell.chamarApi(`/chamados-dados?${montarQueryString()}`);
     if (chamados === null) return;
+    chamadosAtuais = chamados;
     renderizarTabela(chamados);
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar os chamados agora.</div>';
@@ -375,6 +388,11 @@ function montarModalAcaoCorretiva() {
             <label for="acao-corretiva-texto">O que foi feito, qual método usado, etc.</label>
             <textarea id="acao-corretiva-texto" rows="5" placeholder="Descreva o que foi feito pra resolver esse chamado..."></textarea>
           </div>
+          <div class="field">
+            <label for="acao-corretiva-arquivo">Anexar documento (opcional, JPEG/PNG/PDF)</label>
+            <input type="file" id="acao-corretiva-arquivo" accept=".jpg,.jpeg,.png,.pdf">
+            <div class="meta" id="acao-corretiva-arquivo-atual" style="margin-top: 4px;"></div>
+          </div>
           <div class="error-message" id="acao-corretiva-modal-erro"></div>
           <button type="submit" class="btn-primary" id="acao-corretiva-modal-enviar">Salvar</button>
         </form>
@@ -397,7 +415,15 @@ let chamadoIdEmEdicaoAcao = null;
 function abrirModalAcaoCorretiva(chamadoId, acaoAtual) {
   chamadoIdEmEdicaoAcao = chamadoId;
   document.getElementById('acao-corretiva-texto').value = acaoAtual || '';
+  document.getElementById('acao-corretiva-arquivo').value = '';
   document.getElementById('acao-corretiva-modal-erro').classList.remove('visible');
+
+  const chamado = chamadosAtuais.find((c) => c.id === Number(chamadoId));
+  document.getElementById('acao-corretiva-arquivo-atual').innerHTML =
+    chamado && chamado.acao_corretiva_tem_arquivo
+      ? `Já tem um documento anexado: <a href="#" id="link-ver-arquivo-acao" data-id="${chamadoId}">${chamado.acao_corretiva_arquivo_nome}</a>. Escolher outro vai substituí-lo.`
+      : '';
+
   document.getElementById('acao-corretiva-modal-overlay').hidden = false;
 }
 
@@ -414,10 +440,27 @@ async function salvarAcaoCorretiva(evento) {
       method: 'PATCH',
       body: { acao_corretiva: document.getElementById('acao-corretiva-texto').value || null },
     });
+
+    const arquivo = document.getElementById('acao-corretiva-arquivo').files[0];
+    if (arquivo) {
+      const autenticacao = Shell.autenticacao();
+      const formData = new FormData();
+      formData.append('arquivo', arquivo);
+      const resposta = await fetch(`/chamados-dados/${chamadoIdEmEdicaoAcao}/acao-corretiva-arquivo`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+        body: formData,
+      });
+      if (!resposta.ok) {
+        const erroResposta = await resposta.json().catch(() => ({}));
+        throw new Error(erroResposta.detail || 'Falha ao enviar o arquivo');
+      }
+    }
+
     document.getElementById('acao-corretiva-modal-overlay').hidden = true;
     carregarChamados();
   } catch (erro) {
-    erroBox.textContent = 'Não foi possível salvar agora.';
+    erroBox.textContent = erro.message || 'Não foi possível salvar agora.';
     erroBox.classList.add('visible');
   } finally {
     botao.disabled = false;
@@ -439,5 +482,29 @@ async function excluirChamado(chamadoId) {
   }
 }
 
+async function abrirArquivoAcaoCorretiva(chamadoId) {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return;
+  try {
+    const resposta = await fetch(`/chamados-dados/${chamadoId}/acao-corretiva-arquivo`, {
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    });
+    if (!resposta.ok) throw new Error('Falha ao baixar arquivo');
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (erro) {
+    alert('Não foi possível abrir o arquivo agora.');
+  }
+}
+
 montarModalAcaoCorretiva();
+
+document.getElementById('acao-corretiva-arquivo-atual').addEventListener('click', (evento) => {
+  const link = evento.target.closest('#link-ver-arquivo-acao');
+  if (!link) return;
+  evento.preventDefault();
+  abrirArquivoAcaoCorretiva(link.dataset.id);
+});
+
 iniciar();

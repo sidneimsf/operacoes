@@ -55,6 +55,7 @@ def buscar_experiencia_painel(db: Session) -> list[dict]:
             }
         )
 
+    resultado.sort(key=lambda x: x["dias_restantes"])
     return resultado
 
 

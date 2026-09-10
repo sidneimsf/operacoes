@@ -307,6 +307,8 @@ def serializar_chamado(c: Chamado) -> dict:
         "prioridade": c.prioridade,
         "descricao": c.descricao,
         "acao_corretiva": c.acao_corretiva,
+        "acao_corretiva_tem_arquivo": c.acao_corretiva_arquivo_path is not None,
+        "acao_corretiva_arquivo_nome": c.acao_corretiva_arquivo_nome_original,
         "status": c.status,
         "aberto_por": c.aberto_por.nome,
         "responsavel_id": c.responsavel_id,
@@ -544,15 +546,14 @@ def _calcular_anos_completos(data_inicio: date, referencia: date) -> int:
 
 @app.get("/colaboradores-dados/lembretes")
 def lembretes_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
-    """Aniversariantes (nascimento) e aniversario de empresa (tempo de casa) do mes atual."""
+    """Aniversariantes de nascimento do mes atual que ainda vao fazer aniversario (ou fazem hoje)."""
     hoje = date.today()
     colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado").all()
 
     aniversarios_nascimento = []
-    aniversarios_empresa = []
 
     for c in colaboradores:
-        if c.aniversario_dia and c.aniversario_mes == hoje.month:
+        if c.aniversario_dia and c.aniversario_mes == hoje.month and c.aniversario_dia >= hoje.day:
             aniversarios_nascimento.append(
                 {
                     "colaborador_id": c.id,
@@ -563,25 +564,10 @@ def lembretes_colaboradores(db: Session = Depends(get_db), usuario: Usuario = De
                 }
             )
 
-        if c.data_admissao and c.data_admissao.month == hoje.month:
-            anos = _calcular_anos_completos(c.data_admissao, date(hoje.year, c.data_admissao.month, c.data_admissao.day))
-            aniversarios_empresa.append(
-                {
-                    "colaborador_id": c.id,
-                    "colaborador_nome": c.nome,
-                    "empresa_nome": c.empresa.nome,
-                    "dia": c.data_admissao.day,
-                    "anos_completos": anos,
-                    "hoje": c.data_admissao.day == hoje.day,
-                }
-            )
-
     aniversarios_nascimento.sort(key=lambda x: x["dia"])
-    aniversarios_empresa.sort(key=lambda x: x["dia"])
 
     return {
         "aniversarios_nascimento": aniversarios_nascimento,
-        "aniversarios_empresa": aniversarios_empresa,
     }
 
 
@@ -1189,6 +1175,41 @@ def editar_evento_colaborador(
     if tipo_final == "falta" and evento.data_fim < evento.data_inicio:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data final não pode ser antes da inicial")
 
+    db.commit()
+    db.refresh(evento)
+    return serializar_evento_colaborador(evento)
+
+
+@app.post("/colaboradores-dados/eventos/{evento_id}/arquivo")
+def anexar_arquivo_evento(
+    evento_id: int,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Anexa (ou substitui) o arquivo de um lancamento ja existente - usado ao editar."""
+    evento = db.get(ColaboradorEvento, evento_id)
+    if evento is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lancamento nao encontrado")
+
+    extensao = Path(arquivo.filename).suffix.lower()
+    if extensao not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF")
+    conteudo = arquivo.file.read()
+    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+
+    if evento.arquivo_path and os.path.exists(evento.arquivo_path):
+        os.remove(evento.arquivo_path)
+
+    pasta_colaborador = PASTA_UPLOADS / str(evento.colaborador_id)
+    pasta_colaborador.mkdir(parents=True, exist_ok=True)
+    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+    caminho_completo = pasta_colaborador / nome_arquivo
+    caminho_completo.write_bytes(conteudo)
+
+    evento.arquivo_path = str(caminho_completo)
+    evento.arquivo_nome_original = arquivo.filename
     db.commit()
     db.refresh(evento)
     return serializar_evento_colaborador(evento)
@@ -1822,7 +1843,52 @@ def editar_chamado(
     return serializar_chamado(chamado)
 
 
-@app.delete("/chamados-dados/{chamado_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.post("/chamados-dados/{chamado_id}/acao-corretiva-arquivo")
+def anexar_arquivo_acao_corretiva(
+    chamado_id: int,
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    chamado = db.get(Chamado, chamado_id)
+    if chamado is None or not _pode_ver_chamado(usuario, chamado):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
+
+    extensao = Path(arquivo.filename).suffix.lower()
+    if extensao not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF")
+    conteudo = arquivo.file.read()
+    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+
+    if chamado.acao_corretiva_arquivo_path and os.path.exists(chamado.acao_corretiva_arquivo_path):
+        os.remove(chamado.acao_corretiva_arquivo_path)
+
+    pasta_chamado = Path("uploads/chamados") / str(chamado_id)
+    pasta_chamado.mkdir(parents=True, exist_ok=True)
+    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+    caminho_completo = pasta_chamado / nome_arquivo
+    caminho_completo.write_bytes(conteudo)
+
+    chamado.acao_corretiva_arquivo_path = str(caminho_completo)
+    chamado.acao_corretiva_arquivo_nome_original = arquivo.filename
+    db.commit()
+    db.refresh(chamado)
+    return serializar_chamado(chamado)
+
+
+@app.get("/chamados-dados/{chamado_id}/acao-corretiva-arquivo")
+def baixar_arquivo_acao_corretiva(
+    chamado_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    chamado = db.get(Chamado, chamado_id)
+    if chamado is None or not _pode_ver_chamado(usuario, chamado):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
+    if not chamado.acao_corretiva_arquivo_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum arquivo anexado")
+    return FileResponse(chamado.acao_corretiva_arquivo_path, filename=chamado.acao_corretiva_arquivo_nome_original or "documento")
 def excluir_chamado(
     chamado_id: int,
     db: Session = Depends(get_db),
@@ -3731,6 +3797,18 @@ def relatorio_custos_diarios(
         key=lambda x: -x["total"],
     )
 
+    lista_cobertura_diarias = [
+        {
+            "data": c.data.isoformat(),
+            "colaborador_faltou_nome": c.colaborador.nome if c.colaborador_id else None,
+            "cobertura_colaborador_nome": c.cobertura_colaborador.nome if c.cobertura_colaborador_id else None,
+            "cliente_nome": c.cliente.nome if c.cliente_id else None,
+            "status_label": next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), c.status_diaria),
+        }
+        for c in custos
+        if c.tipo == "diaria"
+    ]
+
     return {
         "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
         "total_valor": round(total_valor, 2),
@@ -3739,6 +3817,7 @@ def relatorio_custos_diarios(
         "por_tipo": lista_por_tipo,
         "por_dia": lista_por_dia,
         "por_cliente": lista_por_cliente,
+        "cobertura_diarias": lista_cobertura_diarias,
         "movimentos": [
             {
                 "id": c.id,

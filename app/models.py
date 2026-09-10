@@ -36,6 +36,8 @@ class Chamado(Base):
     prioridade: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
     descricao: Mapped[str] = mapped_column(String(1000), nullable=False)
     acao_corretiva: Mapped[str | None] = mapped_column(String(1500), nullable=True)
+    acao_corretiva_arquivo_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    acao_corretiva_arquivo_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="novo")
     aberto_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     responsavel_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)

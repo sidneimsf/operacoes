@@ -282,6 +282,20 @@ function renderizarCustosDiarios(dados) {
     )
     .join('');
 
+  const linhasCobertura = dados.cobertura_diarias
+    .map(
+      (c) => `
+      <tr>
+        <td>${formatarDataBR(c.data)}</td>
+        <td>${c.cobertura_colaborador_nome || '—'}</td>
+        <td>${c.colaborador_faltou_nome || 'Posto vago'}</td>
+        <td>${c.cliente_nome || '—'}</td>
+        <td>${c.status_label || '—'}</td>
+      </tr>
+    `
+    )
+    .join('');
+
   container.innerHTML = `
     <div class="meta" style="margin-bottom: 20px;">Período: ${formatarDataBR(dados.periodo.inicio)} até ${formatarDataBR(dados.periodo.fim)}</div>
 
@@ -301,6 +315,13 @@ function renderizarCustosDiarios(dados) {
         ${barrasHtml(dados.por_cliente, 'cliente_nome', 'total')}
       </div>
     </div>
+
+    <div class="section-title" style="margin-top: 30px;">Cobertura de diárias (quem cobriu quem, onde)</div>
+    ${
+      dados.cobertura_diarias.length > 0
+        ? `<table class="table-list"><thead><tr><th>Data</th><th>Quem cobriu</th><th>Faltou/posto de</th><th>Cliente</th><th>Motivo</th></tr></thead><tbody>${linhasCobertura}</tbody></table>`
+        : '<div class="empty-state">Nenhuma diária no período.</div>'
+    }
 
     <div class="section-title" style="margin-top: 30px;">Detalhamento</div>
     ${

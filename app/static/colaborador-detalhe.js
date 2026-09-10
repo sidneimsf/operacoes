@@ -941,6 +941,11 @@ function montarModalEditarEvento() {
             <label for="editar-evento-data-fim">Data final</label>
             <input type="date" id="editar-evento-data-fim">
           </div>
+          <div class="field">
+            <label for="editar-evento-arquivo">Anexar arquivo (opcional, JPEG/PNG/PDF)</label>
+            <input type="file" id="editar-evento-arquivo" accept=".jpg,.jpeg,.png,.pdf">
+            <div class="meta" id="editar-evento-arquivo-atual" style="margin-top: 4px;"></div>
+          </div>
           <div class="error-message" id="editar-evento-modal-erro"></div>
           <button type="submit" class="btn-primary" id="editar-evento-modal-enviar">Salvar alterações</button>
         </form>
@@ -979,6 +984,10 @@ function abrirModalEditarEvento(eventoId) {
 
   const mostraDataFim = ['atestado', 'falta', 'ferias', 'aso'].includes(evento.tipo);
   document.getElementById('editar-campo-data-fim').hidden = !mostraDataFim;
+  document.getElementById('editar-evento-arquivo').value = '';
+  document.getElementById('editar-evento-arquivo-atual').textContent = evento.tem_arquivo
+    ? `Já tem um arquivo anexado (${evento.arquivo_nome_original || 'documento'}). Escolher outro vai substituí-lo.`
+    : '';
 
   document.getElementById('editar-evento-modal-overlay').hidden = false;
 }
@@ -1000,10 +1009,27 @@ async function salvarEdicaoEvento(evento) {
   botao.textContent = 'Salvando...';
   try {
     await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoIdEmEdicao}`, { method: 'PATCH', body: corpo });
+
+    const arquivo = document.getElementById('editar-evento-arquivo').files[0];
+    if (arquivo) {
+      const autenticacao = Shell.autenticacao();
+      const formData = new FormData();
+      formData.append('arquivo', arquivo);
+      const resposta = await fetch(`/colaboradores-dados/eventos/${eventoIdEmEdicao}/arquivo`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+        body: formData,
+      });
+      if (!resposta.ok) {
+        const erroResposta = await resposta.json().catch(() => ({}));
+        throw new Error(erroResposta.detail || 'Falha ao enviar o arquivo');
+      }
+    }
+
     document.getElementById('editar-evento-modal-overlay').hidden = true;
     carregarTimeline();
   } catch (erro) {
-    erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
+    erroBox.textContent = erro.message || erro.detalhe || 'Não foi possível salvar agora.';
     erroBox.classList.add('visible');
   } finally {
     botao.disabled = false;

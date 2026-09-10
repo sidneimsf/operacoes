@@ -193,16 +193,30 @@ function montarModalNovoCusto() {
   document.getElementById('novo-custo-form').addEventListener('submit', salvarCusto);
   document.getElementById('custo-tipo').addEventListener('change', alternarCamposPorTipo);
 
-  ligarBuscaGenerica('custo-colaborador', () => colaboradoresCustoCache);
-  ligarBuscaGenerica('custo-cliente', () => clientesCustoCache);
+  ligarBuscaGenerica('custo-colaborador', () => colaboradoresCustoCache, async (colaboradorId) => {
+    if (!colaboradorId) {
+      clientesFiltradosPorColaboradorCache = null;
+      return;
+    }
+    try {
+      const horarios = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/horarios`);
+      const clientesUnicos = new Map();
+      horarios.forEach((h) => clientesUnicos.set(h.cliente_id, { id: h.cliente_id, nome: h.cliente_nome }));
+      clientesFiltradosPorColaboradorCache = Array.from(clientesUnicos.values());
+    } catch (erro) {
+      clientesFiltradosPorColaboradorCache = null;
+    }
+  });
+  ligarBuscaGenerica('custo-cliente', () => clientesFiltradosPorColaboradorCache || clientesCustoCache);
   ligarBuscaGenerica('custo-cobertura', () => colaboradoresCustoCache);
 }
 
 let colaboradoresCustoCache = [];
 let clientesCustoCache = [];
+let clientesFiltradosPorColaboradorCache = null;
 let STATUS_DIARIA_CACHE = [];
 
-function ligarBuscaGenerica(prefixo, obterLista) {
+function ligarBuscaGenerica(prefixo, obterLista, aoSelecionar) {
   const input = document.getElementById(`${prefixo}-busca`);
   const idInput = document.getElementById(`${prefixo}-id`);
   const resultadosBox = document.getElementById(`${prefixo}-resultados`);
@@ -222,6 +236,7 @@ function ligarBuscaGenerica(prefixo, obterLista) {
   input.addEventListener('input', () => {
     idInput.value = '';
     renderizar(input.value);
+    if (aoSelecionar) aoSelecionar(null);
   });
   input.addEventListener('focus', () => renderizar(input.value));
   resultadosBox.addEventListener('click', (evento) => {
@@ -230,6 +245,7 @@ function ligarBuscaGenerica(prefixo, obterLista) {
     idInput.value = item.dataset.id;
     input.value = item.dataset.nome;
     resultadosBox.hidden = true;
+    if (aoSelecionar) aoSelecionar(item.dataset.id);
   });
   document.addEventListener('click', (evento) => {
     if (!container.contains(evento.target)) resultadosBox.hidden = true;
@@ -247,6 +263,7 @@ function alternarCamposPorTipo() {
 
 async function abrirModalNovoCusto() {
   custoIdEmEdicao = null;
+  clientesFiltradosPorColaboradorCache = null;
   document.getElementById('custo-modal-titulo').textContent = 'Lançar custo';
   document.getElementById('novo-custo-form').reset();
   document.getElementById('custo-tipo').innerHTML = TIPOS_CUSTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
