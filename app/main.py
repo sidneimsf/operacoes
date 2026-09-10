@@ -3780,7 +3780,7 @@ def relatorio_custos_diarios(
         por_tipo[c.tipo] = por_tipo.get(c.tipo, 0) + c.valor
         chave_dia = c.data.isoformat()
         por_dia[chave_dia] = por_dia.get(chave_dia, 0) + c.valor
-        if c.cliente_id:
+        if c.cliente:
             nome_cliente = c.cliente.nome
             por_cliente[nome_cliente] = por_cliente.get(nome_cliente, 0) + c.valor
 
@@ -3800,9 +3800,9 @@ def relatorio_custos_diarios(
     lista_cobertura_diarias = [
         {
             "data": c.data.isoformat(),
-            "colaborador_faltou_nome": c.colaborador.nome if c.colaborador_id else None,
-            "cobertura_colaborador_nome": c.cobertura_colaborador.nome if c.cobertura_colaborador_id else None,
-            "cliente_nome": c.cliente.nome if c.cliente_id else None,
+            "colaborador_faltou_nome": c.colaborador.nome if c.colaborador else None,
+            "cobertura_colaborador_nome": c.cobertura_colaborador.nome if c.cobertura_colaborador else None,
+            "cliente_nome": c.cliente.nome if c.cliente else None,
             "status_label": next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), c.status_diaria),
         }
         for c in custos
@@ -3822,14 +3822,14 @@ def relatorio_custos_diarios(
             {
                 "id": c.id,
                 "data": c.data.isoformat(),
-                "usuario_nome": c.usuario.nome,
+                "usuario_nome": c.usuario.nome if c.usuario else "—",
                 "tipo": c.tipo,
                 "tipo_label": next((x["label"] for x in TIPOS_CUSTO_DIARIO if x["chave"] == c.tipo), c.tipo),
                 "valor": c.valor,
-                "nome_beneficiario": c.nome_beneficiario or c.usuario.nome,
+                "nome_beneficiario": c.nome_beneficiario or (c.usuario.nome if c.usuario else "—"),
                 "chave_pix": c.chave_pix,
                 "descricao": c.descricao,
-                "cliente_nome": c.cliente.nome if c.cliente_id else None,
+                "cliente_nome": c.cliente.nome if c.cliente else None,
                 "reembolsado": c.reembolsado,
             }
             for c in custos

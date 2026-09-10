@@ -553,7 +553,8 @@ async function carregarRelatorio() {
       container.innerHTML = '<div class="empty-state">Esta área é restrita à equipe do escritório.</div>';
       return;
     }
-    container.innerHTML = '<div class="empty-state">Não foi possível carregar o relatório agora.</div>';
+    console.error('Erro ao carregar relatório:', erro);
+    container.innerHTML = `<div class="empty-state">Não foi possível carregar o relatório agora. ${erro.detalhe ? `(${erro.detalhe})` : ''}</div>`;
   }
 }
 
