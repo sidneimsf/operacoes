@@ -42,9 +42,9 @@ function renderizarLista(asos) {
     .map((a) => {
       const foiRealizadoAgora = !!recemRealizados[a.evento_id];
       const botaoRealizadoOuDesfazer = foiRealizadoAgora
-        ? `<button class="btn-ghost btn-aso-desfazer" data-evento-id="${a.evento_id}" style="padding: 5px 10px; font-size: 12px; color: var(--danger);">Desfazer</button>`
+        ? `<button class="btn-ghost btn-aso-desfazer" data-evento-id="${a.evento_id}" style="color: var(--danger);">Desfazer</button>`
         : a.situacao !== 'ok'
-        ? `<button class="btn-primary btn-aso-realizado" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" style="width: auto; padding: 5px 10px; font-size: 12px;">ASO Realizado</button>`
+        ? `<button class="btn-primary btn-aso-realizado" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}">ASO Realizado</button>`
         : '';
 
       return `
@@ -55,10 +55,10 @@ function renderizarLista(asos) {
         <td>${formatarData(a.data_exame)}</td>
         <td>${formatarData(a.data_vencimento)}</td>
         <td><span class="aso-badge ${a.situacao}">${labelSituacao(a.situacao, a.dias_restantes)}</span></td>
-        <td style="white-space: nowrap;">
+        <td class="celula-acoes-tabela">
           ${botaoRealizadoOuDesfazer}
-          <button class="btn-ghost btn-aso-editar" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" data-exame="${a.data_exame || ''}" data-vencimento="${a.data_vencimento || ''}" style="padding: 5px 10px; font-size: 12px;">Editar</button>
-          <button class="btn-ghost btn-aso-excluir" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" style="padding: 5px 10px; font-size: 12px;">Excluir</button>
+          <button class="btn-ghost btn-aso-editar" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}" data-exame="${a.data_exame || ''}" data-vencimento="${a.data_vencimento || ''}">Editar</button>
+          <button class="btn-ghost btn-aso-excluir" data-evento-id="${a.evento_id}" data-colaborador="${a.colaborador_nome}">Excluir</button>
         </td>
       </tr>
     `;

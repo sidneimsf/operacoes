@@ -43,12 +43,12 @@ function renderizarLista(custos) {
         ? `<a href="#" class="link-comprovante" data-custo-id="${c.id}">📎 ver</a>`
         : '—';
       const botaoReembolso = ehEscritorio
-        ? `<button class="btn-ghost btn-toggle-reembolso" data-custo-id="${c.id}" data-atual="${c.reembolsado}" style="padding: 4px 8px; font-size: 11.5px;">${c.reembolsado ? 'Desfazer' : 'Marcar reembolsado'}</button>`
+        ? `<button class="btn-ghost btn-toggle-reembolso" data-custo-id="${c.id}" data-atual="${c.reembolsado}">${c.reembolsado ? 'Desfazer' : 'Marcar reembolsado'}</button>`
         : '';
       const botoesEdicao = podeEditar
         ? `
-          <button class="btn-ghost btn-custo-editar" data-custo-id="${c.id}" style="padding: 4px 8px; font-size: 11.5px;">Editar</button>
-          <button class="btn-ghost btn-custo-excluir" data-custo-id="${c.id}" style="padding: 4px 8px; font-size: 11.5px;">Excluir</button>
+          <button class="btn-ghost btn-custo-editar" data-custo-id="${c.id}">Editar</button>
+          <button class="btn-ghost btn-custo-excluir" data-custo-id="${c.id}">Excluir</button>
         `
         : '';
 
@@ -63,7 +63,7 @@ function renderizarLista(custos) {
         <td>${c.cliente_nome || '—'}</td>
         <td>${linhaComprovante}</td>
         <td><span class="aso-badge ${c.reembolsado ? 'ok' : 'proximo'}">${c.reembolsado ? 'Reembolsado' : 'Pendente'}</span></td>
-        <td style="white-space: nowrap;">${botaoReembolso} ${botoesEdicao}</td>
+        <td class="celula-acoes-tabela">${botaoReembolso} ${botoesEdicao}</td>
       </tr>
     `;
     })
