@@ -312,7 +312,7 @@ function renderizarCustosDiarios(dados) {
       </div>
       <div class="dash-card">
         <div class="dash-card-header"><h3>Por cliente (onde mais teve custo)</h3></div>
-        ${barrasHtml(dados.por_cliente, 'cliente_nome', 'total')}
+        ${barrasHtml(dados.por_cliente.slice(0, 3), 'cliente_nome', 'total')}
       </div>
     </div>
 
