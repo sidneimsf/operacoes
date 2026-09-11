@@ -720,4 +720,14 @@ document.addEventListener('click', (evento) => {
   });
 });
 
+async function marcarOcorrenciasComoVistas() {
+  try {
+    await Shell.chamarApi('/chamados-dados/marcar-vistos', { method: 'POST' });
+    Shell.atualizarBadgeOcorrencias();
+  } catch (erro) {
+    // silencioso - nao impede o uso da tela
+  }
+}
+
 iniciar();
+marcarOcorrenciasComoVistas();

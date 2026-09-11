@@ -104,6 +104,7 @@ class Usuario(Base):
     disponivel_responsavel_chamado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     super_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # so Caroline e Sidnei - gerencia permissoes
     avisos_vistos_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ocorrencias_vistas_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     def __repr__(self) -> str:
@@ -223,6 +224,7 @@ class ColaboradorEvento(Base):
     colaborador_relacionado_id: Mapped[int | None] = mapped_column(
         ForeignKey("colaboradores.id"), nullable=True
     )
+    colaborador_relacionado_nome_manual: Mapped[str | None] = mapped_column(String(150), nullable=True)
     arquivo_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
     arquivo_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
     registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
@@ -529,3 +531,25 @@ class TarefaAgendada(Base):
 
     def __repr__(self) -> str:
         return f"<TarefaAgendada titulo={self.titulo} data={self.data}>"
+
+
+class VagaAberta(Base):
+    """
+    Mural de vagas de emprego em aberto - mesma logica visual do mural
+    de avisos, mas numa aba separada ("Vagas Abertas").
+    """
+    __tablename__ = "vagas_abertas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    titulo: Mapped[str] = mapped_column(String(150), nullable=False)
+    descricao: Mapped[str] = mapped_column(String(1500), nullable=False)
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
+    aberta: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    criado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    cliente: Mapped["Cliente | None"] = relationship()
+    criado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<VagaAberta titulo={self.titulo}>"

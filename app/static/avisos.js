@@ -23,12 +23,12 @@ function montarModalAviso() {
             <label>Enviar para</label>
             <div class="radio-group">
               <label><input type="radio" name="aviso-destino" value="todos" checked> Todos</label>
-              <label><input type="radio" name="aviso-destino" value="pessoa"> Uma pessoa</label>
+              <label><input type="radio" name="aviso-destino" value="pessoa"> Pessoas específicas</label>
             </div>
           </div>
           <div class="field" id="campo-destinatario" hidden>
-            <label for="aviso-destinatario">Quem?</label>
-            <select id="aviso-destinatario"></select>
+            <label>Quem? (marque uma ou mais)</label>
+            <div id="aviso-lista-destinatarios" class="lista-checkboxes"></div>
           </div>
           <div class="error-message" id="aviso-modal-erro"></div>
           <button type="submit" class="btn-primary" id="aviso-modal-enviar">Publicar aviso</button>
@@ -58,12 +58,12 @@ async function abrirModalAviso() {
   document.getElementById('aviso-modal-erro').classList.remove('visible');
 
   const pessoas = await Shell.chamarApi('/pessoas');
-  const selectDestinatario = document.getElementById('aviso-destinatario');
-  selectDestinatario.innerHTML =
-    `<option value="${auth.id}">Eu mesmo (lembrete pessoal)</option>` +
+  const listaDestinatarios = document.getElementById('aviso-lista-destinatarios');
+  listaDestinatarios.innerHTML =
+    `<label class="checkbox-linha"><input type="checkbox" value="${auth.id}"> Eu mesmo (lembrete pessoal)</label>` +
     pessoas
       .filter((p) => p.id !== auth.id)
-      .map((p) => `<option value="${p.id}">${p.nome} (${p.papel})</option>`)
+      .map((p) => `<label class="checkbox-linha"><input type="checkbox" value="${p.id}"> ${p.nome} (${p.papel})</label>`)
       .join('');
 
   document.getElementById('aviso-modal-overlay').hidden = false;
@@ -80,9 +80,20 @@ async function enviarAviso(evento) {
   erroBox.classList.remove('visible');
 
   const destino = document.querySelector('input[name="aviso-destino"]:checked').value;
+
+  let destinatarioIds = null;
+  if (destino === 'pessoa') {
+    destinatarioIds = Array.from(document.querySelectorAll('#aviso-lista-destinatarios input:checked')).map((c) => Number(c.value));
+    if (destinatarioIds.length === 0) {
+      erroBox.textContent = 'Marque ao menos uma pessoa.';
+      erroBox.classList.add('visible');
+      return;
+    }
+  }
+
   const corpo = {
     mensagem: document.getElementById('aviso-mensagem').value,
-    destinatario_id: destino === 'pessoa' ? Number(document.getElementById('aviso-destinatario').value) : null,
+    destinatario_ids: destinatarioIds,
   };
 
   botao.disabled = true;

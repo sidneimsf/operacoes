@@ -9,6 +9,7 @@ const Shell = (() => {
     ocorrencias: '<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/>',
     avisos: '<path d="M3 11v3a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M16 8a5 5 0 0 1 0 8M19 5a9 9 0 0 1 0 14"/>',
     agendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="8" cy="14.5" r="1"/><circle cx="12" cy="14.5" r="1"/><circle cx="16" cy="14.5" r="1"/>',
+    vagas: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
     usuarios: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>',
     asos: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><path d="M9 3h6v4H9z"/><path d="m9 14 2 2 4-4"/>',
     veiculos: '<path d="M5 17h14M5 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm14 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM5 17V9l2-4h10l2 4v8"/><path d="M5 12h14"/>',
@@ -26,6 +27,7 @@ const Shell = (() => {
     { key: 'colaboradores', label: 'Colaboradores', href: '/colaboradores' },
     { key: 'ocorrencias', label: 'Ocorrências', href: '/ocorrencias' },
     { key: 'avisos', label: 'Avisos', href: '/avisos' },
+    { key: 'vagas', label: 'Vagas Abertas', href: '/vagas' },
     { key: 'agendar', label: 'Agenda', href: '/agendar' },
     { key: 'custos-diarios', label: 'Custos Diários', href: '/custos-diarios' },
     { key: 'asos', label: 'ASOs', href: '/asos', papeis: ['escritorio'] },
@@ -149,6 +151,8 @@ const Shell = (() => {
     montarModalChamado();
     document.getElementById('btn-abrir-chamado').addEventListener('click', abrirModalChamado);
     atualizarBadgeAvisos();
+    atualizarBadgeOcorrencias();
+    setInterval(atualizarBadgeOcorrencias, 60000);
 
     return auth;
   }
@@ -166,6 +170,28 @@ const Shell = (() => {
 
       if (resultado.total > 0) {
         linkAvisos.insertAdjacentHTML(
+          'beforeend',
+          `<span class="nav-badge">${resultado.total > 9 ? '9+' : resultado.total}</span>`
+        );
+      }
+    } catch (erro) {
+      // silencioso: o balaozinho e' um extra, nao pode quebrar a navegacao
+    }
+  }
+
+  async function atualizarBadgeOcorrencias() {
+    try {
+      const resultado = await chamarApi('/chamados-dados/nao-vistos');
+      if (!resultado) return;
+
+      const linkOcorrencias = document.querySelector('.nav-item[href="/ocorrencias"]');
+      if (!linkOcorrencias) return;
+
+      const badgeExistente = linkOcorrencias.querySelector('.nav-badge');
+      if (badgeExistente) badgeExistente.remove();
+
+      if (resultado.total > 0) {
+        linkOcorrencias.insertAdjacentHTML(
           'beforeend',
           `<span class="nav-badge">${resultado.total > 9 ? '9+' : resultado.total}</span>`
         );
@@ -375,7 +401,7 @@ const Shell = (() => {
     }
   }
 
-  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, linkWhatsApp };
+  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, atualizarBadgeOcorrencias, linkWhatsApp };
 })();
 
 if ('serviceWorker' in navigator) {

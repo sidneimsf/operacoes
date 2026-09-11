@@ -751,8 +751,12 @@ function montarModalRegistro() {
             <input type="date" id="registro-data-fim">
           </div>
           <div class="field" id="campo-substituto" hidden>
-            <label for="registro-substituto">Quem cobriu?</label>
-            <select id="registro-substituto"><option value="">Selecione...</option></select>
+            <label for="registro-substituto-busca">Quem cobriu? (escolha da lista, ou digite o nome se for freelancer)</label>
+            <div class="busca-select">
+              <input type="text" id="registro-substituto-busca" placeholder="Digite pra buscar ou digite o nome..." autocomplete="off">
+              <input type="hidden" id="registro-substituto-id">
+              <div class="busca-select-resultados" id="registro-substituto-resultados" hidden></div>
+            </div>
           </div>
           <div class="field">
             <label for="registro-arquivo">Anexar documento (JPEG, PNG ou PDF)</label>
@@ -799,16 +803,54 @@ async function abrirModalRegistro() {
   selectTipo.innerHTML = TIPOS_EVENTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
 
   const colegas = await Shell.chamarApi(`/colaboradores-dados?empresa_id=${colaboradorAtual.empresa_id}&status_filtro=ativo`);
-  const selectSubstituto = document.getElementById('registro-substituto');
-  selectSubstituto.innerHTML =
-    '<option value="">Selecione...</option>' +
-    colegas
-      .filter((c) => c.id !== Number(colaboradorId))
-      .map((c) => `<option value="${c.id}">${c.nome}</option>`)
-      .join('');
+  colegasParaSubstitutoCache = colegas.filter((c) => c.id !== Number(colaboradorId));
+  document.getElementById('registro-substituto-busca').value = '';
+  document.getElementById('registro-substituto-id').value = '';
+  ligarBuscaSubstituto();
 
   atualizarCamposConformeTipo();
   document.getElementById('registro-modal-overlay').hidden = false;
+}
+
+let colegasParaSubstitutoCache = [];
+let buscaSubstitutoLigada = false;
+
+function ligarBuscaSubstituto() {
+  if (buscaSubstitutoLigada) return;
+  buscaSubstitutoLigada = true;
+
+  const input = document.getElementById('registro-substituto-busca');
+  const idInput = document.getElementById('registro-substituto-id');
+  const resultadosBox = document.getElementById('registro-substituto-resultados');
+  const container = input.closest('.busca-select');
+
+  function renderizar(termo) {
+    const termoNormalizado = termo.trim().toLowerCase();
+    const filtrados = termoNormalizado
+      ? colegasParaSubstitutoCache.filter((c) => c.nome.toLowerCase().includes(termoNormalizado))
+      : colegasParaSubstitutoCache;
+    resultadosBox.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Ninguém encontrado - pode digitar o nome mesmo assim, se for freelancer.</div>'
+        : filtrados.slice(0, 50).map((c) => `<div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">${c.nome}</div>`).join('');
+    resultadosBox.hidden = false;
+  }
+
+  input.addEventListener('input', () => {
+    idInput.value = '';
+    renderizar(input.value);
+  });
+  input.addEventListener('focus', () => renderizar(input.value));
+  resultadosBox.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    idInput.value = item.dataset.id;
+    input.value = item.dataset.nome;
+    resultadosBox.hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!container.contains(evento.target)) resultadosBox.hidden = true;
+  });
 }
 
 function fecharModalRegistro() {
@@ -831,8 +873,13 @@ async function enviarRegistro(evento) {
   const dataFim = document.getElementById('registro-data-fim').value;
   if (dataFim) formData.append('data_fim', dataFim);
 
-  const substituto = document.getElementById('registro-substituto').value;
-  if (substituto) formData.append('colaborador_relacionado_id', substituto);
+  const substitutoId = document.getElementById('registro-substituto-id').value;
+  const substitutoNomeDigitado = document.getElementById('registro-substituto-busca').value.trim();
+  if (substitutoId) {
+    formData.append('colaborador_relacionado_id', substitutoId);
+  } else if (substitutoNomeDigitado) {
+    formData.append('colaborador_relacionado_nome_manual', substitutoNomeDigitado);
+  }
 
   const arquivoInput = document.getElementById('registro-arquivo');
   if (arquivoInput.files.length > 0) {
@@ -866,10 +913,11 @@ function renderizarTimeline(eventos) {
   container.innerHTML = eventos
     .map((e) => {
       let linhaRelacionado = '';
-      if (e.colaborador_relacionado_nome) {
+      const nomeRelacionado = e.colaborador_relacionado_nome || e.colaborador_relacionado_nome_manual;
+      if (nomeRelacionado) {
         const texto = e.tipo === 'falta'
-          ? `Cobriu: ${e.colaborador_relacionado_nome}`
-          : `Substituiu: ${e.colaborador_relacionado_nome}`;
+          ? `Cobriu: ${nomeRelacionado}`
+          : `Substituiu: ${nomeRelacionado}`;
         linhaRelacionado = `<div class="evento-relacionado">${texto}</div>`;
       }
 

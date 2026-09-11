@@ -22,6 +22,7 @@ from models import (
     Cliente,
     ClienteCronograma,
     TarefaAgendada,
+    VagaAberta,
     Colaborador,
     ColaboradorEvento,
     CustoDiario,
@@ -43,6 +44,8 @@ from schemas import (
     ClienteCronogramaUpdate,
     TarefaAgendadaCreate,
     TarefaAgendadaUpdate,
+    VagaAbertaCreate,
+    VagaAbertaUpdate,
     ChamadoEdicaoUpdate,
     ChamadoFinalizar,
     ChamadoStatusUpdate,
@@ -439,6 +442,11 @@ def pagina_avisos():
 @app.get("/agendar", include_in_schema=False)
 def pagina_agendar():
     return FileResponse("static/agendar.html")
+
+
+@app.get("/vagas", include_in_schema=False)
+def pagina_vagas():
+    return FileResponse("static/vagas.html")
 
 
 @app.get("/cliente-detalhe", include_in_schema=False)
@@ -932,6 +940,7 @@ def serializar_evento_colaborador(e: ColaboradorEvento) -> dict:
         "data_fim": e.data_fim.isoformat() if e.data_fim else None,
         "colaborador_relacionado_id": e.colaborador_relacionado_id,
         "colaborador_relacionado_nome": e.colaborador_relacionado.nome if e.colaborador_relacionado else None,
+        "colaborador_relacionado_nome_manual": e.colaborador_relacionado_nome_manual,
         "tem_arquivo": e.arquivo_path is not None,
         "arquivo_nome_original": e.arquivo_nome_original,
         "registrado_por": e.registrado_por.nome,
@@ -1045,6 +1054,7 @@ def criar_evento_colaborador(
     data_inicio: str | None = Form(None),
     data_fim: str | None = Form(None),
     colaborador_relacionado_id: int | None = Form(None),
+    colaborador_relacionado_nome_manual: str | None = Form(None),
     arquivo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
@@ -1107,6 +1117,7 @@ def criar_evento_colaborador(
         data_inicio=data_inicio_obj,
         data_fim=data_fim_obj,
         colaborador_relacionado_id=colaborador_relacionado_id,
+        colaborador_relacionado_nome_manual=(colaborador_relacionado_nome_manual or "").strip() or None,
         arquivo_path=arquivo_path_salvo,
         arquivo_nome_original=arquivo_nome_original,
         registrado_por_id=usuario.id,
@@ -1168,6 +1179,13 @@ def editar_evento_colaborador(
         evento.data_inicio = date.fromisoformat(campos["data_inicio"]) if campos["data_inicio"] else None
     if "data_fim" in campos:
         evento.data_fim = date.fromisoformat(campos["data_fim"]) if campos["data_fim"] else None
+    if "colaborador_relacionado_id" in campos:
+        if campos["colaborador_relacionado_id"] is not None and db.get(Colaborador, campos["colaborador_relacionado_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador relacionado invalido")
+        evento.colaborador_relacionado_id = campos["colaborador_relacionado_id"]
+    if "colaborador_relacionado_nome_manual" in campos:
+        valor = campos["colaborador_relacionado_nome_manual"]
+        evento.colaborador_relacionado_nome_manual = valor.strip() if valor else None
 
     tipo_final = campos.get("tipo", evento.tipo)
     if tipo_final in ("atestado", "falta", "ferias") and evento.data_inicio is None:
@@ -1633,20 +1651,27 @@ def criar_aviso(
     if not mensagem:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Escreva uma mensagem")
 
-    if dados.destinatario_id is not None:
-        destinatario = db.get(Usuario, dados.destinatario_id)
-        if destinatario is None or not destinatario.ativo:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Destinatario invalido")
+    # Lista de destinatarios: aceita tanto o campo antigo (destinatario_id, um so)
+    # quanto o novo (destinatario_ids, varios). None/vazio = aviso pra todos.
+    ids_destinatarios = dados.destinatario_ids or ([dados.destinatario_id] if dados.destinatario_id is not None else [])
 
-    aviso = Aviso(
-        mensagem=mensagem,
-        criado_por_id=usuario.id,
-        destinatario_id=dados.destinatario_id,
-    )
+    if ids_destinatarios:
+        destinatarios = db.query(Usuario).filter(Usuario.id.in_(ids_destinatarios), Usuario.ativo.is_(True)).all()
+        if len(destinatarios) != len(set(ids_destinatarios)):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Um ou mais destinatarios sao invalidos")
+
+        avisos = [Aviso(mensagem=mensagem, criado_por_id=usuario.id, destinatario_id=destinatario_id) for destinatario_id in ids_destinatarios]
+        db.add_all(avisos)
+        db.commit()
+        for aviso in avisos:
+            db.refresh(aviso)
+        return [serializar_aviso(a) for a in avisos]
+
+    aviso = Aviso(mensagem=mensagem, criado_por_id=usuario.id, destinatario_id=None)
     db.add(aviso)
     db.commit()
     db.refresh(aviso)
-    return serializar_aviso(aviso)
+    return [serializar_aviso(aviso)]
 
 
 @app.get("/avisos-dados")
@@ -4003,4 +4028,123 @@ def excluir_tarefa(
     if tarefa is None or tarefa.criado_por_id != usuario.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tarefa nao encontrada")
     db.delete(tarefa)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Vagas Abertas (mural de vagas de emprego)
+# ---------------------------------------------------------------------------
+
+def serializar_vaga(v: VagaAberta) -> dict:
+    return {
+        "id": v.id,
+        "titulo": v.titulo,
+        "descricao": v.descricao,
+        "cliente_id": v.cliente_id,
+        "cliente_nome": v.cliente.nome if v.cliente else None,
+        "aberta": v.aberta,
+        "criado_por_id": v.criado_por_id,
+        "criado_por_nome": v.criado_por.nome,
+        "criado_em": v.criado_em.isoformat(),
+    }
+
+
+@app.get("/vagas-dados")
+def listar_vagas(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    vagas = db.query(VagaAberta).order_by(VagaAberta.aberta.desc(), VagaAberta.criado_em.desc()).all()
+    return [serializar_vaga(v) for v in vagas]
+
+
+@app.post("/vagas-dados", status_code=status.HTTP_201_CREATED)
+def criar_vaga(
+    dados: VagaAbertaCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    titulo = dados.titulo.strip()
+    descricao = dados.descricao.strip()
+    if not titulo or not descricao:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Preencha o título e a descrição")
+    if dados.cliente_id is not None and db.get(Cliente, dados.cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+
+    vaga = VagaAberta(titulo=titulo, descricao=descricao, cliente_id=dados.cliente_id, criado_por_id=usuario.id)
+    db.add(vaga)
+    db.commit()
+    db.refresh(vaga)
+    return serializar_vaga(vaga)
+
+
+@app.patch("/vagas-dados/{vaga_id}")
+def editar_vaga(
+    vaga_id: int,
+    dados: VagaAbertaUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    vaga = db.get(VagaAberta, vaga_id)
+    if vaga is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vaga nao encontrada")
+    if vaga.criado_por_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só quem criou (ou o escritório) pode editar essa vaga")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "titulo" in campos:
+        novo_titulo = campos["titulo"].strip()
+        if not novo_titulo:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Título não pode ficar vazio")
+        vaga.titulo = novo_titulo
+    if "descricao" in campos:
+        nova_descricao = campos["descricao"].strip()
+        if not nova_descricao:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Descrição não pode ficar vazia")
+        vaga.descricao = nova_descricao
+    if "cliente_id" in campos:
+        if campos["cliente_id"] is not None and db.get(Cliente, campos["cliente_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+        vaga.cliente_id = campos["cliente_id"]
+    if "aberta" in campos:
+        vaga.aberta = campos["aberta"]
+
+    db.commit()
+    db.refresh(vaga)
+    return serializar_vaga(vaga)
+
+
+@app.delete("/vagas-dados/{vaga_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_vaga(
+    vaga_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    vaga = db.get(VagaAberta, vaga_id)
+    if vaga is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vaga nao encontrada")
+    if vaga.criado_por_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só quem criou (ou o escritório) pode excluir essa vaga")
+    db.delete(vaga)
+    db.commit()
+
+
+@app.get("/chamados-dados/nao-vistos")
+def contar_chamados_nao_vistos(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Conta chamados visiveis pro usuario que foram criados ou tiveram o status
+    alterado desde a ultima vez que ele viu a tela de Ocorrencias - usado pro
+    balaozinho vermelho de notificacao no menu."""
+    query = db.query(Chamado)
+
+    if usuario.papel == "supervisor":
+        query = query.filter(
+            (Chamado.aberto_por_id == usuario.id) | (Chamado.responsavel_id == usuario.id)
+        )
+
+    if usuario.ocorrencias_vistas_em is not None:
+        query = query.filter(Chamado.atualizado_em > usuario.ocorrencias_vistas_em)
+
+    return {"total": query.count()}
+
+
+@app.post("/chamados-dados/marcar-vistos")
+def marcar_chamados_vistos(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    usuario.ocorrencias_vistas_em = datetime.now(timezone.utc)
     db.commit()

@@ -39,6 +39,7 @@ class ChamadoFinalizar(BaseModel):
 class AvisoCreate(BaseModel):
     mensagem: str
     destinatario_id: int | None = None
+    destinatario_ids: list[int] | None = None
 
 
 class ClienteCreate(BaseModel):
@@ -127,6 +128,8 @@ class ColaboradorEventoUpdate(BaseModel):
     descricao: str | None = None
     data_inicio: str | None = None
     data_fim: str | None = None
+    colaborador_relacionado_id: int | None = None
+    colaborador_relacionado_nome_manual: str | None = None
 
 
 class HorarioServicoCreate(BaseModel):
@@ -277,3 +280,16 @@ class TarefaAgendadaUpdate(BaseModel):
     descricao: str | None = None
     data: str | None = None
     concluida: bool | None = None
+
+
+class VagaAbertaCreate(BaseModel):
+    titulo: str
+    descricao: str
+    cliente_id: int | None = None
+
+
+class VagaAbertaUpdate(BaseModel):
+    titulo: str | None = None
+    descricao: str | None = None
+    cliente_id: int | None = None
+    aberta: bool | None = None
