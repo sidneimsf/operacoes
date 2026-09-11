@@ -327,6 +327,7 @@ class CustoDiario(Base):
     status_diaria: Mapped[str | None] = mapped_column(String(30), nullable=True)
     cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
     cobertura_colaborador_id: Mapped[int | None] = mapped_column(ForeignKey("colaboradores.id"), nullable=True)
+    freelancer_id: Mapped[int | None] = mapped_column(ForeignKey("freelancers.id"), nullable=True)
     comprovante_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
     comprovante_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
     reembolsado: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -337,6 +338,7 @@ class CustoDiario(Base):
     colaborador: Mapped["Colaborador | None"] = relationship(foreign_keys=[colaborador_id])
     cliente: Mapped["Cliente | None"] = relationship(foreign_keys=[cliente_id])
     cobertura_colaborador: Mapped["Colaborador | None"] = relationship(foreign_keys=[cobertura_colaborador_id])
+    freelancer: Mapped["Freelancer | None"] = relationship(foreign_keys=[freelancer_id])
 
     def __repr__(self) -> str:
         return f"<CustoDiario {self.tipo} - usuario {self.usuario_id} - R${self.valor}>"
@@ -553,3 +555,22 @@ class VagaAberta(Base):
 
     def __repr__(self) -> str:
         return f"<VagaAberta titulo={self.titulo}>"
+
+
+class Freelancer(Base):
+    """
+    Cadastro leve de freelancers/terceirizados que cobrem diarias -
+    NAO e um Colaborador (nao entram na folha de pagamento, recebem
+    por diaria avulsa). Guarda so nome e chave PIX, pra que na proxima
+    vez que a pessoa cobrir uma diaria, o PIX ja venha preenchido
+    automaticamente.
+    """
+    __tablename__ = "freelancers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nome: Mapped[str] = mapped_column(String(150), nullable=False)
+    chave_pix: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    def __repr__(self) -> str:
+        return f"<Freelancer nome={self.nome}>"

@@ -154,6 +154,7 @@ function montarModalNovoCusto() {
             <div class="busca-select">
               <input type="text" id="custo-cobertura-busca" placeholder="Digite o nome de quem cobriu..." autocomplete="off">
               <input type="hidden" id="custo-cobertura-id">
+              <input type="hidden" id="custo-freelancer-id">
               <div class="busca-select-resultados" id="custo-cobertura-resultados" hidden></div>
             </div>
           </div>
@@ -208,9 +209,70 @@ function montarModalNovoCusto() {
     }
   });
   ligarBuscaGenerica('custo-cliente', () => clientesFiltradosPorColaboradorCache || clientesCustoCache);
-  ligarBuscaGenerica('custo-cobertura', () => colaboradoresCustoCache);
+  ligarBuscaCobertura();
 }
 
+let freelancersCustoCache = [];
+
+function ligarBuscaCobertura() {
+  const input = document.getElementById('custo-cobertura-busca');
+  const idColaboradorInput = document.getElementById('custo-cobertura-id');
+  const idFreelancerInput = document.getElementById('custo-freelancer-id');
+  const resultadosBox = document.getElementById('custo-cobertura-resultados');
+  const container = input.closest('.busca-select');
+
+  function listaCombinada() {
+    const colaboradores = colaboradoresCustoCache.map((c) => ({ id: c.id, nome: c.nome, tipo: 'colaborador' }));
+    const freelancers = freelancersCustoCache.map((f) => ({ id: f.id, nome: f.nome, chave_pix: f.chave_pix, tipo: 'freelancer' }));
+    return [...colaboradores, ...freelancers];
+  }
+
+  function renderizar(termo) {
+    const termoNormalizado = termo.trim().toLowerCase();
+    const lista = listaCombinada();
+    const filtrados = termoNormalizado ? lista.filter((c) => c.nome.toLowerCase().includes(termoNormalizado)) : lista;
+    resultadosBox.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Ninguém encontrado - digite o nome mesmo assim, se for freelancer novo.</div>'
+        : filtrados
+            .slice(0, 50)
+            .map(
+              (c) =>
+                `<div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}" data-tipo="${c.tipo}" data-pix="${c.chave_pix || ''}">
+                  ${c.nome}${c.tipo === 'freelancer' ? ' <span class="meta">(freelancer)</span>' : ''}
+                </div>`
+            )
+            .join('');
+    resultadosBox.hidden = false;
+  }
+
+  input.addEventListener('input', () => {
+    idColaboradorInput.value = '';
+    idFreelancerInput.value = '';
+    renderizar(input.value);
+  });
+  input.addEventListener('focus', () => renderizar(input.value));
+  resultadosBox.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    input.value = item.dataset.nome;
+    resultadosBox.hidden = true;
+    if (item.dataset.tipo === 'freelancer') {
+      idColaboradorInput.value = '';
+      idFreelancerInput.value = item.dataset.id;
+      // ja cadastrado antes - preenche o PIX automaticamente
+      if (item.dataset.pix) {
+        document.getElementById('custo-chave-pix').value = item.dataset.pix;
+      }
+    } else {
+      idFreelancerInput.value = '';
+      idColaboradorInput.value = item.dataset.id;
+    }
+  });
+  document.addEventListener('click', (evento) => {
+    if (!container.contains(evento.target)) resultadosBox.hidden = true;
+  });
+}
 let colaboradoresCustoCache = [];
 let clientesCustoCache = [];
 let clientesFiltradosPorColaboradorCache = null;
@@ -277,6 +339,9 @@ async function abrirModalNovoCusto() {
   if (clientesCustoCache.length === 0) {
     clientesCustoCache = await Shell.chamarApi('/clientes-dados');
   }
+  if (freelancersCustoCache.length === 0) {
+    freelancersCustoCache = await Shell.chamarApi('/freelancers-dados');
+  }
   document.getElementById('custo-status').innerHTML =
     '<option value="">Selecione...</option>' + STATUS_DIARIA_CACHE.map((s) => `<option value="${s.chave}">${s.label}</option>`).join('');
 
@@ -308,6 +373,9 @@ async function abrirModalEditarCusto(custoId, custo) {
   }
   if (clientesCustoCache.length === 0) {
     clientesCustoCache = await Shell.chamarApi('/clientes-dados');
+  }
+  if (freelancersCustoCache.length === 0) {
+    freelancersCustoCache = await Shell.chamarApi('/freelancers-dados');
   }
 
   // campos especificos de diaria - precisam ser preenchidos com o que ja estava salvo,
@@ -393,6 +461,7 @@ async function salvarCusto(evento) {
     } else {
       const ehDiariaNaCriacao = document.getElementById('custo-tipo').value === 'diaria';
       const coberturaId = document.getElementById('custo-cobertura-id').value;
+      const freelancerId = document.getElementById('custo-freelancer-id').value;
       const nomeCoberturaDigitado = document.getElementById('custo-cobertura-busca').value;
 
       const formData = new FormData();
@@ -403,7 +472,7 @@ async function salvarCusto(evento) {
       formData.append(
         'nome_beneficiario',
         ehDiariaNaCriacao
-          ? (coberturaId ? '' : nomeCoberturaDigitado) // se selecionou da lista, o backend preenche automatico; senao, manda o nome digitado (freelancer)
+          ? (coberturaId || freelancerId ? '' : nomeCoberturaDigitado) // se selecionou da lista (colaborador ou freelancer), o backend preenche automatico; senao, manda o nome digitado (freelancer novo)
           : document.getElementById('custo-nome-beneficiario').value || ''
       );
       formData.append('chave_pix', document.getElementById('custo-chave-pix').value || '');
@@ -414,6 +483,7 @@ async function salvarCusto(evento) {
         if (colaboradorId) formData.append('colaborador_id', colaboradorId);
         if (clienteId) formData.append('cliente_id', clienteId);
         if (coberturaId) formData.append('cobertura_colaborador_id', coberturaId);
+        if (freelancerId) formData.append('freelancer_id', freelancerId);
         if (statusValor) formData.append('status_diaria', statusValor);
       }
       const arquivo = document.getElementById('custo-comprovante').files[0];

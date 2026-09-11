@@ -21,6 +21,7 @@ from models import (
     Chamado,
     Cliente,
     ClienteCronograma,
+    Freelancer,
     TarefaAgendada,
     VagaAberta,
     Colaborador,
@@ -2825,6 +2826,14 @@ def tipos_custo_diario(usuario: Usuario = Depends(usuario_atual)):
     return {"tipos": TIPOS_CUSTO_DIARIO, "status_diaria": STATUS_DIARIA}
 
 
+@app.get("/freelancers-dados")
+def listar_freelancers(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Freelancers/terceirizados ja cadastrados (nome + pix), pra busca em
+    'Quem cobriu' - nao sao Colaboradores, ficam num cadastro separado."""
+    freelancers = db.query(Freelancer).order_by(Freelancer.nome.asc()).all()
+    return [{"id": f.id, "nome": f.nome, "chave_pix": f.chave_pix} for f in freelancers]
+
+
 def serializar_custo(c: CustoDiario) -> dict:
     return {
         "id": c.id,
@@ -2844,6 +2853,8 @@ def serializar_custo(c: CustoDiario) -> dict:
         "cliente_nome": c.cliente.nome if c.cliente else None,
         "cobertura_colaborador_id": c.cobertura_colaborador_id,
         "cobertura_colaborador_nome": c.cobertura_colaborador.nome if c.cobertura_colaborador else None,
+        "freelancer_id": c.freelancer_id,
+        "freelancer_nome": c.freelancer.nome if c.freelancer else None,
         "tem_comprovante": c.comprovante_path is not None,
         "comprovante_nome_original": c.comprovante_nome_original,
         "reembolsado": c.reembolsado,
@@ -2882,6 +2893,7 @@ def criar_custo_diario(
     status_diaria: str | None = Form(None),
     cliente_id: int | None = Form(None),
     cobertura_colaborador_id: int | None = Form(None),
+    freelancer_id: int | None = Form(None),
     comprovante: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
@@ -2897,7 +2909,12 @@ def criar_custo_diario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
     if cliente_id is not None and db.get(Cliente, cliente_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
-    if tipo == "diaria" and cobertura_colaborador_id is None and not (nome_beneficiario or "").strip():
+    if (
+        tipo == "diaria"
+        and cobertura_colaborador_id is None
+        and freelancer_id is None
+        and not (nome_beneficiario or "").strip()
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Informe quem foi cobrir (escolha da lista, ou digite o nome se for freelancer/terceirizado)",
@@ -2910,6 +2927,30 @@ def criar_custo_diario(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador de cobertura invalido")
         # pra diaria, quem recebe o reembolso e quem foi cobrir - preenche automaticamente
         nome_beneficiario = cobertura.nome
+
+    if freelancer_id is not None:
+        freelancer = db.get(Freelancer, freelancer_id)
+        if freelancer is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Freelancer invalido")
+        # ja cadastrado antes - preenche nome e pix automaticamente com o que ja foi salvo
+        nome_beneficiario = freelancer.nome
+        if not (chave_pix or "").strip():
+            chave_pix = freelancer.chave_pix
+    elif tipo == "diaria" and cobertura_colaborador_id is None and (nome_beneficiario or "").strip():
+        # freelancer novo, digitado na hora - lembra pra da proxima vez o PIX ja vir preenchido
+        nome_digitado = nome_beneficiario.strip()
+        freelancer_existente = (
+            db.query(Freelancer).filter(func.lower(Freelancer.nome) == nome_digitado.lower()).first()
+        )
+        if freelancer_existente:
+            if (chave_pix or "").strip():
+                freelancer_existente.chave_pix = chave_pix.strip()
+            freelancer_id = freelancer_existente.id
+        elif (chave_pix or "").strip():
+            novo_freelancer = Freelancer(nome=nome_digitado, chave_pix=chave_pix.strip())
+            db.add(novo_freelancer)
+            db.flush()
+            freelancer_id = novo_freelancer.id
 
     comprovante_path_salvo = None
     comprovante_nome_original = None
@@ -2941,6 +2982,7 @@ def criar_custo_diario(
         status_diaria=status_diaria,
         cliente_id=cliente_id,
         cobertura_colaborador_id=cobertura_colaborador_id,
+        freelancer_id=freelancer_id,
         comprovante_path=comprovante_path_salvo,
         comprovante_nome_original=comprovante_nome_original,
     )
