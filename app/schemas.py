@@ -249,6 +249,7 @@ class EstoqueMovimentoCreate(BaseModel):
     quantidade: int
     motivo: str | None = None
     colaborador_id: int | None = None
+    entregue_para_nome_manual: str | None = None
 
 
 class AtividadeCronograma(BaseModel):

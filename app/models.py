@@ -381,6 +381,7 @@ class EstoqueMovimento(Base):
     quantidade: Mapped[int] = mapped_column(Integer, nullable=False)
     motivo: Mapped[str | None] = mapped_column(String(300), nullable=True)
     colaborador_id: Mapped[int | None] = mapped_column(ForeignKey("colaboradores.id"), nullable=True)
+    entregue_para_nome_manual: Mapped[str | None] = mapped_column(String(150), nullable=True)
     registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 

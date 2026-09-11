@@ -214,8 +214,12 @@ function montarModalMovimento() {
             <input type="number" id="movimento-quantidade" min="1" value="1" required>
           </div>
           <div class="field" id="campo-movimento-colaborador">
-            <label for="movimento-colaborador" id="label-movimento-colaborador">Entregue para</label>
-            <select id="movimento-colaborador"><option value="">Não informado</option></select>
+            <label for="movimento-colaborador-busca" id="label-movimento-colaborador">Entregue para</label>
+            <div class="busca-select">
+              <input type="text" id="movimento-colaborador-busca" placeholder="Digite pra buscar ou digite o nome..." autocomplete="off">
+              <input type="hidden" id="movimento-colaborador-id">
+              <div class="busca-select-resultados" id="movimento-colaborador-resultados" hidden></div>
+            </div>
           </div>
           <div class="field">
             <label for="movimento-motivo">Motivo / observação (opcional)</label>
@@ -248,12 +252,53 @@ function abrirModalMovimento(itemId, tipo) {
     tipo === 'entrada' ? `+ Entrada · ${item.tipo_peca} ${item.tamanho}` : `- Saída · ${item.tipo_peca} ${item.tamanho}`;
   document.getElementById('movimento-form').reset();
   document.getElementById('campo-movimento-colaborador').hidden = tipo !== 'saida';
-  document.getElementById('label-movimento-colaborador').textContent = tipo === 'saida' ? 'Entregue para (obrigatório)' : 'Entregue para';
-  document.getElementById('movimento-colaborador').innerHTML =
-    (tipo === 'saida' ? '<option value="">Selecione o colaborador...</option>' : '<option value="">Não informado</option>') +
-    colaboradoresCache.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('');
+  document.getElementById('label-movimento-colaborador').textContent =
+    tipo === 'saida' ? 'Entregue para (escolha da lista, ou digite o nome)' : 'Entregue para';
+  document.getElementById('movimento-colaborador-busca').value = '';
+  document.getElementById('movimento-colaborador-id').value = '';
+  ligarBuscaMovimentoColaborador();
   document.getElementById('movimento-modal-erro').classList.remove('visible');
   document.getElementById('movimento-modal-overlay').hidden = false;
+}
+
+let buscaMovimentoColaboradorLigada = false;
+
+function ligarBuscaMovimentoColaborador() {
+  if (buscaMovimentoColaboradorLigada) return;
+  buscaMovimentoColaboradorLigada = true;
+
+  const input = document.getElementById('movimento-colaborador-busca');
+  const idInput = document.getElementById('movimento-colaborador-id');
+  const resultadosBox = document.getElementById('movimento-colaborador-resultados');
+  const container = input.closest('.busca-select');
+
+  function renderizar(termo) {
+    const termoNormalizado = termo.trim().toLowerCase();
+    const filtrados = termoNormalizado
+      ? colaboradoresCache.filter((c) => c.nome.toLowerCase().includes(termoNormalizado))
+      : colaboradoresCache;
+    resultadosBox.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Ninguém encontrado - pode digitar o nome mesmo assim.</div>'
+        : filtrados.slice(0, 50).map((c) => `<div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">${c.nome}</div>`).join('');
+    resultadosBox.hidden = false;
+  }
+
+  input.addEventListener('input', () => {
+    idInput.value = '';
+    renderizar(input.value);
+  });
+  input.addEventListener('focus', () => renderizar(input.value));
+  resultadosBox.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    idInput.value = item.dataset.id;
+    input.value = item.dataset.nome;
+    resultadosBox.hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!container.contains(evento.target)) resultadosBox.hidden = true;
+  });
 }
 
 async function enviarMovimento(evento) {
@@ -262,9 +307,10 @@ async function enviarMovimento(evento) {
   const botao = document.getElementById('movimento-modal-enviar');
   erroBox.classList.remove('visible');
 
-  const colaboradorValor = document.getElementById('movimento-colaborador').value;
-  if (tipoMovimentoAtual === 'saida' && !colaboradorValor) {
-    erroBox.textContent = 'Escolha o colaborador que recebeu esse item.';
+  const colaboradorId = document.getElementById('movimento-colaborador-id').value;
+  const nomeDigitado = document.getElementById('movimento-colaborador-busca').value.trim();
+  if (tipoMovimentoAtual === 'saida' && !colaboradorId && !nomeDigitado) {
+    erroBox.textContent = 'Diga quem recebeu esse item (escolha da lista, ou digite o nome).';
     erroBox.classList.add('visible');
     return;
   }
@@ -273,7 +319,8 @@ async function enviarMovimento(evento) {
     tipo: tipoMovimentoAtual,
     quantidade: Number(document.getElementById('movimento-quantidade').value),
     motivo: document.getElementById('movimento-motivo').value || null,
-    colaborador_id: colaboradorValor ? Number(colaboradorValor) : null,
+    colaborador_id: colaboradorId ? Number(colaboradorId) : null,
+    entregue_para_nome_manual: colaboradorId ? null : (nomeDigitado || null),
   };
 
   botao.disabled = true;

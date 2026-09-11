@@ -3143,7 +3143,7 @@ def serializar_movimento_estoque(m: EstoqueMovimento) -> dict:
         "quantidade": m.quantidade,
         "motivo": m.motivo,
         "colaborador_id": m.colaborador_id,
-        "colaborador_nome": m.colaborador.nome if m.colaborador else None,
+        "colaborador_nome": (m.colaborador.nome if m.colaborador else None) or m.entregue_para_nome_manual,
         "registrado_por": m.registrado_por.nome,
         "criado_em": m.criado_em.isoformat(),
     }
@@ -3273,8 +3273,15 @@ def criar_movimento_estoque(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quantidade deve ser maior que zero")
     if dados.colaborador_id is not None and db.get(Colaborador, dados.colaborador_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
-    if dados.tipo == "saida" and dados.colaborador_id is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Toda saída precisa estar vinculada a um colaborador")
+    if (
+        dados.tipo == "saida"
+        and dados.colaborador_id is None
+        and not (dados.entregue_para_nome_manual or "").strip()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Toda saída precisa dizer quem recebeu (escolha da lista, ou digite o nome)",
+        )
 
     if dados.tipo == "saida" and dados.quantidade > item.quantidade_atual:
         raise HTTPException(
@@ -3288,6 +3295,7 @@ def criar_movimento_estoque(
         quantidade=dados.quantidade,
         motivo=dados.motivo.strip() if dados.motivo else None,
         colaborador_id=dados.colaborador_id,
+        entregue_para_nome_manual=(dados.entregue_para_nome_manual or "").strip() or None if dados.colaborador_id is None else None,
         registrado_por_id=usuario.id,
     )
     db.add(movimento)
@@ -3590,6 +3598,9 @@ def relatorio_horas_trabalhadas(
         "por_colaborador": lista_colaboradores,
         "por_cliente": lista_clientes,
     }
+
+
+@app.get("/relatorios-dados/faltas-atestados")
 def relatorio_faltas_atestados(
     data_inicio: str | None = None,
     data_fim: str | None = None,
@@ -3698,7 +3709,7 @@ def relatorio_movimentacao_estoque(
                 "item": f"{m.item.tipo_peca} {m.item.tamanho}",
                 "empresa_nome": m.item.empresa.nome if m.item.empresa_id else "Geral",
                 "quantidade": m.quantidade,
-                "colaborador_nome": m.colaborador.nome if m.colaborador else None,
+                "colaborador_nome": (m.colaborador.nome if m.colaborador else None) or m.entregue_para_nome_manual,
                 "motivo": m.motivo,
                 "registrado_por": m.registrado_por.nome,
             }
