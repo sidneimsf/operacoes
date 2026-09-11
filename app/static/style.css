@@ -995,11 +995,14 @@ button {
   -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 780px) {
-  .table-list th,
-  .table-list td {
-    white-space: nowrap;
-  }
+.table-list th,
+.table-list td {
+  white-space: nowrap;
+}
+
+.chamado-descricao,
+.chamado-descricao * {
+  white-space: normal;
 }
 
 .table-list th {

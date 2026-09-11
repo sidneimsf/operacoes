@@ -312,6 +312,7 @@ def serializar_chamado(c: Chamado) -> dict:
         "status": c.status,
         "aberto_por": c.aberto_por.nome,
         "aberto_por_id": c.aberto_por_id,
+        "aberto_por_id": c.aberto_por_id,
         "responsavel_id": c.responsavel_id,
         "responsavel_nome": c.responsavel.nome if c.responsavel else None,
         "criado_em": c.criado_em.isoformat(),
@@ -1832,7 +1833,7 @@ def editar_chamado(
     """Edita campos gerais do chamado. A acao corretiva pode ser preenchida por quem
     pode ver o chamado, a qualquer momento. Os demais campos (tipo, prioridade,
     descricao, cliente, colaborador) so podem ser corrigidos por quem abriu o
-    chamado ou pelo escritorio - serve pra corrigir um erro de preenchimento."""
+    chamado - serve pra corrigir um erro de preenchimento."""
     chamado = db.get(Chamado, chamado_id)
     if chamado is None or not _pode_ver_chamado(usuario, chamado):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
@@ -1845,11 +1846,11 @@ def editar_chamado(
 
     campos_basicos = {"tipo", "prioridade", "descricao", "cliente_id", "colaborador_id"}
     if campos_basicos & campos.keys():
-        pode_editar_basico = chamado.aberto_por_id == usuario.id or usuario.papel == "escritorio"
+        pode_editar_basico = chamado.aberto_por_id == usuario.id
         if not pode_editar_basico:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Só quem abriu o chamado (ou o escritório) pode corrigir esses campos",
+                detail="Só quem abriu o chamado pode corrigir esses campos",
             )
 
         if "tipo" in campos:
@@ -1925,14 +1926,25 @@ def baixar_arquivo_acao_corretiva(
     if not chamado.acao_corretiva_arquivo_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum arquivo anexado")
     return FileResponse(chamado.acao_corretiva_arquivo_path, filename=chamado.acao_corretiva_arquivo_nome_original or "documento")
+
+
+@app.delete("/chamados-dados/{chamado_id}", status_code=status.HTTP_204_NO_CONTENT)
 def excluir_chamado(
     chamado_id: int,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_modulo("excluir_registros")),
+    usuario: Usuario = Depends(usuario_atual),
 ):
     chamado = db.get(Chamado, chamado_id)
     if chamado is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chamado nao encontrado")
+
+    pode_excluir = chamado.aberto_por_id == usuario.id or tem_permissao(db, usuario, "excluir_registros")
+    if not pode_excluir:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Só quem abriu o chamado (ou quem tem permissão de excluir registros) pode excluir",
+        )
+
     db.delete(chamado)
     db.commit()
 

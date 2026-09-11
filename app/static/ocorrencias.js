@@ -263,7 +263,7 @@ function renderizarTabela(chamados) {
               ${c.acao_corretiva ? '✓ Ver ação' : '+ Ação corretiva'}
             </button>
             ${auth.id === c.aberto_por_id ? `<button class="btn-ghost btn-editar-chamado" data-id="${c.id}">Editar</button>` : ''}
-            ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-chamado" data-id="${c.id}" style="color: var(--danger);">Excluir</button>` : ''}
+            ${(auth.id === c.aberto_por_id || auth.papel === 'escritorio') ? `<button class="btn-ghost btn-excluir-chamado" data-id="${c.id}" style="color: var(--danger);">Excluir</button>` : ''}
           </div>
         </td>
       </tr>
