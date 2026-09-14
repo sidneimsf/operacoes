@@ -4212,3 +4212,47 @@ def contar_chamados_nao_vistos(db: Session = Depends(get_db), usuario: Usuario =
 def marcar_chamados_vistos(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     usuario.ocorrencias_vistas_em = datetime.now(timezone.utc)
     db.commit()
+
+
+@app.get("/relatorios-dados/postos-vagos")
+def relatorio_postos_vagos(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    """Clientes ativos que hoje nao tem nenhum colaborador atendendo (nenhum
+    horario ativo no Mapa de Servico) - util pra saber quais postos estao
+    vagos e desde quando/por que motivo (baseado no ultimo encerramento
+    registrado no historico)."""
+    clientes_ativos = db.query(Cliente).filter(Cliente.ativo.is_(True)).all()
+
+    clientes_com_horario_ativo = {
+        cliente_id
+        for (cliente_id,) in db.query(HorarioServico.cliente_id)
+        .filter(HorarioServico.data_fim.is_(None))
+        .distinct()
+        .all()
+    }
+
+    postos_vagos = []
+    for cliente in clientes_ativos:
+        if cliente.id in clientes_com_horario_ativo:
+            continue
+
+        ultimo_encerramento = (
+            db.query(HistoricoMapaServico)
+            .filter(HistoricoMapaServico.cliente_id == cliente.id, HistoricoMapaServico.tipo_evento == "encerrado")
+            .order_by(HistoricoMapaServico.criado_em.desc())
+            .first()
+        )
+
+        postos_vagos.append({
+            "cliente_id": cliente.id,
+            "cliente_nome": cliente.nome,
+            "empresa_nome": cliente.empresa.nome,
+            "ultimo_colaborador_nome": ultimo_encerramento.colaborador.nome if ultimo_encerramento else None,
+            "motivo": ultimo_encerramento.motivo if ultimo_encerramento else None,
+            "vago_desde": ultimo_encerramento.criado_em.isoformat() if ultimo_encerramento else None,
+        })
+
+    postos_vagos.sort(key=lambda p: p["vago_desde"] or "")
+    return {"total": len(postos_vagos), "postos": postos_vagos}

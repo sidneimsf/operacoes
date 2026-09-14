@@ -86,6 +86,7 @@ function trocarAba(aba) {
   document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas';
   document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas' && aba !== 'horas' && aba !== 'estoque';
   document.getElementById('campo-select-tipo-custo').hidden = aba !== 'custos';
+  document.getElementById('filtros-geral').hidden = aba === 'postos-vagos';
   carregarRelatorio();
 }
 
@@ -243,6 +244,37 @@ function renderizarPorColaborador(dados) {
       dados.eventos.length > 0
         ? `<table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead><tbody>${linhasEventos}</tbody></table>`
         : '<div class="empty-state">Nenhum registro nesse período.</div>'
+    }
+  `;
+}
+
+function renderizarPostosVagos(dados) {
+  const container = document.getElementById('relatorio-conteudo');
+
+  const linhas = dados.postos
+    .map(
+      (p) => `
+      <tr>
+        <td><a href="/cliente-detalhe?id=${p.cliente_id}">${p.cliente_nome}</a></td>
+        <td>${p.empresa_nome}</td>
+        <td>${p.ultimo_colaborador_nome || '—'}</td>
+        <td>${p.motivo || '—'}</td>
+        <td>${p.vago_desde ? formatarDataBR(p.vago_desde.slice(0, 10)) : '—'}</td>
+      </tr>
+    `
+    )
+    .join('');
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">postos vagos agora</div><div class="value">${dados.total}</div></div>
+    </div>
+
+    <div class="section-title" style="margin-top: 30px;">Clientes sem colaborador atendendo</div>
+    ${
+      dados.postos.length > 0
+        ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Último colaborador</th><th>Motivo</th><th>Vago desde</th></tr></thead><tbody>${linhas}</tbody></table>`
+        : '<div class="empty-state">Nenhum posto vago no momento. 🎉</div>'
     }
   `;
 }
@@ -547,6 +579,11 @@ async function carregarRelatorio() {
       if (dados === null) return;
       dadosAtuais = dados;
       renderizarCustosDiarios(dados);
+    } else if (abaAtual === 'postos-vagos') {
+      const dados = await Shell.chamarApi('/relatorios-dados/postos-vagos');
+      if (dados === null) return;
+      dadosAtuais = dados;
+      renderizarPostosVagos(dados);
     }
   } catch (erro) {
     if (erro.status === 403) {
