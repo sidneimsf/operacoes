@@ -54,8 +54,8 @@ async function carregarAlertaPostosVagos() {
         return `
         <div class="alerta-posto-vago-item">
           <span class="alerta-posto-vago-texto ${a.confirmado ? 'confirmado' : ''}">⚠ Amanhã o cliente <strong>${a.cliente_nome}</strong> está com posto vago (${turnoLabel})</span>
-          <button class="btn-confirmar-posto-vago" data-cliente-id="${a.cliente_id}" ${a.confirmado ? 'disabled' : ''}>
-            ${a.confirmado ? '✓ Confirmado' : 'Confirmar ciência'}
+          <button class="btn-confirmar-posto-vago ${a.confirmado ? 'ja-confirmado' : ''}" data-cliente-id="${a.cliente_id}">
+            ${a.confirmado ? '✓ Confirmado (desfazer)' : 'Confirmar ciência'}
           </button>
         </div>
       `;
@@ -78,8 +78,9 @@ async function carregarAlertaPostosVagos() {
 
     container.querySelectorAll('.btn-confirmar-posto-vago').forEach((botao) => {
       botao.addEventListener('click', async () => {
+        const textoOriginal = botao.textContent;
         botao.disabled = true;
-        botao.textContent = 'Confirmando...';
+        botao.textContent = 'Salvando...';
         try {
           await Shell.chamarApi('/dashboard/confirmar-posto-vago-amanha', {
             method: 'POST',
@@ -88,7 +89,7 @@ async function carregarAlertaPostosVagos() {
           carregarAlertaPostosVagos();
         } catch (erro) {
           botao.disabled = false;
-          botao.textContent = 'Confirmar ciência';
+          botao.textContent = textoOriginal;
         }
       });
     });

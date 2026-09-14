@@ -2296,3 +2296,12 @@ button {
   opacity: 0.5;
   cursor: default;
 }
+
+.btn-confirmar-posto-vago.ja-confirmado {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.btn-confirmar-posto-vago.ja-confirmado:hover {
+  background: rgba(92, 184, 138, 0.1);
+}

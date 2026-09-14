@@ -4345,5 +4345,8 @@ def confirmar_posto_vago_amanha(
     if ja_confirmado is None:
         db.add(ConfirmacaoPostoVago(cliente_id=cliente_id, data_alvo=amanha, confirmado_por_id=usuario.id))
         db.commit()
-
-    return {"confirmado": True}
+        return {"confirmado": True}
+    else:
+        db.delete(ja_confirmado)
+        db.commit()
+        return {"confirmado": False}
