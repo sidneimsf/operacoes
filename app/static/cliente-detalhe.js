@@ -140,7 +140,7 @@ async function carregarColaboradoresAgrupados() {
   if (colaboradoresAgrupadosCache) return colaboradoresAgrupadosCache;
   const [empresas, colaboradores] = await Promise.all([
     Shell.chamarApi('/empresas'),
-    Shell.chamarApi('/colaboradores-dados'),
+    Shell.chamarApi('/colaboradores-dados?incluir_posto_vago=true'),
   ]);
   colaboradoresAgrupadosCache = empresas.map((e) => ({
     empresa: e.nome,
