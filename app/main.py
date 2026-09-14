@@ -1022,7 +1022,18 @@ def editar_colaborador(
     if "status" in campos:
         if campos["status"] not in ("ativo", "afastado", "desligado"):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status invalido")
+        status_anterior = colaborador.status
         colaborador.status = campos["status"]
+        if campos["status"] in ("afastado", "desligado") and status_anterior == "ativo":
+            horarios_ativos = (
+                db.query(HorarioServico)
+                .filter(HorarioServico.colaborador_id == colaborador.id, HorarioServico.data_fim.is_(None))
+                .all()
+            )
+            motivo = "Colaborador desligado" if campos["status"] == "desligado" else "Colaborador afastado"
+            for h in horarios_ativos:
+                h.data_fim = date.today()
+                _registrar_evento_mapa_servico(db, h, "encerrado", usuario.id, motivo=motivo)
     if "data_desligamento" in campos:
         valor = campos["data_desligamento"]
         colaborador.data_desligamento = date.fromisoformat(valor) if valor else None
