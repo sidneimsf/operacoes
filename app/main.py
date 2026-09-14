@@ -4304,7 +4304,7 @@ def alerta_postos_vagos_amanha(db: Session = Depends(get_db), usuario: Usuario =
             HorarioServico.dia_semana == dia_semana_amanha,
         )
         .join(Cliente)
-        .filter(Cliente.ativo.is_(True))
+        .filter(Cliente.ativo.is_(True), Cliente.supervisor_id == usuario.id)
         .all()
     )
 
