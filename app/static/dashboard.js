@@ -39,6 +39,64 @@ function formatarDataCurtaBR(dataISO) {
   return `${dia}/${mes}`;
 }
 
+async function carregarAlertaPostosVagos() {
+  const container = document.getElementById('aviso-postos-vagos');
+  try {
+    const dados = await Shell.chamarApi('/dashboard/postos-vagos-amanha');
+    if (!dados || dados.total === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const itensHtml = dados.avisos
+      .map((a) => {
+        const turnoLabel = a.turno === 'manha' ? 'manhã' : 'tarde';
+        return `
+        <div class="alerta-posto-vago-item">
+          <span class="alerta-posto-vago-texto ${a.confirmado ? 'confirmado' : ''}">⚠ Amanhã o cliente <strong>${a.cliente_nome}</strong> está com posto vago (${turnoLabel})</span>
+          <button class="btn-confirmar-posto-vago" data-cliente-id="${a.cliente_id}" ${a.confirmado ? 'disabled' : ''}>
+            ${a.confirmado ? '✓ Confirmado' : 'Confirmar ciência'}
+          </button>
+        </div>
+      `;
+      })
+      .join('');
+
+    container.innerHTML = `
+      <div class="alerta-tarefas">
+        <svg class="alerta-tarefas-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div class="alerta-tarefas-conteudo">
+          <div class="alerta-tarefas-titulo">${dados.total === 1 ? 'Aviso pra amanhã' : `${dados.total} avisos pra amanhã`}</div>
+          ${itensHtml}
+        </div>
+      </div>
+    `;
+
+    container.querySelectorAll('.btn-confirmar-posto-vago').forEach((botao) => {
+      botao.addEventListener('click', async () => {
+        botao.disabled = true;
+        botao.textContent = 'Confirmando...';
+        try {
+          await Shell.chamarApi('/dashboard/confirmar-posto-vago-amanha', {
+            method: 'POST',
+            body: { cliente_id: Number(botao.dataset.clienteId) },
+          });
+          carregarAlertaPostosVagos();
+        } catch (erro) {
+          botao.disabled = false;
+          botao.textContent = 'Confirmar ciência';
+        }
+      });
+    });
+  } catch (erro) {
+    container.innerHTML = '';
+  }
+}
+
 async function carregarAlertaTarefas() {
   const container = document.getElementById('aviso-tarefas');
   try {
@@ -257,6 +315,7 @@ async function iniciar() {
 
     renderizarAvisoMeusChamados(resumo.meus_chamados);
     renderizarAvisoConfirmar(resumo.chamados_para_confirmar);
+    carregarAlertaPostosVagos();
     carregarAlertaTarefas();
 
     const container = document.getElementById('breakdown-empresas');

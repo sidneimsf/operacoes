@@ -2258,3 +2258,41 @@ button {
   border: 1px solid var(--border) !important;
   opacity: 0.7;
 }
+
+.alerta-posto-vago-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  flex-wrap: wrap;
+}
+
+.alerta-posto-vago-texto {
+  flex: 1;
+  min-width: 200px;
+}
+
+.alerta-posto-vago-texto.confirmado {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.btn-confirmar-posto-vago {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-confirmar-posto-vago:hover {
+  background: rgba(193, 51, 39, 0.1);
+}
+
+.btn-confirmar-posto-vago:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

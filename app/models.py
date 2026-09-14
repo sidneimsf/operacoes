@@ -197,6 +197,7 @@ class Colaborador(Base):
     supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo")  # ativo | afastado | desligado
     data_desligamento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    eh_posto_vago: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     empresa: Mapped["Empresa"] = relationship()
@@ -575,3 +576,24 @@ class Freelancer(Base):
 
     def __repr__(self) -> str:
         return f"<Freelancer nome={self.nome}>"
+
+
+class ConfirmacaoPostoVago(Base):
+    """
+    Registra que um supervisor confirmou/reconheceu o alerta de posto
+    vago pra um cliente numa data especifica (o alerta que avisa 1 dia
+    antes). Depois de confirmado, a mensagem aparece riscada no painel.
+    """
+    __tablename__ = "confirmacoes_posto_vago"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    data_alvo: Mapped[date] = mapped_column(Date, nullable=False)
+    confirmado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    confirmado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    cliente: Mapped["Cliente"] = relationship()
+    confirmado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<ConfirmacaoPostoVago cliente={self.cliente_id} data={self.data_alvo}>"

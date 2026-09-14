@@ -3,7 +3,7 @@ import uuid
 from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
@@ -21,6 +21,7 @@ from models import (
     Chamado,
     Cliente,
     ClienteCronograma,
+    ConfirmacaoPostoVago,
     Freelancer,
     TarefaAgendada,
     VagaAberta,
@@ -498,7 +499,7 @@ def resumo_dashboard(db: Session = Depends(get_db), usuario: Usuario = Depends(u
     """Indicadores gerais para a tela inicial, calculados a partir de dados reais."""
     total_empresas = db.query(Empresa).count()
     total_clientes = db.query(Cliente).filter_by(ativo=True).count()
-    total_colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado").count()
+    total_colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado", Colaborador.eh_posto_vago.is_(False)).count()
     total_usuarios = db.query(Usuario).filter_by(ativo=True).count()
     total_chamados_abertos = db.query(Chamado).filter(Chamado.status != "finalizado").count()
 
@@ -559,7 +560,7 @@ def _calcular_anos_completos(data_inicio: date, referencia: date) -> int:
 def lembretes_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     """Aniversariantes de nascimento do mes atual que ainda vao fazer aniversario (ou fazem hoje)."""
     hoje = date.today()
-    colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado").all()
+    colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado", Colaborador.eh_posto_vago.is_(False)).all()
 
     aniversarios_nascimento = []
 
@@ -766,10 +767,13 @@ def listar_colaboradores(
     cargo: str | None = None,
     busca: str | None = None,
     incluir_desligados: bool = False,
+    incluir_posto_vago: bool = False,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
     query = db.query(Colaborador)
+    if not incluir_posto_vago:
+        query = query.filter(Colaborador.eh_posto_vago.is_(False))
     if empresa_id is not None:
         query = query.filter(Colaborador.empresa_id == empresa_id)
     if supervisor_id is not None:
@@ -848,27 +852,27 @@ def criar_colaborador(
 @app.get("/colaboradores-dados/resumo")
 def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     """Indicadores executivos: total, ativos, afastados, admitidos no mes, e quebras por empresa/supervisor/cargo."""
-    total = db.query(Colaborador).count()
-    ativos = db.query(Colaborador).filter_by(status="ativo").count()
-    afastados = db.query(Colaborador).filter_by(status="afastado").count()
-    desligados = db.query(Colaborador).filter_by(status="desligado").count()
+    total = db.query(Colaborador).filter(Colaborador.eh_posto_vago.is_(False)).count()
+    ativos = db.query(Colaborador).filter_by(status="ativo", eh_posto_vago=False).count()
+    afastados = db.query(Colaborador).filter_by(status="afastado", eh_posto_vago=False).count()
+    desligados = db.query(Colaborador).filter_by(status="desligado", eh_posto_vago=False).count()
 
     hoje = date.today()
     inicio_mes = date(hoje.year, hoje.month, 1)
-    admitidos_mes = db.query(Colaborador).filter(Colaborador.data_admissao >= inicio_mes).count()
+    admitidos_mes = db.query(Colaborador).filter(Colaborador.data_admissao >= inicio_mes, Colaborador.eh_posto_vago.is_(False)).count()
 
     empresas = db.query(Empresa).order_by(Empresa.nome).all()
     por_empresa = [
-        {"empresa": e.nome, "total": db.query(Colaborador).filter_by(empresa_id=e.id).count()}
+        {"empresa": e.nome, "total": db.query(Colaborador).filter_by(empresa_id=e.id, eh_posto_vago=False).count()}
         for e in empresas
     ]
 
     supervisores = db.query(Usuario).filter_by(papel="supervisor", ativo=True).order_by(Usuario.nome).all()
     por_supervisor = [
-        {"supervisor": s.nome, "total": db.query(Colaborador).filter_by(supervisor_id=s.id).count()}
+        {"supervisor": s.nome, "total": db.query(Colaborador).filter_by(supervisor_id=s.id, eh_posto_vago=False).count()}
         for s in supervisores
     ]
-    sem_supervisor = db.query(Colaborador).filter(Colaborador.supervisor_id.is_(None)).count()
+    sem_supervisor = db.query(Colaborador).filter(Colaborador.supervisor_id.is_(None), Colaborador.eh_posto_vago.is_(False)).count()
     if sem_supervisor:
         por_supervisor.append({"supervisor": "Administrativo / sem supervisor", "total": sem_supervisor})
 
@@ -1031,9 +1035,23 @@ def editar_colaborador(
                 .all()
             )
             motivo = "Colaborador desligado" if campos["status"] == "desligado" else "Colaborador afastado"
+            posto_vago = db.query(Colaborador).filter_by(eh_posto_vago=True).first()
             for h in horarios_ativos:
                 h.data_fim = date.today()
                 _registrar_evento_mapa_servico(db, h, "encerrado", usuario.id, motivo=motivo)
+                if posto_vago is not None:
+                    novo_horario = HorarioServico(
+                        colaborador_id=posto_vago.id,
+                        cliente_id=h.cliente_id,
+                        dia_semana=h.dia_semana,
+                        turno=h.turno,
+                        hora_inicio=h.hora_inicio,
+                        hora_fim=h.hora_fim,
+                        data_inicio=date.today(),
+                    )
+                    db.add(novo_horario)
+                    db.flush()
+                    _registrar_evento_mapa_servico(db, novo_horario, "iniciado", usuario.id, motivo=f"Posto vago - {motivo.lower()}")
     if "data_desligamento" in campos:
         valor = campos["data_desligamento"]
         colaborador.data_desligamento = date.fromisoformat(valor) if valor else None
@@ -2601,9 +2619,9 @@ def relatorio_gerencial(
     top_supervisores = [{"supervisor": nome, "total": total} for nome, total in top_supervisores_query]
 
     # ---------- Colaboradores ----------
-    total_colaboradores_ativos = db.query(Colaborador).filter(Colaborador.status != "desligado").count()
+    total_colaboradores_ativos = db.query(Colaborador).filter(Colaborador.status != "desligado", Colaborador.eh_posto_vago.is_(False)).count()
     admissoes_periodo = (
-        db.query(Colaborador).filter(Colaborador.data_admissao.between(inicio, fim)).count()
+        db.query(Colaborador).filter(Colaborador.data_admissao.between(inicio, fim), Colaborador.eh_posto_vago.is_(False)).count()
     )
     faltas_periodo = (
         db.query(ColaboradorEvento)
@@ -4219,40 +4237,113 @@ def relatorio_postos_vagos(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(exigir_modulo("relatorios")),
 ):
-    """Clientes ativos que hoje nao tem nenhum colaborador atendendo (nenhum
-    horario ativo no Mapa de Servico) - util pra saber quais postos estao
-    vagos e desde quando/por que motivo (baseado no ultimo encerramento
-    registrado no historico)."""
-    clientes_ativos = db.query(Cliente).filter(Cliente.ativo.is_(True)).all()
+    """Vagas ativas no Mapa de Servico marcadas como POSTO VAGO - seja porque
+    um colaborador foi desligado/afastado (substituicao automatica) ou porque
+    um supervisor marcou manualmente. Mostra por dia da semana/turno, com o
+    ultimo colaborador que estava la e o motivo, se disponivel."""
+    posto_vago = db.query(Colaborador).filter_by(eh_posto_vago=True).first()
+    if posto_vago is None:
+        return {"total": 0, "postos": []}
 
-    clientes_com_horario_ativo = {
-        cliente_id
-        for (cliente_id,) in db.query(HorarioServico.cliente_id)
-        .filter(HorarioServico.data_fim.is_(None))
-        .distinct()
+    horarios_vagos = (
+        db.query(HorarioServico)
+        .filter(HorarioServico.colaborador_id == posto_vago.id, HorarioServico.data_fim.is_(None))
+        .join(Cliente)
+        .filter(Cliente.ativo.is_(True))
+        .order_by(HorarioServico.data_inicio.asc())
         .all()
-    }
+    )
 
     postos_vagos = []
-    for cliente in clientes_ativos:
-        if cliente.id in clientes_com_horario_ativo:
-            continue
-
+    for h in horarios_vagos:
         ultimo_encerramento = (
             db.query(HistoricoMapaServico)
-            .filter(HistoricoMapaServico.cliente_id == cliente.id, HistoricoMapaServico.tipo_evento == "encerrado")
+            .filter(
+                HistoricoMapaServico.cliente_id == h.cliente_id,
+                HistoricoMapaServico.tipo_evento == "encerrado",
+                HistoricoMapaServico.dia_semana == h.dia_semana,
+                HistoricoMapaServico.turno == h.turno,
+            )
             .order_by(HistoricoMapaServico.criado_em.desc())
             .first()
         )
 
         postos_vagos.append({
-            "cliente_id": cliente.id,
-            "cliente_nome": cliente.nome,
-            "empresa_nome": cliente.empresa.nome,
+            "horario_id": h.id,
+            "cliente_id": h.cliente_id,
+            "cliente_nome": h.cliente.nome,
+            "empresa_nome": h.cliente.empresa.nome,
+            "dia_semana": h.dia_semana,
+            "dia_semana_label": DIAS_SEMANA_LABEL.get(h.dia_semana, h.dia_semana),
+            "turno": h.turno,
             "ultimo_colaborador_nome": ultimo_encerramento.colaborador.nome if ultimo_encerramento else None,
             "motivo": ultimo_encerramento.motivo if ultimo_encerramento else None,
-            "vago_desde": ultimo_encerramento.criado_em.isoformat() if ultimo_encerramento else None,
+            "vago_desde": h.data_inicio.isoformat(),
         })
 
-    postos_vagos.sort(key=lambda p: p["vago_desde"] or "")
     return {"total": len(postos_vagos), "postos": postos_vagos}
+
+
+@app.get("/dashboard/postos-vagos-amanha")
+def alerta_postos_vagos_amanha(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Avisa 1 dia antes: quais clientes vao amanhecer com posto vago amanha
+    (baseado no dia da semana do horario marcado como POSTO VAGO). Mostra se
+    ja foi confirmado/reconhecido por algum supervisor."""
+    posto_vago = db.query(Colaborador).filter_by(eh_posto_vago=True).first()
+    if posto_vago is None:
+        return {"total": 0, "avisos": []}
+
+    amanha = date.today() + timedelta(days=1)
+    dia_semana_amanha = DIAS_SEMANA_ORDEM[amanha.weekday()]
+
+    horarios_amanha = (
+        db.query(HorarioServico)
+        .filter(
+            HorarioServico.colaborador_id == posto_vago.id,
+            HorarioServico.data_fim.is_(None),
+            HorarioServico.dia_semana == dia_semana_amanha,
+        )
+        .join(Cliente)
+        .filter(Cliente.ativo.is_(True))
+        .all()
+    )
+
+    confirmacoes = {
+        c.cliente_id
+        for c in db.query(ConfirmacaoPostoVago).filter(ConfirmacaoPostoVago.data_alvo == amanha).all()
+    }
+
+    avisos = [
+        {
+            "cliente_id": h.cliente_id,
+            "cliente_nome": h.cliente.nome,
+            "turno": h.turno,
+            "data_alvo": amanha.isoformat(),
+            "confirmado": h.cliente_id in confirmacoes,
+        }
+        for h in horarios_amanha
+    ]
+
+    return {"total": len(avisos), "avisos": avisos}
+
+
+@app.post("/dashboard/confirmar-posto-vago-amanha")
+def confirmar_posto_vago_amanha(
+    cliente_id: int = Body(..., embed=True),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if db.get(Cliente, cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+
+    amanha = date.today() + timedelta(days=1)
+    ja_confirmado = (
+        db.query(ConfirmacaoPostoVago)
+        .filter(ConfirmacaoPostoVago.cliente_id == cliente_id, ConfirmacaoPostoVago.data_alvo == amanha)
+        .first()
+    )
+    if ja_confirmado is None:
+        db.add(ConfirmacaoPostoVago(cliente_id=cliente_id, data_alvo=amanha, confirmado_por_id=usuario.id))
+        db.commit()
+
+    return {"confirmado": True}

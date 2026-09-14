@@ -143,7 +143,7 @@ async function abrirModalEventos(horarioId) {
 }
 
 async function iniciar() {
-  colaboradoresCache = await Shell.chamarApi('/colaboradores-dados');
+  colaboradoresCache = await Shell.chamarApi('/colaboradores-dados?incluir_posto_vago=true');
   clientesCache = await Shell.chamarApi('/clientes-dados');
   if (colaboradoresCache === null || clientesCache === null) return;
 

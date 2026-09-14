@@ -257,9 +257,10 @@ function renderizarPostosVagos(dados) {
       <tr>
         <td><a href="/cliente-detalhe?id=${p.cliente_id}">${p.cliente_nome}</a></td>
         <td>${p.empresa_nome}</td>
+        <td>${p.dia_semana_label} (${p.turno === 'manha' ? 'manhã' : 'tarde'})</td>
         <td>${p.ultimo_colaborador_nome || '—'}</td>
         <td>${p.motivo || '—'}</td>
-        <td>${p.vago_desde ? formatarDataBR(p.vago_desde.slice(0, 10)) : '—'}</td>
+        <td>${formatarDataBR(p.vago_desde)}</td>
       </tr>
     `
     )
@@ -270,10 +271,10 @@ function renderizarPostosVagos(dados) {
       <div class="kpi-card"><div class="label">postos vagos agora</div><div class="value">${dados.total}</div></div>
     </div>
 
-    <div class="section-title" style="margin-top: 30px;">Clientes sem colaborador atendendo</div>
+    <div class="section-title" style="margin-top: 30px;">Vagas no Mapa de Serviço</div>
     ${
       dados.postos.length > 0
-        ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Último colaborador</th><th>Motivo</th><th>Vago desde</th></tr></thead><tbody>${linhas}</tbody></table>`
+        ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Dia/Turno</th><th>Último colaborador</th><th>Motivo</th><th>Vago desde</th></tr></thead><tbody>${linhas}</tbody></table>`
         : '<div class="empty-state">Nenhum posto vago no momento. 🎉</div>'
     }
   `;
