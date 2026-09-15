@@ -1389,7 +1389,15 @@ def _checar_conflito_horario(
     bloqueia se as faixas de horario realmente se sobrepoem - o mesmo
     dia com turnos iguais mas horarios diferentes (ex: 06:00-08:00 e
     08:30-12:00) e permitido.
+
+    Excecao: o pseudo-colaborador POSTO VAGO representa varios postos
+    vagos em clientes diferentes ao mesmo tempo - nao faz sentido
+    bloquear sobreposicao pra ele.
     """
+    colaborador = db.get(Colaborador, colaborador_id)
+    if colaborador is not None and colaborador.eh_posto_vago:
+        return
+
     query = db.query(HorarioServico).filter(
         HorarioServico.colaborador_id == colaborador_id,
         HorarioServico.dia_semana == dia_semana,
