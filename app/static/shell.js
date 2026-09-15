@@ -107,28 +107,26 @@ const Shell = (() => {
       if (!permissoes) return;
 
       NAV_ITEMS.forEach((item) => {
-        if (!item.moduloPermissao) return;
-        const link = document.querySelector(`.nav-item[href="${item.href}"]`);
-        const temAcesso = !!permissoes[item.moduloPermissao];
+        try {
+          if (!item.moduloPermissao) return;
+          const link = document.querySelector(`.nav-item[href="${item.href}"]`);
+          const temAcesso = !!permissoes[item.moduloPermissao];
 
-        if (temAcesso && !link) {
-          // usuario tem permissao (override liberado) mas o item estava escondido - insere de volta no lugar certo
-          const indiceOriginal = NAV_ITEMS.indexOf(item);
-          const proximoItem = NAV_ITEMS.slice(indiceOriginal + 1).find((i) => document.querySelector(`.nav-item[href="${i.href}"]`));
-          const novoLinkHtml = `
-            <a class="nav-item" href="${item.href}">
-              ${icone(item.key)}
-              <span>${item.label}</span>
-            </a>
-          `;
-          if (proximoItem) {
-            document.querySelector(`.nav-item[href="${proximoItem.href}"]`).insertAdjacentHTML('beforebegin', novoLinkHtml);
-          } else {
-            document.getElementById('sidebar').insertAdjacentHTML('beforeend', novoLinkHtml);
+          if (temAcesso && !link) {
+            // usuario tem permissao (override liberado) mas o item estava escondido - adiciona no final do menu
+            const novoLinkHtml = `
+              <a class="nav-item" href="${item.href}">
+                ${icone(item.key)}
+                <span>${item.label}</span>
+              </a>
+            `;
+            document.querySelector('.sidebar').insertAdjacentHTML('beforeend', novoLinkHtml);
+          } else if (!temAcesso && link) {
+            // usuario nao tem permissao (override bloqueado) mesmo sendo do escritorio - remove
+            link.remove();
           }
-        } else if (!temAcesso && link) {
-          // usuario nao tem permissao (override bloqueado) mesmo sendo do escritorio - remove
-          link.remove();
+        } catch (erroItem) {
+          // um item com problema nao pode travar o ajuste dos demais
         }
       });
     } catch (erro) {
