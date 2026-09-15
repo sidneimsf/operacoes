@@ -30,12 +30,12 @@ const Shell = (() => {
     { key: 'vagas', label: 'Vagas Abertas', href: '/vagas' },
     { key: 'agendar', label: 'Agenda', href: '/agendar' },
     { key: 'custos-diarios', label: 'Custos Diários', href: '/custos-diarios' },
-    { key: 'asos', label: 'ASOs', href: '/asos', papeis: ['escritorio'] },
-    { key: 'veiculos', label: 'Veículos', href: '/veiculos', papeis: ['escritorio'] },
-    { key: 'relatorios', label: 'Relatórios', href: '/relatorios', papeis: ['escritorio'] },
-    { key: 'estoque', label: 'Estoque', href: '/estoque', papeis: ['escritorio'] },
-    { key: 'mapa-servico', label: 'Mapa de Serviço', href: '/mapa-servico', papeis: ['escritorio'] },
-    { key: 'usuarios', label: 'Usuários', href: '/usuarios', papeis: ['escritorio'] },
+    { key: 'asos', label: 'ASOs', href: '/asos', moduloPermissao: 'asos' },
+    { key: 'veiculos', label: 'Veículos', href: '/veiculos', moduloPermissao: 'veiculos' },
+    { key: 'relatorios', label: 'Relatórios', href: '/relatorios', moduloPermissao: 'relatorios' },
+    { key: 'estoque', label: 'Estoque', href: '/estoque', moduloPermissao: 'estoque' },
+    { key: 'mapa-servico', label: 'Mapa de Serviço', href: '/mapa-servico', moduloPermissao: 'mapa_servico' },
+    { key: 'usuarios', label: 'Usuários', href: '/usuarios', moduloPermissao: 'usuarios' },
     { key: 'permissoes', label: 'Permissões', href: '/permissoes', apenasSuperAdmin: true },
   ];
 
@@ -101,13 +101,49 @@ const Shell = (() => {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[chave] || ''}</svg>`;
   }
 
+  async function ajustarMenuConformePermissoes() {
+    try {
+      const permissoes = await chamarApi('/minhas-permissoes');
+      if (!permissoes) return;
+
+      NAV_ITEMS.forEach((item) => {
+        if (!item.moduloPermissao) return;
+        const link = document.querySelector(`.nav-item[href="${item.href}"]`);
+        const temAcesso = !!permissoes[item.moduloPermissao];
+
+        if (temAcesso && !link) {
+          // usuario tem permissao (override liberado) mas o item estava escondido - insere de volta no lugar certo
+          const indiceOriginal = NAV_ITEMS.indexOf(item);
+          const proximoItem = NAV_ITEMS.slice(indiceOriginal + 1).find((i) => document.querySelector(`.nav-item[href="${i.href}"]`));
+          const novoLinkHtml = `
+            <a class="nav-item" href="${item.href}">
+              ${icone(item.key)}
+              <span>${item.label}</span>
+            </a>
+          `;
+          if (proximoItem) {
+            document.querySelector(`.nav-item[href="${proximoItem.href}"]`).insertAdjacentHTML('beforebegin', novoLinkHtml);
+          } else {
+            document.getElementById('sidebar').insertAdjacentHTML('beforeend', novoLinkHtml);
+          }
+        } else if (!temAcesso && link) {
+          // usuario nao tem permissao (override bloqueado) mesmo sendo do escritorio - remove
+          link.remove();
+        }
+      });
+    } catch (erro) {
+      // silencioso: se falhar, mantem o comportamento padrao (baseado no papel)
+    }
+  }
+
   function montar(paginaAtiva, tituloTopbar) {
     const auth = autenticacao();
     if (!auth) return null;
 
     const itensVisiveis = NAV_ITEMS.filter((item) => {
       if (item.apenasSuperAdmin) return !!auth.super_admin;
-      return !item.papeis || item.papeis.includes(auth.papel);
+      if (item.moduloPermissao) return auth.papel === 'escritorio';
+      return true;
     });
 
     const linksHtml = itensVisiveis
@@ -153,6 +189,7 @@ const Shell = (() => {
     atualizarBadgeAvisos();
     atualizarBadgeOcorrencias();
     setInterval(atualizarBadgeOcorrencias, 60000);
+    ajustarMenuConformePermissoes();
 
     return auth;
   }

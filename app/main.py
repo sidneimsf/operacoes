@@ -2434,6 +2434,14 @@ def excluir_manutencao(
     db.commit()
 
 
+@app.get("/minhas-permissoes")
+def minhas_permissoes(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
+    """Devolve, pro usuario logado, se ele tem acesso a cada modulo restrito -
+    usado pelo frontend pra decidir quais itens de menu mostrar de verdade,
+    respeitando os overrides configurados em Permissoes (nao so o papel)."""
+    return {m["chave"]: tem_permissao(db, usuario, m["chave"]) for m in MODULOS_PERMISSAO}
+
+
 # ---------------------------------------------------------------------------
 # Administracao de permissoes (so super_admin: Caroline e Sidnei)
 # ---------------------------------------------------------------------------

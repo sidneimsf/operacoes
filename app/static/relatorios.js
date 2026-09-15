@@ -80,6 +80,7 @@ function montarBarras(itens, chaveLabel, chaveValor) {
 
 function trocarAba(aba) {
   abaAtual = aba;
+  diaSemanaFiltroPostosVagos = null;
   document.querySelectorAll('.tab-relatorio').forEach((botao) => {
     botao.classList.toggle('ativa', botao.dataset.aba === aba);
   });
@@ -248,10 +249,32 @@ function renderizarPorColaborador(dados) {
   `;
 }
 
+let diaSemanaFiltroPostosVagos = null;
+
 function renderizarPostosVagos(dados) {
   const container = document.getElementById('relatorio-conteudo');
 
-  const linhas = dados.postos
+  const DIAS = [
+    { chave: 'segunda', label: 'Seg' },
+    { chave: 'terca', label: 'Ter' },
+    { chave: 'quarta', label: 'Qua' },
+    { chave: 'quinta', label: 'Qui' },
+    { chave: 'sexta', label: 'Sex' },
+    { chave: 'sabado', label: 'Sáb' },
+    { chave: 'domingo', label: 'Dom' },
+  ];
+
+  const postosFiltrados = diaSemanaFiltroPostosVagos
+    ? dados.postos.filter((p) => p.dia_semana === diaSemanaFiltroPostosVagos)
+    : dados.postos;
+
+  const botoesDiaHtml = DIAS.map((d) => {
+    const qtde = dados.postos.filter((p) => p.dia_semana === d.chave).length;
+    const ativo = diaSemanaFiltroPostosVagos === d.chave;
+    return `<button type="button" class="btn-ghost filtro-dia-posto-vago ${ativo ? 'ativo' : ''}" data-dia="${d.chave}">${d.label}${qtde > 0 ? ` (${qtde})` : ''}</button>`;
+  }).join('');
+
+  const linhas = postosFiltrados
     .map(
       (p) => `
       <tr>
@@ -271,13 +294,26 @@ function renderizarPostosVagos(dados) {
       <div class="kpi-card"><div class="label">postos vagos agora</div><div class="value">${dados.total}</div></div>
     </div>
 
-    <div class="section-title" style="margin-top: 30px;">Vagas no Mapa de Serviço</div>
+    <div class="section-title" style="margin-top: 30px;">Filtrar por dia da semana</div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;">
+      <button type="button" class="btn-ghost filtro-dia-posto-vago ${diaSemanaFiltroPostosVagos === null ? 'ativo' : ''}" data-dia="">Todos os dias</button>
+      ${botoesDiaHtml}
+    </div>
+
+    <div class="section-title">Vagas no Mapa de Serviço</div>
     ${
-      dados.postos.length > 0
+      postosFiltrados.length > 0
         ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Dia/Turno</th><th>Último colaborador</th><th>Motivo</th><th>Vago desde</th></tr></thead><tbody>${linhas}</tbody></table>`
-        : '<div class="empty-state">Nenhum posto vago no momento. 🎉</div>'
+        : '<div class="empty-state">Nenhum posto vago nesse filtro. 🎉</div>'
     }
   `;
+
+  container.querySelectorAll('.filtro-dia-posto-vago').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      diaSemanaFiltroPostosVagos = botao.dataset.dia || null;
+      renderizarPostosVagos(dados);
+    });
+  });
 }
 
 function renderizarCustosDiarios(dados) {

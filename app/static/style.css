@@ -2305,3 +2305,9 @@ button {
 .btn-confirmar-posto-vago.ja-confirmado:hover {
   background: rgba(92, 184, 138, 0.1);
 }
+
+.filtro-dia-posto-vago.ativo {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
