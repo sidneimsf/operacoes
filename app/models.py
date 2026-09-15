@@ -341,7 +341,9 @@ class CustoDiario(Base):
     cliente: Mapped["Cliente | None"] = relationship(foreign_keys=[cliente_id])
     cobertura_colaborador: Mapped["Colaborador | None"] = relationship(foreign_keys=[cobertura_colaborador_id])
     freelancer: Mapped["Freelancer | None"] = relationship(foreign_keys=[freelancer_id])
-    anexos: Mapped[list["CustoDiarioAnexo"]] = relationship(back_populates="custo", order_by="CustoDiarioAnexo.criado_em")
+    anexos: Mapped[list["CustoDiarioAnexo"]] = relationship(
+        back_populates="custo", order_by="CustoDiarioAnexo.criado_em", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<CustoDiario {self.tipo} - usuario {self.usuario_id} - R${self.valor}>"
@@ -619,3 +621,26 @@ class ConfirmacaoPostoVago(Base):
 
     def __repr__(self) -> str:
         return f"<ConfirmacaoPostoVago cliente={self.cliente_id} data={self.data_alvo}>"
+
+
+class VisitaSupervisao(Base):
+    """
+    Registro de uma visita presencial que um supervisor fez a um cliente
+    - data, com quem falou no local, e observacoes. Usado pra saber
+    quando foi a ultima vez que cada cliente foi visitado.
+    """
+    __tablename__ = "visitas_supervisao"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    supervisor_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    data_visita: Mapped[date] = mapped_column(Date, nullable=False)
+    pessoa_com_quem_falou: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(String(1500), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    cliente: Mapped["Cliente"] = relationship()
+    supervisor: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<VisitaSupervisao cliente={self.cliente_id} data={self.data_visita}>"
