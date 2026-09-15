@@ -54,6 +54,7 @@ class ClienteCreate(BaseModel):
     responsavel_telefone: str | None = None
     senha_acesso: str | None = None
     chave_acesso: str | None = None
+    observacoes: str | None = None
     supervisor_id: int | None = None
 
 
@@ -69,6 +70,7 @@ class ClienteUpdate(BaseModel):
     responsavel_telefone: str | None = None
     senha_acesso: str | None = None
     chave_acesso: str | None = None
+    observacoes: str | None = None
     supervisor_id: int | None = None
     ativo: bool | None = None
 

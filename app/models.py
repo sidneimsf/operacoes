@@ -156,6 +156,7 @@ class Cliente(Base):
     responsavel_telefone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     senha_acesso: Mapped[str | None] = mapped_column(String(200), nullable=True)
     chave_acesso: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
@@ -340,9 +341,30 @@ class CustoDiario(Base):
     cliente: Mapped["Cliente | None"] = relationship(foreign_keys=[cliente_id])
     cobertura_colaborador: Mapped["Colaborador | None"] = relationship(foreign_keys=[cobertura_colaborador_id])
     freelancer: Mapped["Freelancer | None"] = relationship(foreign_keys=[freelancer_id])
+    anexos: Mapped[list["CustoDiarioAnexo"]] = relationship(back_populates="custo", order_by="CustoDiarioAnexo.criado_em")
 
     def __repr__(self) -> str:
         return f"<CustoDiario {self.tipo} - usuario {self.usuario_id} - R${self.valor}>"
+
+
+class CustoDiarioAnexo(Base):
+    """
+    Um comprovante anexado a um custo diario. Um custo pode ter varios
+    (nota fiscal + foto do local, por exemplo), e podem ser anexados a
+    qualquer momento, inclusive depois do custo ja ter sido lancado.
+    """
+    __tablename__ = "custos_diarios_anexos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    custo_diario_id: Mapped[int] = mapped_column(ForeignKey("custos_diarios.id"), nullable=False)
+    arquivo_path: Mapped[str] = mapped_column(String(300), nullable=False)
+    arquivo_nome_original: Mapped[str] = mapped_column(String(200), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    custo: Mapped["CustoDiario"] = relationship(back_populates="anexos")
+
+    def __repr__(self) -> str:
+        return f"<CustoDiarioAnexo custo={self.custo_diario_id} nome={self.arquivo_nome_original}>"
 
 
 class EstoqueItem(Base):

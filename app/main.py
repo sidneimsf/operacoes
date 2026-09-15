@@ -28,6 +28,7 @@ from models import (
     Colaborador,
     ColaboradorEvento,
     CustoDiario,
+    CustoDiarioAnexo,
     Empresa,
     EstoqueItem,
     EstoqueMovimento,
@@ -146,6 +147,23 @@ PASTA_UPLOADS_CUSTOS.mkdir(parents=True, exist_ok=True)
 
 EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
 TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024  # 10 MB
+
+
+def _salvar_arquivo_upload(arquivo: UploadFile, usuario_id: int) -> tuple[str, str]:
+    """Valida e salva um arquivo enviado, devolvendo (path_salvo, nome_original)."""
+    extensao = Path(arquivo.filename).suffix.lower()
+    if extensao not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF")
+    conteudo = arquivo.file.read()
+    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+
+    pasta_usuario = PASTA_UPLOADS_CUSTOS / str(usuario_id)
+    pasta_usuario.mkdir(parents=True, exist_ok=True)
+    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+    caminho_completo = pasta_usuario / nome_arquivo
+    caminho_completo.write_bytes(conteudo)
+    return str(caminho_completo), arquivo.filename
 
 TIPOS_CUSTO_DIARIO = [
     {"chave": "combustivel", "label": "Combustível"},
@@ -596,6 +614,7 @@ def serializar_cliente(c: Cliente) -> dict:
         "responsavel_telefone": c.responsavel_telefone,
         "senha_acesso": c.senha_acesso,
         "chave_acesso": c.chave_acesso,
+        "observacoes": c.observacoes,
         "supervisor_id": c.supervisor_id,
         "supervisor_nome": c.supervisor.nome if c.supervisor else None,
         "empresa_id": c.empresa_id,
@@ -652,6 +671,7 @@ def criar_cliente(
         responsavel_telefone=dados.responsavel_telefone.strip() if dados.responsavel_telefone else None,
         senha_acesso=dados.senha_acesso.strip() if dados.senha_acesso else None,
         chave_acesso=dados.chave_acesso.strip() if dados.chave_acesso else None,
+        observacoes=dados.observacoes.strip() if dados.observacoes else None,
         supervisor_id=dados.supervisor_id,
     )
     db.add(cliente)
@@ -712,6 +732,8 @@ def editar_cliente(
         cliente.senha_acesso = campos["senha_acesso"].strip() if campos["senha_acesso"] else None
     if "chave_acesso" in campos:
         cliente.chave_acesso = campos["chave_acesso"].strip() if campos["chave_acesso"] else None
+    if "observacoes" in campos:
+        cliente.observacoes = campos["observacoes"].strip() if campos["observacoes"] else None
     if "supervisor_id" in campos:
         if campos["supervisor_id"] is not None and db.get(Usuario, campos["supervisor_id"]) is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
@@ -2902,6 +2924,10 @@ def serializar_custo(c: CustoDiario) -> dict:
         "freelancer_nome": c.freelancer.nome if c.freelancer else None,
         "tem_comprovante": c.comprovante_path is not None,
         "comprovante_nome_original": c.comprovante_nome_original,
+        "anexos": [
+            {"id": a.id, "nome_original": a.arquivo_nome_original, "criado_em": a.criado_em.isoformat()}
+            for a in c.anexos
+        ],
         "reembolsado": c.reembolsado,
         "criado_em": c.criado_em.isoformat(),
     }
@@ -2939,7 +2965,7 @@ def criar_custo_diario(
     cliente_id: int | None = Form(None),
     cobertura_colaborador_id: int | None = Form(None),
     freelancer_id: int | None = Form(None),
-    comprovante: UploadFile | None = File(None),
+    comprovantes: list[UploadFile] = File([]),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
@@ -2997,24 +3023,6 @@ def criar_custo_diario(
             db.flush()
             freelancer_id = novo_freelancer.id
 
-    comprovante_path_salvo = None
-    comprovante_nome_original = None
-    if comprovante is not None and comprovante.filename:
-        extensao = Path(comprovante.filename).suffix.lower()
-        if extensao not in EXTENSOES_PERMITIDAS:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Comprovante deve ser JPEG, PNG ou PDF")
-        conteudo = comprovante.file.read()
-        if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
-
-        pasta_usuario = PASTA_UPLOADS_CUSTOS / str(usuario.id)
-        pasta_usuario.mkdir(parents=True, exist_ok=True)
-        nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
-        caminho_completo = pasta_usuario / nome_arquivo
-        caminho_completo.write_bytes(conteudo)
-        comprovante_path_salvo = str(caminho_completo)
-        comprovante_nome_original = comprovante.filename
-
     custo = CustoDiario(
         usuario_id=usuario.id,
         tipo=tipo,
@@ -3028,10 +3036,16 @@ def criar_custo_diario(
         cliente_id=cliente_id,
         cobertura_colaborador_id=cobertura_colaborador_id,
         freelancer_id=freelancer_id,
-        comprovante_path=comprovante_path_salvo,
-        comprovante_nome_original=comprovante_nome_original,
     )
     db.add(custo)
+    db.flush()
+
+    for arquivo in comprovantes:
+        if not arquivo.filename:
+            continue
+        arquivo_path, arquivo_nome = _salvar_arquivo_upload(arquivo, usuario.id)
+        db.add(CustoDiarioAnexo(custo_diario_id=custo.id, arquivo_path=arquivo_path, arquivo_nome_original=arquivo_nome))
+
     db.commit()
     db.refresh(custo)
     return serializar_custo(custo)
@@ -3094,9 +3108,78 @@ def excluir_custo_diario(
 
     if custo.comprovante_path and os.path.exists(custo.comprovante_path):
         os.remove(custo.comprovante_path)
+    for anexo in custo.anexos:
+        if os.path.exists(anexo.arquivo_path):
+            os.remove(anexo.arquivo_path)
 
     db.delete(custo)
     db.commit()
+
+
+@app.post("/custos-diarios-dados/{custo_id}/anexos", status_code=status.HTTP_201_CREATED)
+def adicionar_anexo_custo_diario(
+    custo_id: int,
+    arquivos: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Anexa um ou mais comprovantes a um custo ja lancado - pode ser usado
+    a qualquer momento, mesmo dias depois do lancamento original."""
+    custo = db.get(CustoDiario, custo_id)
+    if custo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Custo nao encontrado")
+    eh_dono = custo.usuario_id == usuario.id
+    if not eh_dono and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Voce so pode anexar em seus proprios custos")
+
+    novos_anexos = []
+    for arquivo in arquivos:
+        if not arquivo.filename:
+            continue
+        arquivo_path, arquivo_nome = _salvar_arquivo_upload(arquivo, custo.usuario_id)
+        anexo = CustoDiarioAnexo(custo_diario_id=custo.id, arquivo_path=arquivo_path, arquivo_nome_original=arquivo_nome)
+        db.add(anexo)
+        novos_anexos.append(anexo)
+
+    if not novos_anexos:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nenhum arquivo valido enviado")
+
+    db.commit()
+    db.refresh(custo)
+    return serializar_custo(custo)
+
+
+@app.delete("/custos-diarios-dados/anexos/{anexo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_anexo_custo_diario(
+    anexo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    anexo = db.get(CustoDiarioAnexo, anexo_id)
+    if anexo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anexo nao encontrado")
+    custo = anexo.custo
+    if custo.usuario_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissao para excluir esse anexo")
+
+    if os.path.exists(anexo.arquivo_path):
+        os.remove(anexo.arquivo_path)
+    db.delete(anexo)
+    db.commit()
+
+
+@app.get("/custos-diarios-dados/anexos/{anexo_id}")
+def baixar_anexo_custo_diario(
+    anexo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    anexo = db.get(CustoDiarioAnexo, anexo_id)
+    if anexo is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anexo nao encontrado")
+    if anexo.custo.usuario_id != usuario.id and usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sem permissao para ver esse anexo")
+    return FileResponse(anexo.arquivo_path, filename=anexo.arquivo_nome_original)
 
 
 @app.get("/custos-diarios-dados/{custo_id}/comprovante")

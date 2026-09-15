@@ -39,9 +39,13 @@ function renderizarLista(custos) {
   const linhas = custos
     .map((c) => {
       const podeEditar = c.usuario_id === auth.id || ehEscritorio;
-      const linhaComprovante = c.tem_comprovante
-        ? `<a href="#" class="link-comprovante" data-custo-id="${c.id}">📎 ver</a>`
-        : '—';
+      const totalAnexos = (c.anexos || []).length + (c.tem_comprovante ? 1 : 0);
+      const linhaComprovante =
+        totalAnexos === 0
+          ? '—'
+          : (c.anexos || [])
+              .map((a) => `<a href="#" class="link-anexo" data-anexo-id="${a.id}" style="display:block;">📎 ${a.nome_original}</a>`)
+              .join('') + (c.tem_comprovante ? `<a href="#" class="link-comprovante" data-custo-id="${c.id}" style="display:block;">📎 ${c.comprovante_nome_original || 'ver'}</a>` : '');
       const botaoReembolso = ehEscritorio
         ? `<button class="btn-ghost btn-toggle-reembolso" data-custo-id="${c.id}" data-atual="${c.reembolsado}">${c.reembolsado ? 'Desfazer' : 'Marcar reembolsado'}</button>`
         : '';
@@ -111,6 +115,26 @@ async function verComprovante(custoId) {
   }
 }
 
+async function verAnexo(anexoId) {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return;
+  try {
+    const resposta = await fetch(`/custos-diarios-dados/anexos/${anexoId}`, {
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    });
+    if (resposta.status === 401) {
+      Shell.sair();
+      return;
+    }
+    if (!resposta.ok) throw new Error('Falha ao baixar');
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } catch (erro) {
+    alert('Não foi possível abrir esse anexo agora.');
+  }
+}
+
 function montarModalNovoCusto() {
   const html = `
     <div class="modal-overlay" id="novo-custo-modal-overlay" hidden>
@@ -175,17 +199,40 @@ function montarModalNovoCusto() {
             <label for="custo-descricao">Descrição (opcional)</label>
             <textarea id="custo-descricao" rows="2" placeholder="Ex: Combustível pra visitar o cliente X"></textarea>
           </div>
-          <div class="field" id="campo-comprovante" style="order: 11;">
-            <label for="custo-comprovante">Comprovante (opcional, JPEG/PNG/PDF)</label>
-            <input type="file" id="custo-comprovante" accept=".jpg,.jpeg,.png,.pdf">
+          <div class="field" id="campo-anexos-existentes" style="order: 11;" hidden>
+            <label>Comprovantes já anexados</label>
+            <div id="lista-anexos-existentes"></div>
           </div>
-          <div class="error-message" id="custo-modal-erro" style="order: 12;"></div>
-          <button type="submit" class="btn-primary" id="custo-modal-enviar" style="order: 13;">Salvar</button>
+          <div class="field" id="campo-comprovante" style="order: 12;">
+            <label for="custo-comprovante">Comprovante(s) (opcional, JPEG/PNG/PDF - pode escolher vários)</label>
+            <input type="file" id="custo-comprovante" accept=".jpg,.jpeg,.png,.pdf" multiple>
+          </div>
+          <div class="error-message" id="custo-modal-erro" style="order: 13;"></div>
+          <button type="submit" class="btn-primary" id="custo-modal-enviar" style="order: 14;">Salvar</button>
         </form>
       </div>
     </div>
   `;
   document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('lista-anexos-existentes').addEventListener('click', async (evento) => {
+    const linkVer = evento.target.closest('.link-anexo');
+    if (linkVer) {
+      evento.preventDefault();
+      verAnexo(linkVer.dataset.anexoId);
+      return;
+    }
+    const botaoRemover = evento.target.closest('.btn-remover-anexo-existente');
+    if (botaoRemover) {
+      if (!confirm('Excluir esse comprovante?')) return;
+      try {
+        await Shell.chamarApi(`/custos-diarios-dados/anexos/${botaoRemover.dataset.anexoId}`, { method: 'DELETE' });
+        botaoRemover.closest('div').remove();
+      } catch (erro) {
+        alert('Não foi possível excluir esse comprovante agora.');
+      }
+    }
+  });
 
   document.getElementById('novo-custo-modal-fechar').addEventListener('click', fecharModalCusto);
   document.getElementById('novo-custo-modal-overlay').addEventListener('click', (evento) => {
@@ -331,6 +378,7 @@ async function abrirModalNovoCusto() {
   document.getElementById('custo-tipo').innerHTML = TIPOS_CUSTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
   document.getElementById('custo-data').value = new Date().toISOString().slice(0, 10);
   document.getElementById('campo-comprovante').hidden = false;
+  document.getElementById('campo-anexos-existentes').hidden = true;
   document.getElementById('custo-modal-erro').classList.remove('visible');
 
   if (colaboradoresCustoCache.length === 0) {
@@ -354,6 +402,24 @@ async function abrirModalNovoCusto() {
   document.getElementById('novo-custo-modal-overlay').hidden = false;
 }
 
+function renderizarListaAnexosExistentes(anexos) {
+  const container = document.getElementById('lista-anexos-existentes');
+  if (anexos.length === 0) {
+    container.innerHTML = '<div class="meta">Nenhum comprovante anexado ainda.</div>';
+    return;
+  }
+  container.innerHTML = anexos
+    .map(
+      (a) => `
+      <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
+        <a href="#" class="link-anexo" data-anexo-id="${a.id}" style="flex: 1;">📎 ${a.nome_original}</a>
+        <button type="button" class="btn-ghost btn-remover-anexo-existente" data-anexo-id="${a.id}" style="padding: 3px 8px; font-size: 11.5px; color: var(--danger);">Excluir</button>
+      </div>
+    `
+    )
+    .join('');
+}
+
 async function abrirModalEditarCusto(custoId, custo) {
   custoIdEmEdicao = custoId;
   document.getElementById('custo-modal-titulo').textContent = 'Editar custo';
@@ -365,7 +431,9 @@ async function abrirModalEditarCusto(custoId, custo) {
   document.getElementById('custo-descricao').value = custo.descricao || '';
   document.getElementById('custo-nome-beneficiario').value = custo.nome_beneficiario || '';
   document.getElementById('custo-chave-pix').value = custo.chave_pix || '';
-  document.getElementById('campo-comprovante').hidden = true;
+  document.getElementById('campo-comprovante').hidden = false;
+  document.getElementById('campo-anexos-existentes').hidden = false;
+  renderizarListaAnexosExistentes(custo.anexos || []);
   document.getElementById('custo-modal-erro').classList.remove('visible');
 
   if (colaboradoresCustoCache.length === 0) {
@@ -458,6 +526,13 @@ async function salvarCusto(evento) {
         chave_pix: document.getElementById('custo-chave-pix').value || null,
       };
       await Shell.chamarApi(`/custos-diarios-dados/${custoIdEmEdicao}`, { method: 'PATCH', body: corpo });
+
+      const novosArquivos = document.getElementById('custo-comprovante').files;
+      if (novosArquivos.length > 0) {
+        const formDataAnexos = new FormData();
+        Array.from(novosArquivos).forEach((arquivo) => formDataAnexos.append('arquivos', arquivo));
+        await enviarFormData(`/custos-diarios-dados/${custoIdEmEdicao}/anexos`, formDataAnexos);
+      }
     } else {
       const ehDiariaNaCriacao = document.getElementById('custo-tipo').value === 'diaria';
       const coberturaId = document.getElementById('custo-cobertura-id').value;
@@ -486,8 +561,8 @@ async function salvarCusto(evento) {
         if (freelancerId) formData.append('freelancer_id', freelancerId);
         if (statusValor) formData.append('status_diaria', statusValor);
       }
-      const arquivo = document.getElementById('custo-comprovante').files[0];
-      if (arquivo) formData.append('comprovante', arquivo);
+      const arquivos = document.getElementById('custo-comprovante').files;
+      Array.from(arquivos).forEach((arquivo) => formData.append('comprovantes', arquivo));
       await enviarFormData('/custos-diarios-dados', formData);
     }
     fecharModalCusto();
@@ -565,6 +640,12 @@ document.getElementById('lista-custos').addEventListener('click', async (evento)
   if (linkComprovante) {
     evento.preventDefault();
     verComprovante(linkComprovante.dataset.custoId);
+    return;
+  }
+  const linkAnexo = evento.target.closest('.link-anexo');
+  if (linkAnexo) {
+    evento.preventDefault();
+    verAnexo(linkAnexo.dataset.anexoId);
     return;
   }
   const botaoExcluir = evento.target.closest('.btn-custo-excluir');

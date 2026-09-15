@@ -3,6 +3,12 @@ const clienteId = parametrosUrl.get('id');
 
 const auth = Shell.montar('clientes', 'Cliente');
 
+function escaparHtml(texto) {
+  const div = document.createElement('div');
+  div.textContent = texto;
+  return div.innerHTML;
+}
+
 let TIPOS = [];
 let STATUS = [];
 let PRIORIDADES = [];
@@ -399,6 +405,10 @@ function montarModalEditarCliente() {
             <input type="text" id="editar-cliente-senha-acesso" placeholder="Deixe em branco se não houver">
           </div>
           <div class="field">
+            <label for="editar-cliente-observacoes">Observações (particularidades)</label>
+            <textarea id="editar-cliente-observacoes" rows="3" placeholder="Ex: Chave fica dentro da zeladoria"></textarea>
+          </div>
+          <div class="field">
             <label for="editar-cliente-chave-acesso">Chave / tag / cartão de acesso</label>
             <input type="text" id="editar-cliente-chave-acesso" placeholder="Ex: TAG, com o porteiro, etc.">
           </div>
@@ -435,6 +445,7 @@ async function abrirModalEditarCliente() {
   document.getElementById('editar-cliente-responsavel-nome').value = clienteAtual.responsavel_nome || '';
   document.getElementById('editar-cliente-responsavel-telefone').value = clienteAtual.responsavel_telefone || '';
   document.getElementById('editar-cliente-senha-acesso').value = clienteAtual.senha_acesso || '';
+  document.getElementById('editar-cliente-observacoes').value = clienteAtual.observacoes || '';
   document.getElementById('editar-cliente-chave-acesso').value = clienteAtual.chave_acesso || '';
   document.getElementById('editar-cliente-supervisor').innerHTML =
     '<option value="">Sem supervisor definido</option>' +
@@ -459,6 +470,7 @@ async function salvarEdicaoCliente(evento) {
     responsavel_nome: document.getElementById('editar-cliente-responsavel-nome').value || null,
     responsavel_telefone: document.getElementById('editar-cliente-responsavel-telefone').value || null,
     senha_acesso: document.getElementById('editar-cliente-senha-acesso').value || null,
+    observacoes: document.getElementById('editar-cliente-observacoes').value || null,
     chave_acesso: document.getElementById('editar-cliente-chave-acesso').value || null,
     supervisor_id: document.getElementById('editar-cliente-supervisor').value ? Number(document.getElementById('editar-cliente-supervisor').value) : null,
   };
@@ -545,13 +557,17 @@ function renderizarHeaderCliente() {
     </div>
   `;
 
+  const linhaObservacoes = c.observacoes
+    ? `<div class="acesso-info" style="margin-top: 8px;"><span class="acesso-item"><strong>Observações:</strong> ${escaparHtml(c.observacoes)}</span></div>`
+    : '';
+
   document.getElementById('cliente-header').innerHTML = `
     <span class="empresa-tag">${c.empresa_nome}${c.ativo ? '' : ' · INATIVO'}</span>
     <h2>${c.nome}</h2>
     <span class="cnpj">${c.cnpj || 'CNPJ não informado'}</span>
     <div class="info-grid">${gridHtml}</div>
     ${linhaAcesso}
-
+    ${linhaObservacoes}
   `;
   const btnToggle = document.getElementById('btn-toggle-cliente');
   btnToggle.textContent = c.ativo ? 'Remover cliente' : 'Reativar cliente';
