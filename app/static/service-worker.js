@@ -12,7 +12,7 @@
  * mudam o tempo todo.
  */
 
-const CACHE_NAME = 'operacoes-static-v2';
+const CACHE_NAME = 'operacoes-static-v3';
 
 self.addEventListener('install', (evento) => {
   self.skipWaiting();
@@ -40,11 +40,20 @@ self.addEventListener('fetch', (evento) => {
   }
 
   evento.respondWith(
-    fetch(evento.request)
-      .then((respostaRede) => {
-        caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, respostaRede.clone()));
+    (async () => {
+      try {
+        const respostaRede = await fetch(evento.request);
+        const copiaParaCache = respostaRede.clone();
+        evento.waitUntil(
+          caches.open(CACHE_NAME).then((cache) => cache.put(evento.request, copiaParaCache))
+        );
         return respostaRede;
-      })
-      .catch(() => caches.open(CACHE_NAME).then((cache) => cache.match(evento.request)))
+      } catch (erro) {
+        const cache = await caches.open(CACHE_NAME);
+        const respostaCache = await cache.match(evento.request);
+        if (respostaCache) return respostaCache;
+        throw erro;
+      }
+    })()
   );
 });
