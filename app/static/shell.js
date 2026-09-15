@@ -1,4 +1,3 @@
-console.log('[DEBUG] shell.js VERSAO-DEBUG-3 carregado agora');
 const Shell = (() => {
   const ICONS = {
     dashboard: '<path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z"/>',
@@ -104,15 +103,9 @@ const Shell = (() => {
 
   async function ajustarMenuConformePermissoes() {
     try {
-      console.log('[DEBUG] ajustarMenuConformePermissoes iniciou');
       const permissoes = await chamarApi('/minhas-permissoes');
-      console.log('[DEBUG] permissoes recebidas:', JSON.stringify(permissoes));
-      if (!permissoes) {
-        console.log('[DEBUG] permissoes veio nulo, parando aqui');
-        return;
-      }
+      if (!permissoes) return;
 
-      let totalInseridos = 0;
       NAV_ITEMS.forEach((item) => {
         try {
           if (!item.moduloPermissao) return;
@@ -120,25 +113,24 @@ const Shell = (() => {
           const temAcesso = !!permissoes[item.moduloPermissao];
 
           if (temAcesso && !link) {
+            // usuario tem permissao (override liberado) mas o item estava escondido - adiciona no final do menu, dentro do <nav> correto
             const novoLinkHtml = `
               <a class="nav-item" href="${item.href}">
                 ${icone(item.key)}
                 <span>${item.label}</span>
               </a>
             `;
-            document.querySelector('.sidebar').insertAdjacentHTML('beforeend', novoLinkHtml);
-            totalInseridos++;
+            document.querySelector('.sidebar-nav').insertAdjacentHTML('beforeend', novoLinkHtml);
           } else if (!temAcesso && link) {
+            // usuario nao tem permissao (override bloqueado) mesmo sendo do escritorio - remove
             link.remove();
           }
         } catch (erroItem) {
-          console.log(`[DEBUG] ERRO ao processar item ${item.key}:`, erroItem);
+          // um item com problema nao pode travar o ajuste dos demais
         }
       });
-      console.log('[DEBUG] total de itens inseridos:', totalInseridos);
-      console.log('[DEBUG] HTML final da sidebar:', document.querySelector('.sidebar').innerHTML);
     } catch (erro) {
-      console.log('[DEBUG] ERRO GERAL em ajustarMenuConformePermissoes:', erro);
+      // silencioso: se falhar, mantem o comportamento padrao (baseado no papel)
     }
   }
 

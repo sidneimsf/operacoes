@@ -374,6 +374,10 @@ button {
   flex-direction: column;
   padding: 20px 0;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .sidebar .wordmark-block {
@@ -533,8 +537,11 @@ button {
     align-items: center;
     padding: 10px 12px;
     overflow-x: auto;
+    overflow-y: visible;
     border-right: none;
     border-bottom: 1px solid var(--border);
+    position: static;
+    height: auto;
   }
   .sidebar .wordmark-block {
     display: none;
