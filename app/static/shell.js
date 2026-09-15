@@ -103,34 +103,42 @@ const Shell = (() => {
 
   async function ajustarMenuConformePermissoes() {
     try {
+      console.log('[DEBUG] ajustarMenuConformePermissoes iniciou');
       const permissoes = await chamarApi('/minhas-permissoes');
-      if (!permissoes) return;
+      console.log('[DEBUG] permissoes recebidas:', permissoes);
+      if (!permissoes) {
+        console.log('[DEBUG] permissoes veio nulo, parando aqui');
+        return;
+      }
 
       NAV_ITEMS.forEach((item) => {
         try {
           if (!item.moduloPermissao) return;
           const link = document.querySelector(`.nav-item[href="${item.href}"]`);
           const temAcesso = !!permissoes[item.moduloPermissao];
+          console.log(`[DEBUG] item=${item.key} moduloPermissao=${item.moduloPermissao} temAcesso=${temAcesso} linkJaExiste=${!!link}`);
 
           if (temAcesso && !link) {
-            // usuario tem permissao (override liberado) mas o item estava escondido - adiciona no final do menu
+            console.log(`[DEBUG] vou inserir o item ${item.key} no menu`);
             const novoLinkHtml = `
               <a class="nav-item" href="${item.href}">
                 ${icone(item.key)}
                 <span>${item.label}</span>
               </a>
             `;
-            document.querySelector('.sidebar').insertAdjacentHTML('beforeend', novoLinkHtml);
+            const sidebarEl = document.querySelector('.sidebar');
+            console.log('[DEBUG] elemento .sidebar encontrado?', !!sidebarEl);
+            sidebarEl.insertAdjacentHTML('beforeend', novoLinkHtml);
+            console.log(`[DEBUG] item ${item.key} inserido com sucesso`);
           } else if (!temAcesso && link) {
-            // usuario nao tem permissao (override bloqueado) mesmo sendo do escritorio - remove
             link.remove();
           }
         } catch (erroItem) {
-          // um item com problema nao pode travar o ajuste dos demais
+          console.log(`[DEBUG] ERRO ao processar item ${item.key}:`, erroItem);
         }
       });
     } catch (erro) {
-      // silencioso: se falhar, mantem o comportamento padrao (baseado no papel)
+      console.log('[DEBUG] ERRO GERAL em ajustarMenuConformePermissoes:', erro);
     }
   }
 
