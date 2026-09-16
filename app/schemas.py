@@ -303,6 +303,7 @@ class VisitaSupervisaoCreate(BaseModel):
     data_visita: str
     pessoa_com_quem_falou: str | None = None
     observacoes: str | None = None
+    acoes: str | None = None
 
 
 class VisitaSupervisaoUpdate(BaseModel):
@@ -310,3 +311,4 @@ class VisitaSupervisaoUpdate(BaseModel):
     data_visita: str | None = None
     pessoa_com_quem_falou: str | None = None
     observacoes: str | None = None
+    acoes: str | None = None

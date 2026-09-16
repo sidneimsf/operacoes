@@ -4473,6 +4473,7 @@ def serializar_visita(v: VisitaSupervisao) -> dict:
         "data_visita": v.data_visita.isoformat(),
         "pessoa_com_quem_falou": v.pessoa_com_quem_falou,
         "observacoes": v.observacoes,
+        "acoes": v.acoes,
         "criado_em": v.criado_em.isoformat(),
     }
 
@@ -4525,6 +4526,7 @@ def criar_visita_supervisao(
         data_visita=data_visita,
         pessoa_com_quem_falou=(dados.pessoa_com_quem_falou or "").strip() or None,
         observacoes=(dados.observacoes or "").strip() or None,
+        acoes=(dados.acoes or "").strip() or None,
     )
     db.add(visita)
     db.commit()
@@ -4559,6 +4561,8 @@ def editar_visita_supervisao(
         visita.pessoa_com_quem_falou = (campos["pessoa_com_quem_falou"] or "").strip() or None
     if "observacoes" in campos:
         visita.observacoes = (campos["observacoes"] or "").strip() or None
+    if "acoes" in campos:
+        visita.acoes = (campos["acoes"] or "").strip() or None
 
     db.commit()
     db.refresh(visita)

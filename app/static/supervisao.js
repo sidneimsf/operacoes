@@ -66,6 +66,10 @@ function montarModalVisita() {
             <label for="visita-observacoes">Observações</label>
             <textarea id="visita-observacoes" rows="4" placeholder="O que foi visto/conversado na visita"></textarea>
           </div>
+          <div class="field">
+            <label for="visita-acoes">Ações (o que foi feito - pode preencher agora ou depois)</label>
+            <textarea id="visita-acoes" rows="4" placeholder="Ex: Solicitado troca de EPI, aguardando retorno do sindico..."></textarea>
+          </div>
           <div class="error-message" id="visita-modal-erro"></div>
           <button type="submit" class="btn-primary" id="visita-modal-enviar">Salvar visita</button>
         </form>
@@ -125,6 +129,7 @@ async function abrirModalNovaVisita() {
   document.getElementById('visita-modal-titulo').textContent = 'Registrar visita';
   document.getElementById('visita-form').reset();
   document.getElementById('visita-cliente-id').value = '';
+  document.getElementById('visita-acoes').value = '';
   document.getElementById('visita-data').value = new Date().toISOString().slice(0, 10);
   document.getElementById('visita-modal-erro').classList.remove('visible');
 
@@ -149,6 +154,7 @@ async function abrirModalEditarVisita(visita) {
   document.getElementById('visita-data').value = visita.data_visita;
   document.getElementById('visita-pessoa').value = visita.pessoa_com_quem_falou || '';
   document.getElementById('visita-observacoes').value = visita.observacoes || '';
+  document.getElementById('visita-acoes').value = visita.acoes || '';
 
   document.getElementById('visita-modal-overlay').hidden = false;
 }
@@ -175,6 +181,7 @@ async function salvarVisita(evento) {
     data_visita: document.getElementById('visita-data').value,
     pessoa_com_quem_falou: document.getElementById('visita-pessoa').value || null,
     observacoes: document.getElementById('visita-observacoes').value || null,
+    acoes: document.getElementById('visita-acoes').value || null,
   };
 
   botao.disabled = true;
@@ -239,7 +246,8 @@ function renderizarVisitas(visitas) {
         <td>${formatarDataBR(v.data_visita)}</td>
         <td><a href="/cliente-detalhe?id=${v.cliente_id}">${escaparHtml(v.cliente_nome)}</a></td>
         <td>${escaparHtml(v.pessoa_com_quem_falou || '—')}</td>
-        <td class="chamado-descricao">${celulaObsHtml(v.id, v.observacoes)}</td>
+        <td class="chamado-descricao">${celulaObsHtml(`obs-${v.id}`, v.observacoes)}</td>
+        <td class="chamado-descricao">${celulaObsHtml(`acoes-${v.id}`, v.acoes)}</td>
         <td>${escaparHtml(v.supervisor_nome)}</td>
         <td class="celula-acoes-tabela">
           ${podeGerenciar ? `<button class="btn-ghost btn-editar-visita" data-id="${v.id}">Editar</button>` : ''}
@@ -252,7 +260,7 @@ function renderizarVisitas(visitas) {
 
   container.innerHTML = `
     <table class="table-list">
-      <thead><tr><th>Data</th><th>Cliente</th><th>Falou com</th><th>Observações</th><th>Registrado por</th><th>Ações</th></tr></thead>
+      <thead><tr><th>Data</th><th>Cliente</th><th>Falou com</th><th>Observações</th><th>Ações</th><th>Registrado por</th><th>Gerenciar</th></tr></thead>
       <tbody>${linhas}</tbody>
     </table>
   `;

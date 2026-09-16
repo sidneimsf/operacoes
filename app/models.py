@@ -637,6 +637,7 @@ class VisitaSupervisao(Base):
     data_visita: Mapped[date] = mapped_column(Date, nullable=False)
     pessoa_com_quem_falou: Mapped[str | None] = mapped_column(String(150), nullable=True)
     observacoes: Mapped[str | None] = mapped_column(String(1500), nullable=True)
+    acoes: Mapped[str | None] = mapped_column(String(1500), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     cliente: Mapped["Cliente"] = relationship()
