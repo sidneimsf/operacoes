@@ -296,3 +296,17 @@ class VagaAbertaUpdate(BaseModel):
     descricao: str | None = None
     cliente_id: int | None = None
     aberta: bool | None = None
+
+
+class VisitaSupervisaoCreate(BaseModel):
+    cliente_id: int
+    data_visita: str
+    pessoa_com_quem_falou: str | None = None
+    observacoes: str | None = None
+
+
+class VisitaSupervisaoUpdate(BaseModel):
+    cliente_id: int | None = None
+    data_visita: str | None = None
+    pessoa_com_quem_falou: str | None = None
+    observacoes: str | None = None

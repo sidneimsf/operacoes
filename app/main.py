@@ -25,6 +25,7 @@ from models import (
     Freelancer,
     TarefaAgendada,
     VagaAberta,
+    VisitaSupervisao,
     Colaborador,
     ColaboradorEvento,
     CustoDiario,
@@ -49,6 +50,8 @@ from schemas import (
     TarefaAgendadaUpdate,
     VagaAbertaCreate,
     VagaAbertaUpdate,
+    VisitaSupervisaoCreate,
+    VisitaSupervisaoUpdate,
     ChamadoEdicaoUpdate,
     ChamadoFinalizar,
     ChamadoStatusUpdate,
@@ -467,6 +470,11 @@ def pagina_agendar():
 @app.get("/vagas", include_in_schema=False)
 def pagina_vagas():
     return FileResponse("static/vagas.html")
+
+
+@app.get("/supervisao", include_in_schema=False)
+def pagina_supervisao():
+    return FileResponse("static/supervisao.html")
 
 
 @app.get("/cliente-detalhe", include_in_schema=False)
@@ -4449,3 +4457,159 @@ def confirmar_posto_vago_amanha(
         db.delete(ja_confirmado)
         db.commit()
         return {"confirmado": False}
+
+
+# ---------------------------------------------------------------------------
+# Supervisão (registro de visitas dos supervisores aos clientes)
+# ---------------------------------------------------------------------------
+
+def serializar_visita(v: VisitaSupervisao) -> dict:
+    return {
+        "id": v.id,
+        "cliente_id": v.cliente_id,
+        "cliente_nome": v.cliente.nome,
+        "supervisor_id": v.supervisor_id,
+        "supervisor_nome": v.supervisor.nome,
+        "data_visita": v.data_visita.isoformat(),
+        "pessoa_com_quem_falou": v.pessoa_com_quem_falou,
+        "observacoes": v.observacoes,
+        "criado_em": v.criado_em.isoformat(),
+    }
+
+
+def _pode_gerenciar_visita(usuario: Usuario, visita: VisitaSupervisao) -> bool:
+    return visita.supervisor_id == usuario.id or usuario.papel == "escritorio"
+
+
+@app.get("/visitas-supervisao")
+def listar_visitas_supervisao(
+    cliente_id: int | None = None,
+    supervisor_id: int | None = None,
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    query = db.query(VisitaSupervisao)
+    if usuario.papel != "escritorio":
+        query = query.filter(VisitaSupervisao.supervisor_id == usuario.id)
+    if cliente_id is not None:
+        query = query.filter(VisitaSupervisao.cliente_id == cliente_id)
+    if supervisor_id is not None:
+        query = query.filter(VisitaSupervisao.supervisor_id == supervisor_id)
+    if data_inicio:
+        query = query.filter(VisitaSupervisao.data_visita >= date.fromisoformat(data_inicio))
+    if data_fim:
+        query = query.filter(VisitaSupervisao.data_visita <= date.fromisoformat(data_fim))
+    visitas = query.order_by(VisitaSupervisao.data_visita.desc(), VisitaSupervisao.criado_em.desc()).all()
+    return [serializar_visita(v) for v in visitas]
+
+
+@app.post("/visitas-supervisao", status_code=status.HTTP_201_CREATED)
+def criar_visita_supervisao(
+    dados: VisitaSupervisaoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    if db.get(Cliente, dados.cliente_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+
+    try:
+        data_visita = date.fromisoformat(dados.data_visita)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data invalida")
+
+    visita = VisitaSupervisao(
+        cliente_id=dados.cliente_id,
+        supervisor_id=usuario.id,
+        data_visita=data_visita,
+        pessoa_com_quem_falou=(dados.pessoa_com_quem_falou or "").strip() or None,
+        observacoes=(dados.observacoes or "").strip() or None,
+    )
+    db.add(visita)
+    db.commit()
+    db.refresh(visita)
+    return serializar_visita(visita)
+
+
+@app.patch("/visitas-supervisao/{visita_id}")
+def editar_visita_supervisao(
+    visita_id: int,
+    dados: VisitaSupervisaoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    visita = db.get(VisitaSupervisao, visita_id)
+    if visita is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visita nao encontrada")
+    if not _pode_gerenciar_visita(usuario, visita):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só quem registrou (ou o escritório) pode editar essa visita")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "cliente_id" in campos:
+        if db.get(Cliente, campos["cliente_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+        visita.cliente_id = campos["cliente_id"]
+    if "data_visita" in campos:
+        try:
+            visita.data_visita = date.fromisoformat(campos["data_visita"])
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data invalida")
+    if "pessoa_com_quem_falou" in campos:
+        visita.pessoa_com_quem_falou = (campos["pessoa_com_quem_falou"] or "").strip() or None
+    if "observacoes" in campos:
+        visita.observacoes = (campos["observacoes"] or "").strip() or None
+
+    db.commit()
+    db.refresh(visita)
+    return serializar_visita(visita)
+
+
+@app.delete("/visitas-supervisao/{visita_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_visita_supervisao(
+    visita_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    visita = db.get(VisitaSupervisao, visita_id)
+    if visita is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visita nao encontrada")
+    if not _pode_gerenciar_visita(usuario, visita):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só quem registrou (ou o escritório) pode excluir essa visita")
+    db.delete(visita)
+    db.commit()
+
+
+@app.get("/relatorios-dados/ultima-visita-por-cliente")
+def relatorio_ultima_visita_por_cliente(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    """Pra cada cliente ativo, mostra a data da ultima visita registrada
+    (ou nunca, se nenhuma visita foi feita) - ordenado do mais tempo sem
+    visita pro mais recente, pra facilitar identificar quem precisa de
+    atencao."""
+    clientes_ativos = db.query(Cliente).filter(Cliente.ativo.is_(True)).all()
+
+    ultimas_visitas = dict(
+        db.query(VisitaSupervisao.cliente_id, func.max(VisitaSupervisao.data_visita))
+        .group_by(VisitaSupervisao.cliente_id)
+        .all()
+    )
+
+    linhas = []
+    for cliente in clientes_ativos:
+        ultima_data = ultimas_visitas.get(cliente.id)
+        dias_sem_visita = (date.today() - ultima_data).days if ultima_data else None
+        linhas.append({
+            "cliente_id": cliente.id,
+            "cliente_nome": cliente.nome,
+            "empresa_nome": cliente.empresa.nome,
+            "supervisor_nome": cliente.supervisor.nome if cliente.supervisor else None,
+            "ultima_visita": ultima_data.isoformat() if ultima_data else None,
+            "dias_sem_visita": dias_sem_visita,
+        })
+
+    # nunca visitados primeiro (mais critico), depois do mais tempo sem visita pro mais recente
+    linhas.sort(key=lambda l: l["dias_sem_visita"] if l["dias_sem_visita"] is not None else float("inf"), reverse=True)
+    return {"total_clientes": len(linhas), "clientes": linhas}
