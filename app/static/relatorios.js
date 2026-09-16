@@ -632,6 +632,40 @@ async function carregarRelatorio() {
   }
 }
 
+async function exportarCoberturaExcel() {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return;
+
+  const dataInicio = document.getElementById('filtro-data-inicio').value;
+  const dataFim = document.getElementById('filtro-data-fim').value;
+  const params = new URLSearchParams();
+  if (dataInicio) params.set('data_inicio', dataInicio);
+  if (dataFim) params.set('data_fim', dataFim);
+
+  try {
+    const resposta = await fetch(`/relatorios-dados/custos-diarios/exportar-cobertura-excel?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    });
+    if (resposta.status === 401) {
+      Shell.sair();
+      return;
+    }
+    if (!resposta.ok) throw new Error('Falha ao gerar o Excel');
+
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `cobertura-diarias-${dataInicio || 'inicio'}-a-${dataFim || 'hoje'}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (erro) {
+    alert('Não foi possível gerar o Excel agora.');
+  }
+}
+
 function baixarCSV(nomeArquivo, cabecalhos, linhas) {
   const escapar = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
   const conteudo = [cabecalhos.map(escapar).join(';'), ...linhas.map((linha) => linha.map(escapar).join(';'))].join('\r\n');
@@ -646,6 +680,11 @@ function baixarCSV(nomeArquivo, cabecalhos, linhas) {
 
 function exportarCSV() {
   if (!dadosAtuais) return;
+
+  if (abaAtual === 'custos') {
+    exportarCoberturaExcel();
+    return;
+  }
 
   if (abaAtual === 'geral') {
     const linhas = [

@@ -1,10 +1,15 @@
 import os
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
+from io import BytesIO
 from pathlib import Path
 
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font
+from openpyxl.utils import get_column_letter
+
 from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
@@ -4104,6 +4109,84 @@ def relatorio_custos_diarios(
     }
 
 
+@app.get("/relatorios-dados/custos-diarios/exportar-cobertura-excel")
+def exportar_cobertura_diarias_excel(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    """Exporta a cobertura de diarias em .xlsx, no mesmo formato/colunas
+    ja usado pela empresa: Cobertura, Chave PIX, Empresa, Cliente, VALOR,
+    DATA, Motivo, Faltou/posto de."""
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    custos = (
+        db.query(CustoDiario)
+        .filter(CustoDiario.data.between(inicio, fim), CustoDiario.tipo == "diaria")
+        .order_by(CustoDiario.data.asc())
+        .all()
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Planilha1"
+
+    cabecalhos = ["Cobertura", "Chave PIX", "Empresa", "Cliente", "VALOR", "DATA", "Motivo", "Faltou/posto de"]
+    fonte_padrao = Font(name="Calibri", size=11)
+    fonte_cabecalho = Font(name="Calibri", size=11, bold=True)
+    alinhamento_centro = Alignment(horizontal="center", vertical="center")
+
+    for col_idx, titulo in enumerate(cabecalhos, start=1):
+        celula = ws.cell(row=1, column=col_idx, value=titulo)
+        celula.font = fonte_cabecalho
+        celula.alignment = alinhamento_centro
+
+    for linha_idx, c in enumerate(custos, start=2):
+        nome_cobertura = (c.cobertura_colaborador.nome if c.cobertura_colaborador else None) or (
+            c.freelancer.nome if c.freelancer else None
+        ) or c.nome_beneficiario
+        motivo = next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), c.status_diaria)
+        empresa_nome = c.cliente.empresa.nome if c.cliente and c.cliente.empresa else None
+
+        valores = [
+            nome_cobertura,
+            c.chave_pix,
+            empresa_nome,
+            c.cliente.nome if c.cliente else None,
+            c.valor,
+            c.data,
+            motivo,
+            c.colaborador.nome if c.colaborador else None,
+        ]
+        for col_idx, valor in enumerate(valores, start=1):
+            celula = ws.cell(row=linha_idx, column=col_idx, value=valor)
+            celula.font = fonte_padrao
+            if col_idx == 5:  # VALOR
+                celula.number_format = '"R$"\\ #,##0.00;[Red]\\-"R$"\\ #,##0.00'
+            elif col_idx == 6:  # DATA
+                celula.number_format = "mm-dd-yy"
+
+    larguras = [23.57, 33.14, 8.57, 8.71, 9.14, 10.71, 21.43, 15.29]
+    for col_idx, largura in enumerate(larguras, start=1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = largura
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    nome_arquivo = f"cobertura-diarias-{inicio.isoformat()}-a-{fim.isoformat()}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
+
+
 # ---------------------------------------------------------------------------
 # Agendador de tarefas (calendario de lembretes)
 # ---------------------------------------------------------------------------
@@ -4403,7 +4486,7 @@ def alerta_postos_vagos_amanha(db: Session = Depends(get_db), usuario: Usuario =
     amanha = date.today() + timedelta(days=1)
     dia_semana_amanha = DIAS_SEMANA_ORDEM[amanha.weekday()]
 
-    horarios_amanha = (
+    query_horarios = (
         db.query(HorarioServico)
         .filter(
             HorarioServico.colaborador_id == posto_vago.id,
@@ -4411,9 +4494,11 @@ def alerta_postos_vagos_amanha(db: Session = Depends(get_db), usuario: Usuario =
             HorarioServico.dia_semana == dia_semana_amanha,
         )
         .join(Cliente)
-        .filter(Cliente.ativo.is_(True), Cliente.supervisor_id == usuario.id)
-        .all()
+        .filter(Cliente.ativo.is_(True))
     )
+    if usuario.papel != "escritorio":
+        query_horarios = query_horarios.filter(Cliente.supervisor_id == usuario.id)
+    horarios_amanha = query_horarios.all()
 
     confirmacoes = {
         c.cliente_id
