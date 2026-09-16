@@ -2110,6 +2110,7 @@ button {
   padding: 6px;
   cursor: pointer;
   transition: background 0.15s;
+  overflow: hidden;
 }
 
 .calendario-celula:hover {
@@ -2144,6 +2145,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  min-width: 0;
 }
 
 .calendario-tarefa-chip {
@@ -2155,6 +2157,8 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .calendario-tarefa-chip.concluida {
