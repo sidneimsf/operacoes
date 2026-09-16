@@ -330,11 +330,14 @@ async function carregarRelatorioUltimaVisita() {
   try {
     const dados = await Shell.chamarApi('/relatorios-dados/ultima-visita-por-cliente');
     if (dados === null) return;
+    dadosUltimaVisitaCompletos = dados;
     renderizarRelatorioUltimaVisita(dados);
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar o relatório agora.</div>';
   }
 }
+
+let dadosUltimaVisitaCompletos = null;
 
 function renderizarRelatorioUltimaVisita(dados) {
   const container = document.getElementById('relatorio-ultima-visita');
@@ -365,15 +368,86 @@ function renderizarRelatorioUltimaVisita(dados) {
 
   container.innerHTML = `
     <div class="kpi-grid">
-      <div class="kpi-card"><div class="label">clientes ativos</div><div class="value">${dados.total_clientes}</div></div>
+      <div class="kpi-card"><div class="label">clientes</div><div class="value">${dados.total_clientes}</div></div>
       <div class="kpi-card"><div class="label">nunca visitados</div><div class="value">${dados.clientes.filter((c) => c.ultima_visita === null).length}</div></div>
     </div>
-    <div class="section-title" style="margin-top: 30px;">Última visita por cliente</div>
+    <div class="field" style="max-width: 320px; margin-top: 20px;">
+      <label for="ultima-visita-busca">Buscar cliente</label>
+      <div class="busca-select">
+        <input type="text" id="ultima-visita-busca" placeholder="Digite o nome do cliente..." autocomplete="off">
+        <div class="busca-select-resultados" id="ultima-visita-resultados" hidden></div>
+      </div>
+    </div>
+    <div class="section-title" style="margin-top: 20px;">Última visita por cliente</div>
     <table class="table-list">
       <thead><tr><th>Cliente</th><th>Empresa</th><th>Supervisor</th><th>Última visita</th><th>Situação</th></tr></thead>
-      <tbody>${linhas}</tbody>
+      <tbody id="corpo-ultima-visita">${linhas}</tbody>
     </table>
   `;
+
+  ligarBuscaUltimaVisita();
+}
+
+function ligarBuscaUltimaVisita() {
+  const input = document.getElementById('ultima-visita-busca');
+  const resultadosBox = document.getElementById('ultima-visita-resultados');
+  const container = input.closest('.busca-select');
+
+  function renderizarSugestoes(termo) {
+    const termoNormalizado = termo.trim().toLowerCase();
+    if (!termoNormalizado) {
+      resultadosBox.hidden = true;
+      return;
+    }
+    const filtrados = dadosUltimaVisitaCompletos.clientes.filter((c) => c.cliente_nome.toLowerCase().includes(termoNormalizado));
+    resultadosBox.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Nada encontrado.</div>'
+        : filtrados.slice(0, 50).map((c) => `<div class="busca-select-item" data-id="${c.cliente_id}">${c.cliente_nome}</div>`).join('');
+    resultadosBox.hidden = false;
+  }
+
+  input.addEventListener('input', () => {
+    renderizarSugestoes(input.value);
+    if (!input.value.trim()) {
+      renderizarRelatorioUltimaVisita(dadosUltimaVisitaCompletos);
+    }
+  });
+  input.addEventListener('focus', () => renderizarSugestoes(input.value));
+  resultadosBox.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    const clienteFiltrado = dadosUltimaVisitaCompletos.clientes.filter((c) => c.cliente_id === Number(item.dataset.id));
+    const corpo = document.getElementById('corpo-ultima-visita');
+    corpo.innerHTML = clienteFiltrado
+      .map((c) => {
+        let situacaoHtml;
+        if (c.ultima_visita === null) {
+          situacaoHtml = '<span class="priority-badge urgente">Nunca visitado</span>';
+        } else if (c.dias_sem_visita > 60) {
+          situacaoHtml = `<span class="priority-badge urgente">${c.dias_sem_visita} dias sem visita</span>`;
+        } else if (c.dias_sem_visita > 30) {
+          situacaoHtml = `<span class="priority-badge normal">${c.dias_sem_visita} dias sem visita</span>`;
+        } else {
+          situacaoHtml = `<span class="meta">${c.dias_sem_visita} dia(s) atrás</span>`;
+        }
+        return `
+        <tr>
+          <td><a href="/cliente-detalhe?id=${c.cliente_id}">${escaparHtml(c.cliente_nome)}</a></td>
+          <td>${escaparHtml(c.empresa_nome)}</td>
+          <td>${escaparHtml(c.supervisor_nome || '—')}</td>
+          <td>${c.ultima_visita ? formatarDataBR(c.ultima_visita) : '—'}</td>
+          <td>${situacaoHtml}</td>
+        </tr>
+      `;
+      })
+      .join('');
+    input.value = item.textContent;
+    resultadosBox.hidden = true;
+  });
+  document.addEventListener('click', (evento) => {
+    if (!container.contains(evento.target)) resultadosBox.hidden = true;
+  });
 }
 
 montarModalVisita();

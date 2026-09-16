@@ -4586,14 +4586,20 @@ def excluir_visita_supervisao(
 
 @app.get("/relatorios-dados/ultima-visita-por-cliente")
 def relatorio_ultima_visita_por_cliente(
+    cliente_id: int | None = None,
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+    usuario: Usuario = Depends(usuario_atual),
 ):
     """Pra cada cliente ativo, mostra a data da ultima visita registrada
     (ou nunca, se nenhuma visita foi feita) - ordenado do mais tempo sem
     visita pro mais recente, pra facilitar identificar quem precisa de
-    atencao."""
-    clientes_ativos = db.query(Cliente).filter(Cliente.ativo.is_(True)).all()
+    atencao. Supervisor ve so os proprios clientes; escritorio ve todos."""
+    query = db.query(Cliente).filter(Cliente.ativo.is_(True))
+    if usuario.papel != "escritorio":
+        query = query.filter(Cliente.supervisor_id == usuario.id)
+    if cliente_id is not None:
+        query = query.filter(Cliente.id == cliente_id)
+    clientes_ativos = query.all()
 
     ultimas_visitas = dict(
         db.query(VisitaSupervisao.cliente_id, func.max(VisitaSupervisao.data_visita))
