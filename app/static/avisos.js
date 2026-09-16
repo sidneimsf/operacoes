@@ -119,6 +119,49 @@ function formatarData(isoString) {
   return `${dataFormatada} · ${horaFormatada}`;
 }
 
+function agruparAvisos(avisos) {
+  // Ordena por mensagem+remetente+data, pra que avisos do mesmo "envio em lote"
+  // fiquem em sequencia mesmo que o timestamp exato varie por alguns milissegundos
+  const ordenados = [...avisos].sort((a, b) => {
+    if (a.mensagem !== b.mensagem) return a.mensagem < b.mensagem ? -1 : 1;
+    if (a.criado_por_id !== b.criado_por_id) return a.criado_por_id - b.criado_por_id;
+    return new Date(a.criado_em) - new Date(b.criado_em);
+  });
+
+  const JANELA_MESMO_ENVIO_MS = 10000; // avisos criados a menos de 10s um do outro, com mesma mensagem/remetente, sao o mesmo envio
+  const grupos = [];
+  let grupoAtual = null;
+
+  ordenados.forEach((a) => {
+    const pertenceAoGrupoAtual =
+      grupoAtual &&
+      grupoAtual.mensagem === a.mensagem &&
+      grupoAtual.criado_por_id === a.criado_por_id &&
+      Math.abs(new Date(a.criado_em) - new Date(grupoAtual.ultimoCriadoEm)) <= JANELA_MESMO_ENVIO_MS;
+
+    if (pertenceAoGrupoAtual) {
+      grupoAtual.ids.push(a.id);
+      if (a.destinatario_nome) grupoAtual.destinatarios.push(a.destinatario_nome);
+      grupoAtual.ultimoCriadoEm = a.criado_em;
+    } else {
+      grupoAtual = {
+        ids: [a.id],
+        mensagem: a.mensagem,
+        criado_por_nome: a.criado_por_nome,
+        criado_por_id: a.criado_por_id,
+        criado_em: a.criado_em,
+        ultimoCriadoEm: a.criado_em,
+        destinatarios: a.destinatario_nome ? [a.destinatario_nome] : [],
+      };
+      grupos.push(grupoAtual);
+    }
+  });
+
+  // Reordena os grupos do mais recente pro mais antigo, pra manter a ordem esperada no mural
+  grupos.sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em));
+  return grupos;
+}
+
 function renderizarMural(avisos) {
   const container = document.getElementById('mural');
 
@@ -127,17 +170,20 @@ function renderizarMural(avisos) {
     return;
   }
 
-  container.innerHTML = avisos
-    .map((a) => {
-      const podeExcluir = a.criado_por_id === auth.id || auth.papel === 'escritorio';
+  const grupos = agruparAvisos(avisos);
+
+  container.innerHTML = grupos
+    .map((g) => {
+      const podeExcluir = g.criado_por_id === auth.id || auth.papel === 'escritorio';
+      const textoDestinatarios = g.destinatarios.length > 0 ? g.destinatarios.join(', ') : null;
       return `
       <div class="postit">
         <div class="pin"></div>
-        ${podeExcluir ? `<button class="postit-excluir" data-aviso-id="${a.id}" aria-label="Excluir aviso" title="Excluir">&times;</button>` : ''}
-        <div class="mensagem">${escaparHtml(a.mensagem)}</div>
+        ${podeExcluir ? `<button class="postit-excluir" data-aviso-ids="${g.ids.join(',')}" aria-label="Excluir aviso" title="Excluir">&times;</button>` : ''}
+        <div class="mensagem">${escaparHtml(g.mensagem)}</div>
         <div class="rodape">
-          <span>${a.criado_por_nome} · ${formatarData(a.criado_em)}</span>
-          ${a.destinatario_nome ? `<span class="destinatario-tag">Para: ${a.destinatario_nome}</span>` : ''}
+          <span>${g.criado_por_nome} · ${formatarData(g.criado_em)}</span>
+          ${textoDestinatarios ? `<span class="destinatario-tag">Para: ${escaparHtml(textoDestinatarios)}</span>` : ''}
         </div>
       </div>
     `;
@@ -145,10 +191,10 @@ function renderizarMural(avisos) {
     .join('');
 }
 
-async function excluirAviso(avisoId) {
+async function excluirAviso(avisoIds) {
   if (!confirm('Excluir este aviso do mural?')) return;
   try {
-    await Shell.chamarApi(`/avisos-dados/${avisoId}`, { method: 'DELETE' });
+    await Promise.all(avisoIds.map((id) => Shell.chamarApi(`/avisos-dados/${id}`, { method: 'DELETE' })));
     carregarAvisos();
   } catch (erro) {
     alert('Não foi possível excluir o aviso agora.');
@@ -182,7 +228,7 @@ document.getElementById('btn-novo-aviso').addEventListener('click', abrirModalAv
 document.getElementById('mural').addEventListener('click', (evento) => {
   const botao = evento.target.closest('.postit-excluir');
   if (!botao) return;
-  excluirAviso(botao.dataset.avisoId);
+  excluirAviso(botao.dataset.avisoIds.split(',').map(Number));
 });
 
 carregarAvisos();
