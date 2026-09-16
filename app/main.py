@@ -4167,7 +4167,7 @@ def exportar_cobertura_diarias_excel(
             celula = ws.cell(row=linha_idx, column=col_idx, value=valor)
             celula.font = fonte_padrao
             if col_idx == 5:  # VALOR
-                celula.number_format = '"R$"\\ #,##0.00;[Red]\\-"R$"\\ #,##0.00'
+                celula.number_format = '[$-416]"R$"\\ #,##0.00'
             elif col_idx == 6:  # DATA
                 celula.number_format = "mm-dd-yy"
 
