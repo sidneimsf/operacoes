@@ -2322,3 +2322,28 @@ button {
   color: #ffffff;
   border-color: var(--accent);
 }
+
+.barra-acao-bloco {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.barra-acao-bloco #contagem-selecionados {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: auto;
+}
+
+.barra-acao-bloco .btn-primary,
+.barra-acao-bloco .btn-ghost {
+  width: auto;
+}

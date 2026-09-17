@@ -8,6 +8,10 @@ function formatarData(isoString) {
   return `${dia}/${mes}/${ano}`;
 }
 
+function formatarHora(isoStringComHora) {
+  return new Date(isoStringComHora).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
 function formatarMoeda(valor) {
   return (valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -58,7 +62,8 @@ function renderizarLista(custos) {
 
       return `
       <tr>
-        <td>${formatarData(c.data)}</td>
+        ${ehEscritorio ? `<td><input type="checkbox" class="check-custo" data-custo-id="${c.id}" data-reembolsado="${c.reembolsado}"></td>` : ''}
+        <td>${formatarData(c.data)}<div class="meta" style="font-size: 11px;">${formatarHora(c.criado_em)}</div></td>
         <td>${c.usuario_nome}</td>
         <td>${labelTipoCusto(c.tipo)}</td>
         <td>${formatarMoeda(c.valor)}</td>
@@ -74,17 +79,91 @@ function renderizarLista(custos) {
     .join('');
 
   container.innerHTML = `
+    ${ehEscritorio ? `
+      <div class="barra-acao-bloco" id="barra-acao-bloco" hidden>
+        <span id="contagem-selecionados">0 selecionados</span>
+        <button class="btn-primary" id="btn-marcar-reembolsado-bloco" style="padding: 6px 14px; font-size: 13px;">Marcar reembolsado</button>
+        <button class="btn-ghost" id="btn-desfazer-reembolso-bloco" style="padding: 6px 14px; font-size: 13px;">Desfazer reembolso</button>
+        <button class="btn-ghost" id="btn-cancelar-selecao" style="padding: 6px 14px; font-size: 13px;">Cancelar</button>
+      </div>
+    ` : ''}
     <table class="table-list">
       <thead>
-        <tr><th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Descrição</th><th>Cliente</th><th>Comprovante</th><th>Status</th><th>Ações</th></tr>
+        <tr>
+          ${ehEscritorio ? '<th><input type="checkbox" id="selecionar-todos-custos"></th>' : ''}
+          <th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Descrição</th><th>Cliente</th><th>Comprovante</th><th>Status</th><th>Ações</th>
+        </tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
   `;
+
+  if (ehEscritorio) {
+    ligarSelecaoEmBloco();
+  }
+}
+
+function ligarSelecaoEmBloco() {
+  const barra = document.getElementById('barra-acao-bloco');
+  const contagemEl = document.getElementById('contagem-selecionados');
+  const checkboxTodos = document.getElementById('selecionar-todos-custos');
+  const checkboxesLinha = () => Array.from(document.querySelectorAll('.check-custo'));
+
+  function atualizarBarra() {
+    const selecionados = checkboxesLinha().filter((c) => c.checked);
+    if (selecionados.length === 0) {
+      barra.hidden = true;
+    } else {
+      barra.hidden = false;
+      contagemEl.textContent = `${selecionados.length} selecionado${selecionados.length > 1 ? 's' : ''}`;
+    }
+  }
+
+  checkboxTodos.addEventListener('change', () => {
+    checkboxesLinha().forEach((c) => (c.checked = checkboxTodos.checked));
+    atualizarBarra();
+  });
+
+  checkboxesLinha().forEach((checkbox) => {
+    checkbox.addEventListener('change', atualizarBarra);
+  });
+
+  document.getElementById('btn-cancelar-selecao').addEventListener('click', () => {
+    checkboxesLinha().forEach((c) => (c.checked = false));
+    checkboxTodos.checked = false;
+    atualizarBarra();
+  });
+
+  document.getElementById('btn-marcar-reembolsado-bloco').addEventListener('click', () => aplicarReembolsoEmBloco(true));
+  document.getElementById('btn-desfazer-reembolso-bloco').addEventListener('click', () => aplicarReembolsoEmBloco(false));
+}
+
+async function aplicarReembolsoEmBloco(marcarComoReembolsado) {
+  const selecionados = Array.from(document.querySelectorAll('.check-custo')).filter((c) => c.checked);
+  if (selecionados.length === 0) return;
+
+  const acao = marcarComoReembolsado ? 'marcar como reembolsados' : 'desfazer o reembolso de';
+  if (!confirm(`Deseja ${acao} ${selecionados.length} custo(s) selecionado(s)?`)) return;
+
+  try {
+    await Promise.all(
+      selecionados.map((checkbox) =>
+        Shell.chamarApi(`/custos-diarios-dados/${checkbox.dataset.custoId}`, {
+          method: 'PATCH',
+          body: { reembolsado: marcarComoReembolsado },
+        })
+      )
+    );
+    carregarCustos();
+  } catch (erro) {
+    alert('Não foi possível atualizar todos os itens agora. Tente novamente.');
+    carregarCustos();
+  }
 }
 
 async function carregarCustos() {
   const container = document.getElementById('lista-custos');
+  const posicaoScrollAnterior = window.scrollY;
   container.innerHTML = '<div class="loading-state">Carregando...</div>';
   try {
     const custos = await Shell.chamarApi('/custos-diarios-dados');
@@ -92,6 +171,8 @@ async function carregarCustos() {
     renderizarLista(custos);
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar os dados agora.</div>';
+  } finally {
+    window.scrollTo({ top: posicaoScrollAnterior, behavior: 'instant' });
   }
 }
 
