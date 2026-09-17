@@ -34,6 +34,13 @@
           <span class="section-title" style="margin: 0;">Visitas registradas</span>
           <button class="btn-primary" id="btn-nova-visita">+ Registrar visita</button>
         </div>
+        <div class="field" style="max-width: 320px; margin-bottom: 16px;">
+          <label for="visitas-busca-cliente">Buscar por cliente</label>
+          <div class="busca-select">
+            <input type="text" id="visitas-busca-cliente" placeholder="Digite o nome do cliente..." autocomplete="off">
+            <div class="busca-select-resultados" id="visitas-busca-cliente-resultados" hidden></div>
+          </div>
+        </div>
         <div id="lista-visitas">
           <div class="loading-state">Carregando visitas...</div>
         </div>

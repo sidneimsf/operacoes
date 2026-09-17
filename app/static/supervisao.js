@@ -219,16 +219,67 @@ function celulaObsHtml(id, texto) {
   `;
 }
 
+let visitasCompletas = [];
+let buscaVisitasLigada = false;
+
 async function carregarVisitas() {
   const container = document.getElementById('lista-visitas');
   container.innerHTML = '<div class="loading-state">Carregando visitas...</div>';
   try {
     const visitas = await Shell.chamarApi('/visitas-supervisao');
     if (visitas === null) return;
+    visitasCompletas = visitas;
     renderizarVisitas(visitas);
+    ligarBuscaVisitas();
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar as visitas agora.</div>';
   }
+}
+
+function ligarBuscaVisitas() {
+  if (buscaVisitasLigada) return;
+  buscaVisitasLigada = true;
+
+  const input = document.getElementById('visitas-busca-cliente');
+  const resultadosBox = document.getElementById('visitas-busca-cliente-resultados');
+  const container = input.closest('.busca-select');
+
+  function nomesUnicos() {
+    return [...new Set(visitasCompletas.map((v) => v.cliente_nome))];
+  }
+
+  function renderizarSugestoes(termo) {
+    const termoNormalizado = termo.trim().toLowerCase();
+    if (!termoNormalizado) {
+      resultadosBox.hidden = true;
+      return;
+    }
+    const filtrados = nomesUnicos().filter((nome) => nome.toLowerCase().includes(termoNormalizado));
+    resultadosBox.innerHTML =
+      filtrados.length === 0
+        ? '<div class="busca-select-vazio">Nada encontrado.</div>'
+        : filtrados.slice(0, 50).map((nome) => `<div class="busca-select-item" data-nome="${escaparHtml(nome)}">${escaparHtml(nome)}</div>`).join('');
+    resultadosBox.hidden = false;
+  }
+
+  input.addEventListener('input', () => {
+    renderizarSugestoes(input.value);
+    const termo = input.value.trim().toLowerCase();
+    const filtradas = termo ? visitasCompletas.filter((v) => v.cliente_nome.toLowerCase().includes(termo)) : visitasCompletas;
+    renderizarVisitas(filtradas);
+  });
+  input.addEventListener('focus', () => renderizarSugestoes(input.value));
+  resultadosBox.addEventListener('click', (evento) => {
+    const item = evento.target.closest('.busca-select-item');
+    if (!item) return;
+    input.value = item.dataset.nome;
+    resultadosBox.hidden = true;
+    const filtradas = visitasCompletas.filter((v) => v.cliente_nome === item.dataset.nome);
+    renderizarVisitas(filtradas);
+  });
+  document.addEventListener('click', (evento) => {
+    if (!container.contains(evento.target)) resultadosBox.hidden = true;
+  });
 }
 
 function renderizarVisitas(visitas) {

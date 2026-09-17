@@ -9,6 +9,11 @@ function escaparHtml(texto) {
   return div.innerHTML;
 }
 
+function formatarDataBR(isoString) {
+  const [ano, mes, dia] = isoString.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
 let TIPOS = [];
 let STATUS = [];
 let PRIORIDADES = [];
@@ -592,6 +597,71 @@ async function alternarStatusCliente() {
   }
 }
 
+const LIMITE_TEXTO_VISITA_CURTO = 90;
+
+function celulaTextoLongoHtml(id, texto) {
+  if (!texto) return '—';
+  if (texto.length <= LIMITE_TEXTO_VISITA_CURTO) return escaparHtml(texto);
+  const resumo = texto.slice(0, LIMITE_TEXTO_VISITA_CURTO).trim() + '…';
+  return `
+    <span class="descricao-texto" data-completo="${escaparHtml(texto)}" data-resumo="${escaparHtml(resumo)}" data-expandido="false">${escaparHtml(resumo)}</span>
+    <button type="button" class="btn-ver-mais-descricao" data-id="${id}">Ver mais</button>
+  `;
+}
+
+async function carregarHistoricoVisitas() {
+  const container = document.getElementById('historico-visitas');
+  try {
+    const visitas = await Shell.chamarApi(`/visitas-supervisao?cliente_id=${clienteId}`);
+    if (visitas === null) return;
+
+    if (visitas.length === 0) {
+      container.innerHTML = '<div class="empty-state">Nenhuma visita registrada pra este cliente ainda.</div>';
+      return;
+    }
+
+    const linhas = visitas
+      .map(
+        (v) => `
+        <tr>
+          <td>${formatarDataBR(v.data_visita)}</td>
+          <td>${escaparHtml(v.supervisor_nome)}</td>
+          <td>${escaparHtml(v.pessoa_com_quem_falou || '—')}</td>
+          <td class="chamado-descricao">${celulaTextoLongoHtml(`visita-obs-${v.id}`, v.observacoes)}</td>
+          <td class="chamado-descricao">${celulaTextoLongoHtml(`visita-acoes-${v.id}`, v.acoes)}</td>
+        </tr>
+      `
+      )
+      .join('');
+
+    container.innerHTML = `
+      <table class="table-list">
+        <thead><tr><th>Data</th><th>Supervisor</th><th>Falou com</th><th>Observações</th><th>Ações</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    `;
+
+    container.querySelectorAll('.btn-ver-mais-descricao').forEach((botao) => {
+      botao.addEventListener('click', (evento) => {
+        evento.stopPropagation();
+        const spanTexto = botao.previousElementSibling;
+        const expandido = spanTexto.dataset.expandido === 'true';
+        if (expandido) {
+          spanTexto.textContent = spanTexto.dataset.resumo;
+          spanTexto.dataset.expandido = 'false';
+          botao.textContent = 'Ver mais';
+        } else {
+          spanTexto.textContent = spanTexto.dataset.completo;
+          spanTexto.dataset.expandido = 'true';
+          botao.textContent = 'Ver menos';
+        }
+      });
+    });
+  } catch (erro) {
+    container.innerHTML = '<div class="empty-state">Não foi possível carregar as visitas agora.</div>';
+  }
+}
+
 async function iniciar() {
   if (!clienteId) {
     document.getElementById('cliente-header').innerHTML = '<div class="empty-state">Cliente não especificado.</div>';
@@ -649,6 +719,7 @@ async function iniciar() {
     renderizarResumo(chamados);
     renderizarTimeline(chamados);
     carregarMapaServicos();
+    carregarHistoricoVisitas();
 
     montarModalCronograma();
     document.getElementById('btn-editar-cronograma').addEventListener('click', abrirModalCronograma);
