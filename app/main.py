@@ -4116,9 +4116,10 @@ def exportar_cobertura_diarias_excel(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(exigir_modulo("relatorios")),
 ):
-    """Exporta a cobertura de diarias em .xlsx, no mesmo formato/colunas
-    ja usado pela empresa: Cobertura, Chave PIX, Empresa, Cliente, VALOR,
-    DATA, Motivo, Faltou/posto de."""
+    """Exporta os custos diarios em .xlsx, no mesmo formato/colunas ja
+    usado pela empresa: Cobertura, Chave PIX, Empresa, Cliente, VALOR,
+    DATA, Motivo, Faltou/posto de. Inclui todos os tipos de lancamento,
+    nao so diarias."""
     hoje = date.today()
     inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
     fim = date.fromisoformat(data_fim) if data_fim else hoje
@@ -4127,7 +4128,7 @@ def exportar_cobertura_diarias_excel(
 
     custos = (
         db.query(CustoDiario)
-        .filter(CustoDiario.data.between(inicio, fim), CustoDiario.tipo == "diaria")
+        .filter(CustoDiario.data.between(inicio, fim))
         .order_by(CustoDiario.data.asc())
         .all()
     )
@@ -4150,7 +4151,11 @@ def exportar_cobertura_diarias_excel(
         nome_cobertura = (c.cobertura_colaborador.nome if c.cobertura_colaborador else None) or (
             c.freelancer.nome if c.freelancer else None
         ) or c.nome_beneficiario
-        motivo = next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), c.status_diaria)
+        motivo = (
+            next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), c.status_diaria)
+            if c.tipo == "diaria"
+            else next((t["label"] for t in TIPOS_CUSTO_DIARIO if t["chave"] == c.tipo), c.tipo)
+        )
         empresa_nome = c.cliente.empresa.nome if c.cliente and c.cliente.empresa else None
 
         valores = [
