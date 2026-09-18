@@ -168,6 +168,11 @@ const Shell = (() => {
     const appShell = document.getElementById('app-shell');
     appShell.insertAdjacentHTML('afterbegin', sidebarHtml);
 
+    const linkAtivo = document.querySelector('.nav-item.active');
+    if (linkAtivo) {
+      linkAtivo.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+
     document.getElementById('topbar-title').textContent = tituloTopbar;
     document.getElementById('topbar-title').insertAdjacentHTML(
       'afterend',

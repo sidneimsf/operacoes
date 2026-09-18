@@ -994,12 +994,16 @@ button {
 
 /* ---------- Listas em tabela (colaboradores, usuarios) ---------- */
 
-.table-list {
+.table-scroll-wrapper {
   width: 100%;
-  border-collapse: collapse;
-  display: block;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.table-list {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
 }
 
 @media (max-width: 780px) {

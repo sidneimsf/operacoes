@@ -139,11 +139,11 @@ function renderizarGeral(dados) {
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 24px;">
       <div>
         <div class="lembrete-subtitulo">Clientes com mais chamados</div>
-        ${c.top_clientes.length > 0 ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Chamados</th></tr></thead><tbody>${linhasTopClientes}</tbody></table>` : '<div class="empty-state">Sem dados no período.</div>'}
+        ${c.top_clientes.length > 0 ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Cliente</th><th>Chamados</th></tr></thead><tbody>${linhasTopClientes}</tbody></table></div>` : '<div class="empty-state">Sem dados no período.</div>'}
       </div>
       <div>
         <div class="lembrete-subtitulo">Supervisores que mais finalizaram</div>
-        ${c.top_supervisores.length > 0 ? `<table class="table-list"><thead><tr><th>Supervisor</th><th>Finalizados</th></tr></thead><tbody>${linhasTopSupervisores}</tbody></table>` : '<div class="empty-state">Sem dados no período.</div>'}
+        ${c.top_supervisores.length > 0 ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Supervisor</th><th>Finalizados</th></tr></thead><tbody>${linhasTopSupervisores}</tbody></table></div>` : '<div class="empty-state">Sem dados no período.</div>'}
       </div>
     </div>
 
@@ -162,7 +162,7 @@ function renderizarGeral(dados) {
       ${v.manutencoes_por_tipo.map((item) => `<div class="kpi-card"><div class="label">${item.tipo.toLowerCase()}s</div><div class="value">${item.total}</div></div>`).join('')}
     </div>
     <div style="margin-top: 16px;">
-      ${v.custo_por_veiculo.length > 0 ? `<table class="table-list"><thead><tr><th>Veículo</th><th>Manutenções</th><th>Custo</th></tr></thead><tbody>${linhasCustoVeiculo}</tbody></table>` : '<div class="empty-state">Nenhuma manutenção registrada no período.</div>'}
+      ${v.custo_por_veiculo.length > 0 ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Veículo</th><th>Manutenções</th><th>Custo</th></tr></thead><tbody>${linhasCustoVeiculo}</tbody></table></div>` : '<div class="empty-state">Nenhuma manutenção registrada no período.</div>'}
     </div>
 
     <div class="section-title" style="margin-top: 36px;">Clientes</div>
@@ -213,7 +213,7 @@ function renderizarPorCliente(dados) {
     <div class="section-title" style="margin-top: 30px;">Chamados no período</div>
     ${
       dados.chamados.length > 0
-        ? `<table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Prioridade</th><th>Status</th><th>Responsável</th><th>Descrição</th></tr></thead><tbody>${linhasChamados}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Prioridade</th><th>Status</th><th>Responsável</th><th>Descrição</th></tr></thead><tbody>${linhasChamados}</tbody></table></div>`
         : '<div class="empty-state">Nenhum chamado nesse período.</div>'
     }
   `;
@@ -243,7 +243,7 @@ function renderizarPorColaborador(dados) {
     <div class="section-title" style="margin-top: 30px;">Registros no período</div>
     ${
       dados.eventos.length > 0
-        ? `<table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead><tbody>${linhasEventos}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead><tbody>${linhasEventos}</tbody></table></div>`
         : '<div class="empty-state">Nenhum registro nesse período.</div>'
     }
   `;
@@ -303,7 +303,7 @@ function renderizarPostosVagos(dados) {
     <div class="section-title">Vagas no Mapa de Serviço</div>
     ${
       postosFiltrados.length > 0
-        ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Dia/Turno</th><th>Último colaborador</th><th>Motivo</th><th>Vago desde</th></tr></thead><tbody>${linhas}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Dia/Turno</th><th>Último colaborador</th><th>Motivo</th><th>Vago desde</th></tr></thead><tbody>${linhas}</tbody></table></div>`
         : '<div class="empty-state">Nenhum posto vago nesse filtro. 🎉</div>'
     }
   `;
@@ -388,14 +388,14 @@ function renderizarCustosDiarios(dados) {
     <div class="section-title" style="margin-top: 30px;">Cobertura de diárias (quem cobriu quem, onde)</div>
     ${
       dados.cobertura_diarias.length > 0
-        ? `<table class="table-list"><thead><tr><th>Data</th><th>Quem cobriu</th><th>Faltou/posto de</th><th>Cliente</th><th>Motivo</th></tr></thead><tbody>${linhasCobertura}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Data</th><th>Quem cobriu</th><th>Faltou/posto de</th><th>Cliente</th><th>Motivo</th></tr></thead><tbody>${linhasCobertura}</tbody></table></div>`
         : '<div class="empty-state">Nenhuma diária no período.</div>'
     }
 
     <div class="section-title" style="margin-top: 30px;">Detalhamento</div>
     ${
       dados.movimentos.length > 0
-        ? `<table class="table-list"><thead><tr><th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Cliente</th><th>Status</th></tr></thead><tbody>${linhasMovimentos}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Cliente</th><th>Status</th></tr></thead><tbody>${linhasMovimentos}</tbody></table></div>`
         : '<div class="empty-state">Nenhum custo no período.</div>'
     }
   `;
@@ -431,7 +431,7 @@ function renderizarMovimentacaoEstoque(dados) {
     <div class="section-title" style="margin-top: 30px;">Histórico de movimentações</div>
     ${
       dados.movimentos.length > 0
-        ? `<table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th>Qtd</th><th>Entregue para</th><th>Motivo</th><th>Registrado por</th></tr></thead><tbody>${linhas}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Data</th><th>Tipo</th><th>Item</th><th>Qtd</th><th>Entregue para</th><th>Motivo</th><th>Registrado por</th></tr></thead><tbody>${linhas}</tbody></table></div>`
         : '<div class="empty-state">Nenhuma movimentação no período.</div>'
     }
   `;
@@ -476,21 +476,21 @@ function renderizarHorasTrabalhadas(dados) {
     <div class="section-title" style="margin-top: 30px;">Por colaborador</div>
     ${
       dados.por_colaborador.length > 0
-        ? `<table class="table-list"><thead><tr><th>Colaborador</th><th>Empresa</th><th>Horas no período</th></tr></thead><tbody>${linhasColaborador}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Colaborador</th><th>Empresa</th><th>Horas no período</th></tr></thead><tbody>${linhasColaborador}</tbody></table></div>`
         : '<div class="empty-state">Sem dados no período.</div>'
     }
 
     <div class="section-title" style="margin-top: 30px;">Por cliente</div>
     ${
       dados.por_cliente.length > 0
-        ? `<table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Horas no período</th></tr></thead><tbody>${linhasCliente}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Cliente</th><th>Empresa</th><th>Horas no período</th></tr></thead><tbody>${linhasCliente}</tbody></table></div>`
         : '<div class="empty-state">Sem dados no período.</div>'
     }
 
     <div class="section-title" style="margin-top: 30px;">Detalhamento colaborador × cliente</div>
     ${
       dados.por_colaborador_cliente.length > 0
-        ? `<table class="table-list"><thead><tr><th>Colaborador</th><th>Cliente</th><th>Horas</th><th>Detalhe (dia/turno)</th></tr></thead><tbody>${linhasDetalhe}</tbody></table>`
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Colaborador</th><th>Cliente</th><th>Horas</th><th>Detalhe (dia/turno)</th></tr></thead><tbody>${linhasDetalhe}</tbody></table></div>`
         : '<div class="empty-state">Sem dados no período.</div>'
     }
   `;
@@ -521,10 +521,10 @@ function renderizarFaltasAtestados(dados) {
             <span class="meta">${g.cargo || 'Cargo não informado'} · ${g.empresa_nome}</span>
             <span class="meta" style="margin-left: auto;">Faltas: <strong>${g.total_faltas}</strong> · Atestados: <strong>${g.total_atestados}</strong></span>
           </div>
-          <table class="table-list">
+          <div class="table-scroll-wrapper"><table class="table-list">
             <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead>
             <tbody>${linhasEventos}</tbody>
-          </table>
+          </table></div>
         </div>
       `;
     })

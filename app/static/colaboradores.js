@@ -118,12 +118,12 @@ function renderizarTabela(colaboradores) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead>
         <tr><th>Registro</th><th>Nome</th><th>Cargo</th><th>Contato</th><th>Admissão</th><th>Empresa</th><th>Supervisor</th><th>Status</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 }
 

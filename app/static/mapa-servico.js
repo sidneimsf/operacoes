@@ -49,12 +49,12 @@ function renderizarTabela(lista) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead>
         <tr><th>Colaborador</th><th>Cliente</th><th>Dia / Turno</th><th>Início</th><th>Fim</th><th>Duração</th><th>Situação</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 }
 
@@ -132,10 +132,10 @@ async function abrirModalEventos(horarioId) {
       .join('');
     conteudo.innerHTML = `
       <div class="meta" style="margin-bottom: 12px;">${registro.dia_semana_label} · ${registro.turno} (${registro.hora_inicio}-${registro.hora_fim})</div>
-      <table class="table-list">
+      <div class="table-scroll-wrapper"><table class="table-list">
         <thead><tr><th>Evento</th><th>Quando</th><th>Registrado por</th><th>Motivo</th></tr></thead>
         <tbody>${linhas}</tbody>
-      </table>
+      </table></div>
     `;
   } catch (erro) {
     conteudo.innerHTML = '<div class="empty-state">Não foi possível carregar os eventos agora.</div>';

@@ -123,10 +123,6 @@ function montarModalHorario() {
             <label for="horario-hora-fim">Fim</label>
             <input type="time" id="horario-hora-fim" required>
           </div>
-          <div class="field" id="campo-data-mudanca" hidden>
-            <label for="horario-data-mudanca">Se estiver trocando de cliente, data em que isso ocorreu</label>
-            <input type="date" id="horario-data-mudanca">
-          </div>
           <div class="error-message" id="horario-modal-erro"></div>
           <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn-primary" id="horario-modal-enviar" style="flex: 1;">Salvar</button>
@@ -183,7 +179,6 @@ async function abrirModalHorario(dia, turno, horarioId) {
   document.getElementById('horario-cliente-resultados').hidden = true;
 
   const botaoRemover = document.getElementById('horario-modal-remover');
-  const campoDataMudanca = document.getElementById('campo-data-mudanca');
 
   if (celulaEmEdicao.horarioId) {
     const registro = horariosAtuais.find((h) => h.id === celulaEmEdicao.horarioId);
@@ -191,13 +186,10 @@ async function abrirModalHorario(dia, turno, horarioId) {
     inputBusca.value = registro.cliente_nome;
     document.getElementById('horario-hora-inicio').value = registro.hora_inicio;
     document.getElementById('horario-hora-fim').value = registro.hora_fim;
-    document.getElementById('horario-data-mudanca').value = new Date().toISOString().slice(0, 10);
-    campoDataMudanca.hidden = false;
     botaoRemover.hidden = false;
   } else {
     document.getElementById('horario-hora-inicio').value = '';
     document.getElementById('horario-hora-fim').value = '';
-    campoDataMudanca.hidden = true;
     botaoRemover.hidden = true;
   }
 
@@ -250,9 +242,6 @@ async function salvarHorario(evento) {
     hora_inicio: document.getElementById('horario-hora-inicio').value,
     hora_fim: document.getElementById('horario-hora-fim').value,
   };
-  if (celulaEmEdicao.horarioId && document.getElementById('horario-data-mudanca').value) {
-    corpo.data_mudanca = document.getElementById('horario-data-mudanca').value;
-  }
 
   try {
     if (celulaEmEdicao.horarioId) {
@@ -583,56 +572,6 @@ function calcularTempoDeCasa(dataAdmissaoIso) {
 
 const ICONE_COPIAR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
 const ICONE_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
-const ICONE_WHATSAPP = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.52 0-10 4.48-10 10 0 1.77.46 3.45 1.27 4.9L2 22l5.25-1.38a9.94 9.94 0 0 0 4.79 1.22h.01c5.52 0 10-4.48 10-10s-4.48-9.84-10.01-9.84zm0 18.1a8.3 8.3 0 0 1-4.24-1.16l-.3-.18-3.12.82.83-3.04-.2-.31a8.26 8.26 0 0 1-1.28-4.43c0-4.58 3.73-8.3 8.32-8.3 4.58 0 8.3 3.72 8.3 8.3 0 4.58-3.72 8.3-8.31 8.3zm4.55-6.22c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.99-1.22-.73-.66-1.23-1.46-1.37-1.71-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.15.16-.25.24-.42.08-.17.04-.31-.02-.43-.06-.12-.56-1.36-.77-1.86-.2-.49-.41-.42-.56-.43-.14-.01-.31-.01-.48-.01-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.06 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.68 4.25 3.75.59.26 1.06.41 1.42.52.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.19.21-.58.21-1.08.14-1.19-.06-.1-.23-.16-.48-.28z"/></svg>';
-
-const MESES_LABEL = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-
-function popularSeletorFolhaPonto() {
-  const select = document.getElementById('folha-ponto-mes');
-  const hoje = new Date();
-  const opcoes = [];
-  for (let i = 0; i < 6; i++) {
-    const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-    const mes = data.getMonth() + 1;
-    const ano = data.getFullYear();
-    opcoes.push(`<option value="${ano}-${mes}">${MESES_LABEL[mes]}/${ano}${i === 0 ? ' (atual)' : ''}</option>`);
-  }
-  select.innerHTML = opcoes.join('');
-}
-
-async function baixarFolhaPonto() {
-  const [ano, mes] = document.getElementById('folha-ponto-mes').value.split('-');
-  const autenticacao = Shell.autenticacao();
-  if (!autenticacao) return;
-
-  const botao = document.getElementById('btn-folha-ponto');
-  botao.disabled = true;
-  botao.textContent = 'Gerando...';
-
-  try {
-    const resposta = await fetch(`/colaboradores-dados/${colaboradorId}/folha-ponto?ano=${ano}&mes=${mes}`, {
-      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
-    });
-    if (resposta.status === 401) {
-      Shell.sair();
-      return;
-    }
-    if (!resposta.ok) throw new Error('Falha ao gerar a folha ponto');
-
-    const blob = await resposta.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `folha-ponto-${colaboradorAtual.nome.replace(/\s+/g, '-')}-${mes}-${ano}.pdf`;
-    link.click();
-    URL.revokeObjectURL(url);
-  } catch (erro) {
-    alert('Não foi possível gerar a folha ponto agora.');
-  } finally {
-    botao.disabled = false;
-    botao.textContent = 'Folha Ponto (PDF)';
-  }
-}
 
 function copiarTexto(texto, botao) {
   navigator.clipboard.writeText(texto).then(() => {
@@ -656,7 +595,7 @@ function renderizarHeaderColaborador() {
   itens.push({
     label: 'Contato',
     valor: c.contato
-      ? `${c.contato} <button class="btn-icone-acao btn-copiar-contato" data-valor="${c.contato}" title="Copiar telefone">${ICONE_COPIAR}</button> <a class="btn-icone-acao" href="${Shell.linkWhatsApp(c.contato)}" target="_blank" rel="noopener" title="Abrir no WhatsApp" style="color: #25D366;">${ICONE_WHATSAPP}</a>`
+      ? `${c.contato} <button class="btn-icone-acao btn-copiar-contato" data-valor="${c.contato}" title="Copiar telefone">${ICONE_COPIAR}</button>`
       : '—',
   });
   itens.push({ label: 'Admissão', valor: formatarData(c.data_admissao) });
@@ -751,12 +690,8 @@ function montarModalRegistro() {
             <input type="date" id="registro-data-fim">
           </div>
           <div class="field" id="campo-substituto" hidden>
-            <label for="registro-substituto-busca">Quem cobriu? (escolha da lista, ou digite o nome se for freelancer)</label>
-            <div class="busca-select">
-              <input type="text" id="registro-substituto-busca" placeholder="Digite pra buscar ou digite o nome..." autocomplete="off">
-              <input type="hidden" id="registro-substituto-id">
-              <div class="busca-select-resultados" id="registro-substituto-resultados" hidden></div>
-            </div>
+            <label for="registro-substituto">Quem cobriu?</label>
+            <select id="registro-substituto"><option value="">Selecione...</option></select>
           </div>
           <div class="field">
             <label for="registro-arquivo">Anexar documento (JPEG, PNG ou PDF)</label>
@@ -782,15 +717,15 @@ function montarModalRegistro() {
 function atualizarCamposConformeTipo() {
   const tipo = document.getElementById('registro-tipo').value;
   const precisaData = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
-  const mostraDataFim = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
+  const mostraDataFim = tipo === 'atestado' || tipo === 'ferias' || tipo === 'aso';
   const mostraSubstituto = tipo === 'falta';
 
   document.getElementById('label-data-obrigatoria').textContent = precisaData ? '(obrigatória)' : '(opcional)';
   document.getElementById('campo-data-fim').hidden = !mostraDataFim;
   document.getElementById('campo-substituto').hidden = !mostraSubstituto;
 
-  const labelDataInicio = tipo === 'aso' ? 'Data do exame' : tipo === 'falta' ? 'Data inicial' : 'Data';
-  const labelDataFim = tipo === 'aso' ? 'Data de vencimento' : tipo === 'falta' ? 'Data final (obrigatória)' : 'Data final (se souber)';
+  const labelDataInicio = tipo === 'aso' ? 'Data do exame' : 'Data';
+  const labelDataFim = tipo === 'aso' ? 'Data de vencimento' : 'Data final (se souber)';
   document.querySelector('label[for="registro-data-inicio"]').firstChild.textContent = `${labelDataInicio} `;
   document.querySelector('label[for="registro-data-fim"]').textContent = labelDataFim;
 }
@@ -803,54 +738,16 @@ async function abrirModalRegistro() {
   selectTipo.innerHTML = TIPOS_EVENTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
 
   const colegas = await Shell.chamarApi(`/colaboradores-dados?empresa_id=${colaboradorAtual.empresa_id}&status_filtro=ativo`);
-  colegasParaSubstitutoCache = colegas.filter((c) => c.id !== Number(colaboradorId));
-  document.getElementById('registro-substituto-busca').value = '';
-  document.getElementById('registro-substituto-id').value = '';
-  ligarBuscaSubstituto();
+  const selectSubstituto = document.getElementById('registro-substituto');
+  selectSubstituto.innerHTML =
+    '<option value="">Selecione...</option>' +
+    colegas
+      .filter((c) => c.id !== Number(colaboradorId))
+      .map((c) => `<option value="${c.id}">${c.nome}</option>`)
+      .join('');
 
   atualizarCamposConformeTipo();
   document.getElementById('registro-modal-overlay').hidden = false;
-}
-
-let colegasParaSubstitutoCache = [];
-let buscaSubstitutoLigada = false;
-
-function ligarBuscaSubstituto() {
-  if (buscaSubstitutoLigada) return;
-  buscaSubstitutoLigada = true;
-
-  const input = document.getElementById('registro-substituto-busca');
-  const idInput = document.getElementById('registro-substituto-id');
-  const resultadosBox = document.getElementById('registro-substituto-resultados');
-  const container = input.closest('.busca-select');
-
-  function renderizar(termo) {
-    const termoNormalizado = termo.trim().toLowerCase();
-    const filtrados = termoNormalizado
-      ? colegasParaSubstitutoCache.filter((c) => c.nome.toLowerCase().includes(termoNormalizado))
-      : colegasParaSubstitutoCache;
-    resultadosBox.innerHTML =
-      filtrados.length === 0
-        ? '<div class="busca-select-vazio">Ninguém encontrado - pode digitar o nome mesmo assim, se for freelancer.</div>'
-        : filtrados.slice(0, 50).map((c) => `<div class="busca-select-item" data-id="${c.id}" data-nome="${c.nome}">${c.nome}</div>`).join('');
-    resultadosBox.hidden = false;
-  }
-
-  input.addEventListener('input', () => {
-    idInput.value = '';
-    renderizar(input.value);
-  });
-  input.addEventListener('focus', () => renderizar(input.value));
-  resultadosBox.addEventListener('click', (evento) => {
-    const item = evento.target.closest('.busca-select-item');
-    if (!item) return;
-    idInput.value = item.dataset.id;
-    input.value = item.dataset.nome;
-    resultadosBox.hidden = true;
-  });
-  document.addEventListener('click', (evento) => {
-    if (!container.contains(evento.target)) resultadosBox.hidden = true;
-  });
 }
 
 function fecharModalRegistro() {
@@ -873,13 +770,8 @@ async function enviarRegistro(evento) {
   const dataFim = document.getElementById('registro-data-fim').value;
   if (dataFim) formData.append('data_fim', dataFim);
 
-  const substitutoId = document.getElementById('registro-substituto-id').value;
-  const substitutoNomeDigitado = document.getElementById('registro-substituto-busca').value.trim();
-  if (substitutoId) {
-    formData.append('colaborador_relacionado_id', substitutoId);
-  } else if (substitutoNomeDigitado) {
-    formData.append('colaborador_relacionado_nome_manual', substitutoNomeDigitado);
-  }
+  const substituto = document.getElementById('registro-substituto').value;
+  if (substituto) formData.append('colaborador_relacionado_id', substituto);
 
   const arquivoInput = document.getElementById('registro-arquivo');
   if (arquivoInput.files.length > 0) {
@@ -913,11 +805,10 @@ function renderizarTimeline(eventos) {
   container.innerHTML = eventos
     .map((e) => {
       let linhaRelacionado = '';
-      const nomeRelacionado = e.colaborador_relacionado_nome || e.colaborador_relacionado_nome_manual;
-      if (nomeRelacionado) {
+      if (e.colaborador_relacionado_nome) {
         const texto = e.tipo === 'falta'
-          ? `Cobriu: ${nomeRelacionado}`
-          : `Substituiu: ${nomeRelacionado}`;
+          ? `Cobriu: ${e.colaborador_relacionado_nome}`
+          : `Substituiu: ${e.colaborador_relacionado_nome}`;
         linhaRelacionado = `<div class="evento-relacionado">${texto}</div>`;
       }
 
@@ -936,8 +827,6 @@ function renderizarTimeline(eventos) {
             <div class="linha-topo">
               <span class="evento-tipo-badge ${e.tipo}">${labelTipoEvento(e.tipo)}</span>
               ${e.data_inicio ? `<span class="meta">${periodo}</span>` : ''}
-              <button class="btn-ghost btn-editar-evento" data-id="${e.id}" style="padding: 3px 8px; font-size: 11px; margin-left: auto;">Editar</button>
-              ${auth.papel === 'escritorio' ? `<button class="btn-ghost btn-excluir-evento" data-id="${e.id}" style="padding: 3px 8px; font-size: 11px; color: var(--danger);">Excluir</button>` : ''}
             </div>
             ${e.descricao ? `<div class="descricao">${e.descricao}</div>` : ''}
             ${linhaRelacionado}
@@ -948,141 +837,6 @@ function renderizarTimeline(eventos) {
       `;
     })
     .join('');
-}
-
-async function excluirEventoTimeline(eventoId) {
-  if (!confirm('Tem certeza que quer excluir esse lançamento? Essa ação não pode ser desfeita.')) return;
-  try {
-    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoId}`, { method: 'DELETE' });
-    carregarTimeline();
-  } catch (erro) {
-    if (erro.status === 403) {
-      alert('Você não tem permissão pra excluir lançamentos. Fale com o escritório.');
-    } else {
-      alert('Não foi possível excluir agora.');
-    }
-  }
-}
-
-function montarModalEditarEvento() {
-  const html = `
-    <div class="modal-overlay" id="editar-evento-modal-overlay" hidden>
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Editar lançamento</h3>
-          <button class="modal-close" id="editar-evento-modal-fechar" aria-label="Fechar">&times;</button>
-        </div>
-        <form id="editar-evento-form">
-          <div class="field">
-            <label for="editar-evento-tipo">Tipo</label>
-            <select id="editar-evento-tipo"></select>
-          </div>
-          <div class="field">
-            <label for="editar-evento-descricao">Descrição / observação</label>
-            <textarea id="editar-evento-descricao" rows="3"></textarea>
-          </div>
-          <div class="field" id="editar-campo-data-inicio">
-            <label for="editar-evento-data-inicio">Data inicial</label>
-            <input type="date" id="editar-evento-data-inicio">
-          </div>
-          <div class="field" id="editar-campo-data-fim" hidden>
-            <label for="editar-evento-data-fim">Data final</label>
-            <input type="date" id="editar-evento-data-fim">
-          </div>
-          <div class="field">
-            <label for="editar-evento-arquivo">Anexar arquivo (opcional, JPEG/PNG/PDF)</label>
-            <input type="file" id="editar-evento-arquivo" accept=".jpg,.jpeg,.png,.pdf">
-            <div class="meta" id="editar-evento-arquivo-atual" style="margin-top: 4px;"></div>
-          </div>
-          <div class="error-message" id="editar-evento-modal-erro"></div>
-          <button type="submit" class="btn-primary" id="editar-evento-modal-enviar">Salvar alterações</button>
-        </form>
-      </div>
-    </div>
-  `;
-  document.body.insertAdjacentHTML('beforeend', html);
-
-  document.getElementById('editar-evento-modal-fechar').addEventListener('click', () => {
-    document.getElementById('editar-evento-modal-overlay').hidden = true;
-  });
-  document.getElementById('editar-evento-modal-overlay').addEventListener('click', (evento) => {
-    if (evento.target.id === 'editar-evento-modal-overlay') document.getElementById('editar-evento-modal-overlay').hidden = true;
-  });
-  document.getElementById('editar-evento-tipo').addEventListener('change', () => {
-    const tipo = document.getElementById('editar-evento-tipo').value;
-    const mostraDataFim = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
-    document.getElementById('editar-campo-data-fim').hidden = !mostraDataFim;
-  });
-  document.getElementById('editar-evento-form').addEventListener('submit', salvarEdicaoEvento);
-}
-
-let eventoIdEmEdicao = null;
-
-function abrirModalEditarEvento(eventoId) {
-  const evento = eventosAtuais.find((e) => e.id === Number(eventoId));
-  if (!evento) return;
-  eventoIdEmEdicao = eventoId;
-
-  document.getElementById('editar-evento-modal-erro').classList.remove('visible');
-  document.getElementById('editar-evento-tipo').innerHTML = TIPOS_EVENTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
-  document.getElementById('editar-evento-tipo').value = evento.tipo;
-  document.getElementById('editar-evento-descricao').value = evento.descricao || '';
-  document.getElementById('editar-evento-data-inicio').value = evento.data_inicio || '';
-  document.getElementById('editar-evento-data-fim').value = evento.data_fim || '';
-
-  const mostraDataFim = ['atestado', 'falta', 'ferias', 'aso'].includes(evento.tipo);
-  document.getElementById('editar-campo-data-fim').hidden = !mostraDataFim;
-  document.getElementById('editar-evento-arquivo').value = '';
-  document.getElementById('editar-evento-arquivo-atual').textContent = evento.tem_arquivo
-    ? `Já tem um arquivo anexado (${evento.arquivo_nome_original || 'documento'}). Escolher outro vai substituí-lo.`
-    : '';
-
-  document.getElementById('editar-evento-modal-overlay').hidden = false;
-}
-
-async function salvarEdicaoEvento(evento) {
-  evento.preventDefault();
-  const erroBox = document.getElementById('editar-evento-modal-erro');
-  const botao = document.getElementById('editar-evento-modal-enviar');
-  erroBox.classList.remove('visible');
-
-  const corpo = {
-    tipo: document.getElementById('editar-evento-tipo').value,
-    descricao: document.getElementById('editar-evento-descricao').value || null,
-    data_inicio: document.getElementById('editar-evento-data-inicio').value || null,
-    data_fim: document.getElementById('editar-evento-data-fim').value || null,
-  };
-
-  botao.disabled = true;
-  botao.textContent = 'Salvando...';
-  try {
-    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoIdEmEdicao}`, { method: 'PATCH', body: corpo });
-
-    const arquivo = document.getElementById('editar-evento-arquivo').files[0];
-    if (arquivo) {
-      const autenticacao = Shell.autenticacao();
-      const formData = new FormData();
-      formData.append('arquivo', arquivo);
-      const resposta = await fetch(`/colaboradores-dados/eventos/${eventoIdEmEdicao}/arquivo`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${autenticacao.access_token}` },
-        body: formData,
-      });
-      if (!resposta.ok) {
-        const erroResposta = await resposta.json().catch(() => ({}));
-        throw new Error(erroResposta.detail || 'Falha ao enviar o arquivo');
-      }
-    }
-
-    document.getElementById('editar-evento-modal-overlay').hidden = true;
-    carregarTimeline();
-  } catch (erro) {
-    erroBox.textContent = erro.message || erro.detalhe || 'Não foi possível salvar agora.';
-    erroBox.classList.add('visible');
-  } finally {
-    botao.disabled = false;
-    botao.textContent = 'Salvar alterações';
-  }
 }
 
 async function abrirArquivoEvento(eventoId) {
@@ -1107,15 +861,12 @@ async function abrirArquivoEvento(eventoId) {
   }
 }
 
-let eventosAtuais = [];
-
 async function carregarTimeline() {
   const container = document.getElementById('timeline');
   container.innerHTML = '<div class="loading-state">Carregando histórico...</div>';
   try {
     const eventos = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/eventos`);
     if (eventos === null) return;
-    eventosAtuais = eventos;
     renderizarTimeline(eventos);
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar o histórico agora.</div>';
@@ -1146,10 +897,10 @@ function renderizarListaMetlife(lancamentos) {
     )
     .join('');
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead><tr><th>Dependente</th><th>Valor</th><th>Desconta</th><th>Inclusão</th><th>Exclusão</th><th>Ações</th></tr></thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 }
 
@@ -1303,8 +1054,6 @@ async function iniciar() {
     document.getElementById('btn-editar-colaborador').addEventListener('click', abrirModalEditarColaborador);
     montarModalDesligar();
     document.getElementById('btn-desligar-colaborador').addEventListener('click', abrirModalDesligar);
-    popularSeletorFolhaPonto();
-    document.getElementById('btn-folha-ponto').addEventListener('click', baixarFolhaPonto);
 
     montarModalHorario();
     document.getElementById('mapa-servicos').addEventListener('click', (evento) => {
@@ -1321,23 +1070,10 @@ async function iniciar() {
 
     document.getElementById('timeline').addEventListener('click', (evento) => {
       const link = evento.target.closest('.evento-arquivo-link');
-      if (link) {
-        evento.preventDefault();
-        abrirArquivoEvento(link.dataset.eventoId);
-        return;
-      }
-      const botaoExcluir = evento.target.closest('.btn-excluir-evento');
-      if (botaoExcluir) {
-        excluirEventoTimeline(botaoExcluir.dataset.id);
-        return;
-      }
-      const botaoEditar = evento.target.closest('.btn-editar-evento');
-      if (botaoEditar) {
-        abrirModalEditarEvento(botaoEditar.dataset.id);
-      }
+      if (!link) return;
+      evento.preventDefault();
+      abrirArquivoEvento(link.dataset.eventoId);
     });
-
-    montarModalEditarEvento();
 
     montarModalMetlife();
     document.getElementById('btn-novo-metlife').addEventListener('click', () => abrirModalMetlife(null));

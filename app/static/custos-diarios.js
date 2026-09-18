@@ -87,7 +87,7 @@ function renderizarLista(custos) {
         <button class="btn-ghost" id="btn-cancelar-selecao" style="padding: 6px 14px; font-size: 13px;">Cancelar</button>
       </div>
     ` : ''}
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead>
         <tr>
           ${ehEscritorio ? '<th><input type="checkbox" id="selecionar-todos-custos"></th>' : ''}
@@ -95,7 +95,7 @@ function renderizarLista(custos) {
         </tr>
       </thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 
   if (ehEscritorio) {

@@ -310,10 +310,10 @@ function renderizarVisitas(visitas) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead><tr><th>Data</th><th>Cliente</th><th>Falou com</th><th>Observações</th><th>Ações</th><th>Registrado por</th><th>Gerenciar</th></tr></thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 
   const visitasAtuais = visitas;
@@ -430,10 +430,10 @@ function renderizarRelatorioUltimaVisita(dados) {
       </div>
     </div>
     <div class="section-title" style="margin-top: 20px;">Última visita por cliente</div>
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead><tr><th>Cliente</th><th>Empresa</th><th>Supervisor</th><th>Última visita</th><th>Situação</th></tr></thead>
       <tbody id="corpo-ultima-visita">${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 
   ligarBuscaUltimaVisita();

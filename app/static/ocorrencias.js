@@ -272,12 +272,12 @@ function renderizarTabela(chamados) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead>
         <tr><th>Data</th><th>Cliente</th><th>Tipo</th><th>Prioridade</th><th>Descrição</th><th>Responsável</th><th>Status</th><th>Ações</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 
   container.querySelectorAll('.btn-acao-corretiva').forEach((botao) => {
@@ -720,14 +720,4 @@ document.addEventListener('click', (evento) => {
   });
 });
 
-async function marcarOcorrenciasComoVistas() {
-  try {
-    await Shell.chamarApi('/chamados-dados/marcar-vistos', { method: 'POST' });
-    Shell.atualizarBadgeOcorrencias();
-  } catch (erro) {
-    // silencioso - nao impede o uso da tela
-  }
-}
-
 iniciar();
-marcarOcorrenciasComoVistas();

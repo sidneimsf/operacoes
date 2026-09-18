@@ -66,12 +66,12 @@ function renderizarLista(asos) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead>
         <tr><th>Colaborador</th><th>Cargo</th><th>Empresa</th><th>Data do exame</th><th>Vencimento</th><th>Situação</th><th>Ações</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 }
 

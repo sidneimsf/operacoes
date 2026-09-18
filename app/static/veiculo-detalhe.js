@@ -157,10 +157,10 @@ function renderizarPlano(plano) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead><tr><th>Item</th><th>Intervalo</th><th>Próxima troca</th><th>Situação</th></tr></thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 }
 
@@ -197,10 +197,10 @@ function renderizarManutencoes(manutencoes) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead><tr><th>Data</th><th>Tipo</th><th>KM</th><th>Descrição</th><th>Custo</th><th>Registrado por</th><th>Ações</th></tr></thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 }
 

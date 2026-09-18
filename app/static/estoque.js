@@ -89,10 +89,10 @@ function renderizarLista() {
       return `
         <div style="margin-bottom: 24px;">
           <div class="section-title" style="margin-bottom: 8px;">${grupo}</div>
-          <table class="table-list">
+          <div class="table-scroll-wrapper"><table class="table-list">
             <thead><tr><th>Tamanho</th><th>Quantidade</th><th>Ações</th></tr></thead>
             <tbody>${linhas}</tbody>
-          </table>
+          </table></div>
         </div>
       `;
     })
@@ -389,10 +389,10 @@ async function abrirModalHistorico(itemId) {
       })
       .join('');
     conteudo.innerHTML = `
-      <table class="table-list">
+      <div class="table-scroll-wrapper"><table class="table-list">
         <thead><tr><th>Data</th><th>Qtd</th><th>Para</th><th>Motivo</th><th>Registrado por</th></tr></thead>
         <tbody>${linhas}</tbody>
-      </table>
+      </table></div>
     `;
   } catch (erro) {
     conteudo.innerHTML = '<div class="empty-state">Não foi possível carregar o histórico agora.</div>';

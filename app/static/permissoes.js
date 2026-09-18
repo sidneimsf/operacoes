@@ -41,12 +41,12 @@ function renderizarMatriz(dados) {
     .join('');
 
   container.innerHTML = `
-    <table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list">
       <thead>
         <tr><th>Usuário</th><th>Papel</th>${headerColunas}<th>Acesso</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
-    </table>
+    </table></div>
   `;
 }
 

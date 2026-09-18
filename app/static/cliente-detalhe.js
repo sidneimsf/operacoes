@@ -635,10 +635,10 @@ async function carregarHistoricoVisitas() {
       .join('');
 
     container.innerHTML = `
-      <table class="table-list">
+      <div class="table-scroll-wrapper"><table class="table-list">
         <thead><tr><th>Data</th><th>Supervisor</th><th>Falou com</th><th>Observações</th><th>Ações</th></tr></thead>
         <tbody>${linhas}</tbody>
-      </table>
+      </table></div>
     `;
 
     container.querySelectorAll('.btn-ver-mais-descricao').forEach((botao) => {

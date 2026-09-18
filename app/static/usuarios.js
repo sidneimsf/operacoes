@@ -22,12 +22,12 @@ async function carregarUsuarios() {
       .join('');
 
     container.innerHTML = `
-      <table class="table-list">
+      <div class="table-scroll-wrapper"><table class="table-list">
         <thead>
           <tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th></tr>
         </thead>
         <tbody>${linhas}</tbody>
-      </table>
+      </table></div>
     `;
   } catch (erro) {
     if (erro.status === 403) {
