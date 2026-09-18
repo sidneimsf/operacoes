@@ -1425,6 +1425,9 @@ button {
   font-size: 13px;
   min-width: 200px;
   max-width: 260px;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .btn-ver-mais-descricao {
