@@ -346,6 +346,10 @@ async function carregarChamados() {
 async function iniciar() {
   montarModalFinalizar();
 
+  Shell.chamarApi('/chamados-dados/marcar-vistos', { method: 'POST' }).then(() => {
+    Shell.atualizarBadgeOcorrencias();
+  });
+
   const parametrosUrl = new URLSearchParams(window.location.search);
   if (parametrosUrl.get('responsavel_id')) {
     filtros.responsavel_id = parametrosUrl.get('responsavel_id');
