@@ -7,6 +7,7 @@ const hoje = new Date();
 let mesAtual = hoje.getMonth();
 let anoAtual = hoje.getFullYear();
 let tarefasDoMes = [];
+let tarefasPorDiaCache = {};
 let tarefaIdEmEdicao = null;
 
 function formatarDataISO(d) {
@@ -46,6 +47,7 @@ function renderizarCalendario() {
     if (!tarefasPorDia[t.data]) tarefasPorDia[t.data] = [];
     tarefasPorDia[t.data].push(t);
   });
+  tarefasPorDiaCache = tarefasPorDia;
 
   const cabecalhoHtml = DIAS_SEMANA_LABEL.map((d) => `<div class="calendario-dia-semana">${d}</div>`).join('');
 
@@ -63,7 +65,7 @@ function renderizarCalendario() {
         (t) => `<div class="calendario-tarefa-chip ${t.concluida ? 'concluida' : ''}" data-id="${t.id}">${t.titulo}</div>`
       )
       .join('');
-    const maisHtml = tarefasDoDia.length > 3 ? `<div class="calendario-tarefa-mais">+${tarefasDoDia.length - 3}</div>` : '';
+    const maisHtml = tarefasDoDia.length > 3 ? `<div class="calendario-tarefa-mais" data-data="${dataISO}">+${tarefasDoDia.length - 3}</div>` : '';
 
     return `
       <div class="calendario-celula ${ehHoje ? 'hoje' : ''}" data-data="${dataISO}">
@@ -155,6 +157,47 @@ function montarModalTarefa() {
   document.getElementById('tarefa-modal-excluir').addEventListener('click', excluirTarefaAtual);
 }
 
+function montarModalVerTodasTarefas() {
+  const html = `
+    <div class="modal-overlay" id="ver-todas-modal-overlay" hidden>
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="ver-todas-modal-titulo">Tarefas do dia</h3>
+          <button class="modal-close" id="ver-todas-modal-fechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div id="ver-todas-lista"></div>
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+
+  document.getElementById('ver-todas-modal-fechar').addEventListener('click', () => {
+    document.getElementById('ver-todas-modal-overlay').hidden = true;
+  });
+  document.getElementById('ver-todas-modal-overlay').addEventListener('click', (evento) => {
+    if (evento.target.id === 'ver-todas-modal-overlay') document.getElementById('ver-todas-modal-overlay').hidden = true;
+  });
+  document.getElementById('ver-todas-lista').addEventListener('click', (evento) => {
+    const item = evento.target.closest('.calendario-tarefa-chip');
+    if (item) {
+      document.getElementById('ver-todas-modal-overlay').hidden = true;
+      abrirModalEditarTarefa(item.dataset.id);
+    }
+  });
+}
+
+function abrirModalVerTodasTarefas(dataISO) {
+  const tarefas = tarefasPorDiaCache[dataISO] || [];
+  const [ano, mes, dia] = dataISO.split('-');
+  document.getElementById('ver-todas-modal-titulo').textContent = `Tarefas de ${dia}/${mes}/${ano}`;
+  document.getElementById('ver-todas-lista').innerHTML = tarefas
+    .map(
+      (t) => `<div class="calendario-tarefa-chip ${t.concluida ? 'concluida' : ''}" data-id="${t.id}" style="margin-bottom: 6px; cursor: pointer;">${t.titulo}</div>`
+    )
+    .join('');
+  document.getElementById('ver-todas-modal-overlay').hidden = false;
+}
+
 function fecharModalTarefa() {
   document.getElementById('tarefa-modal-overlay').hidden = true;
 }
@@ -243,6 +286,7 @@ async function marcarPendenteConcluida(tarefaId) {
 
 function iniciar() {
   montarModalTarefa();
+  montarModalVerTodasTarefas();
 
   document.getElementById('btn-mes-anterior').addEventListener('click', () => {
     mesAtual -= 1;
@@ -265,6 +309,11 @@ function iniciar() {
     const chip = evento.target.closest('.calendario-tarefa-chip');
     if (chip) {
       abrirModalEditarTarefa(chip.dataset.id);
+      return;
+    }
+    const botaoMais = evento.target.closest('.calendario-tarefa-mais');
+    if (botaoMais) {
+      abrirModalVerTodasTarefas(botaoMais.dataset.data);
       return;
     }
     const celula = evento.target.closest('.calendario-celula:not(.vazia)');

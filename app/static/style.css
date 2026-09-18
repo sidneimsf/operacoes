@@ -2169,8 +2169,14 @@ button {
 
 .calendario-tarefa-mais {
   font-size: 10.5px;
-  color: var(--text-muted);
+  color: var(--accent);
+  font-weight: 600;
   padding: 0 6px;
+  cursor: pointer;
+}
+
+.calendario-tarefa-mais:hover {
+  text-decoration: underline;
 }
 
 .pendente-item {
