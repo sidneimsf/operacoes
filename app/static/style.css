@@ -2200,6 +2200,30 @@ button {
   .calendario-tarefa-chip {
     font-size: 9.5px;
   }
+  .postit .mensagem {
+    padding-right: 22px;
+  }
+  .postit .rodape {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+  .barra-acao-bloco {
+    flex-wrap: wrap;
+  }
+  .barra-acao-bloco #contagem-selecionados {
+    margin-right: 0;
+    width: 100%;
+  }
+  .alerta-posto-vago-texto {
+    flex-basis: 100%;
+  }
+  #mapa-servicos {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .horario-grid {
+    min-width: 700px;
+  }
 }
 
 .alerta-tarefas {
