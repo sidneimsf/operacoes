@@ -979,7 +979,7 @@ def serializar_evento_colaborador(e: ColaboradorEvento) -> dict:
         "data_inicio": e.data_inicio.isoformat() if e.data_inicio else None,
         "data_fim": e.data_fim.isoformat() if e.data_fim else None,
         "colaborador_relacionado_id": e.colaborador_relacionado_id,
-        "colaborador_relacionado_nome": e.colaborador_relacionado.nome if e.colaborador_relacionado else None,
+        "colaborador_relacionado_nome": (e.colaborador_relacionado.nome if e.colaborador_relacionado else None) or e.colaborador_relacionado_nome_manual,
         "colaborador_relacionado_nome_manual": e.colaborador_relacionado_nome_manual,
         "tem_arquivo": e.arquivo_path is not None,
         "arquivo_nome_original": e.arquivo_nome_original,
@@ -4137,7 +4137,7 @@ def exportar_cobertura_diarias_excel(
     ws = wb.active
     ws.title = "Planilha1"
 
-    cabecalhos = ["Cobertura", "Chave PIX", "Empresa", "Cliente", "VALOR", "DATA", "Motivo", "Faltou/posto de"]
+    cabecalhos = ["Cobertura/Reembolso para", "Chave PIX", "Empresa", "Cliente", "VALOR", "DATA", "Motivo", "Faltou/posto de"]
     fonte_padrao = Font(name="Calibri", size=11)
     fonte_cabecalho = Font(name="Calibri", size=11, bold=True)
     alinhamento_centro = Alignment(horizontal="center", vertical="center")
@@ -4148,21 +4148,25 @@ def exportar_cobertura_diarias_excel(
         celula.alignment = alinhamento_centro
 
     for linha_idx, c in enumerate(custos, start=2):
-        nome_cobertura = (c.cobertura_colaborador.nome if c.cobertura_colaborador else None) or (
-            c.freelancer.nome if c.freelancer else None
-        ) or c.nome_beneficiario
+        nome_cobertura = (
+            (c.cobertura_colaborador.nome if c.cobertura_colaborador else None)
+            or (c.freelancer.nome if c.freelancer else None)
+            or c.nome_beneficiario
+            or (c.usuario.nome if c.usuario else None)
+        )
         motivo = (
             next((s["label"] for s in STATUS_DIARIA if s["chave"] == c.status_diaria), c.status_diaria)
             if c.tipo == "diaria"
             else next((t["label"] for t in TIPOS_CUSTO_DIARIO if t["chave"] == c.tipo), c.tipo)
         )
-        empresa_nome = c.cliente.empresa.nome if c.cliente and c.cliente.empresa else None
+        empresa_nome = (c.cliente.empresa.nome if c.cliente and c.cliente.empresa else None) or "ESCRITORIO ADM"
+        cliente_nome = c.cliente.nome if c.cliente else "ESCRITORIO ADM"
 
         valores = [
             nome_cobertura,
             c.chave_pix,
             empresa_nome,
-            c.cliente.nome if c.cliente else None,
+            cliente_nome,
             c.valor,
             c.data,
             motivo,
@@ -4176,7 +4180,7 @@ def exportar_cobertura_diarias_excel(
             elif col_idx == 6:  # DATA
                 celula.number_format = "mm-dd-yy"
 
-    larguras = [23.57, 33.14, 8.57, 8.71, 9.14, 10.71, 21.43, 15.29]
+    larguras = [28, 33.14, 16, 16, 9.14, 10.71, 21.43, 15.29]
     for col_idx, largura in enumerate(larguras, start=1):
         ws.column_dimensions[get_column_letter(col_idx)].width = largura
 
