@@ -60,7 +60,7 @@ async function popularClientesDaEmpresa(empresaId) {
     clientes.map((c) => `<option value="${c.id}">${c.nome}</option>`).join('');
 }
 
-const LIMITE_DESCRICAO_CURTA = 70;
+const LIMITE_DESCRICAO_CURTA = 60;
 
 function celulaDescricaoHtml(chamadoId, descricao) {
   const textoSeguro = (descricao || '').replace(/"/g, '&quot;');

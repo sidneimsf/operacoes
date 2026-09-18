@@ -207,7 +207,7 @@ async function salvarVisita(evento) {
 // Lista de visitas
 // ---------------------------------------------------------------------------
 
-const LIMITE_OBS_CURTA = 90;
+const LIMITE_OBS_CURTA = 60;
 
 function celulaObsHtml(id, texto) {
   if (!texto) return '—';

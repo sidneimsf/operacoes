@@ -1011,9 +1011,16 @@ button {
   .table-list td {
     white-space: nowrap;
   }
-  .chamado-descricao,
-  .chamado-descricao * {
+  .chamado-descricao {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chamado-descricao .descricao-texto[data-expandido="true"] {
+    display: inline-block;
     white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 }
 
@@ -1425,9 +1432,6 @@ button {
   font-size: 13px;
   min-width: 200px;
   max-width: 260px;
-  overflow: hidden;
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 
 .btn-ver-mais-descricao {

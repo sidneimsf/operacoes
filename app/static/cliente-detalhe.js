@@ -597,7 +597,7 @@ async function alternarStatusCliente() {
   }
 }
 
-const LIMITE_TEXTO_VISITA_CURTO = 90;
+const LIMITE_TEXTO_VISITA_CURTO = 60;
 
 function celulaTextoLongoHtml(id, texto) {
   if (!texto) return '—';
