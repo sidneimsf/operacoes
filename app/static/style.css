@@ -1035,7 +1035,6 @@ button {
   font-size: 14px;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  max-width: 220px;
 }
 
 .table-list td a {
