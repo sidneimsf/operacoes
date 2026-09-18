@@ -12,7 +12,7 @@
  * mudam o tempo todo.
  */
 
-const CACHE_NAME = 'operacoes-static-v3';
+const CACHE_NAME = 'operacoes-static-v4';
 
 self.addEventListener('install', (evento) => {
   self.skipWaiting();
