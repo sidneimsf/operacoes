@@ -4,6 +4,7 @@ const colaboradorId = parametrosUrl.get('id');
 const auth = Shell.montar('colaboradores', 'Colaborador');
 
 let TIPOS_EVENTO = [];
+let eventoIdEmEdicao = null;
 let colaboradorAtual = null;
 
 function labelTipoEvento(chave) {
@@ -669,7 +670,7 @@ function montarModalRegistro() {
     <div class="modal-overlay" id="registro-modal-overlay" hidden>
       <div class="modal">
         <div class="modal-header">
-          <h3>Novo registro</h3>
+          <h3 id="registro-modal-titulo">Novo registro</h3>
           <button class="modal-close" id="registro-modal-fechar" aria-label="Fechar">&times;</button>
         </div>
         <form id="registro-form">
@@ -690,10 +691,14 @@ function montarModalRegistro() {
             <input type="date" id="registro-data-fim">
           </div>
           <div class="field" id="campo-substituto" hidden>
-            <label for="registro-substituto">Quem cobriu?</label>
+            <label for="registro-substituto">Quem cobriu? (colaborador cadastrado)</label>
             <select id="registro-substituto"><option value="">Selecione...</option></select>
           </div>
-          <div class="field">
+          <div class="field" id="campo-substituto-manual" hidden>
+            <label for="registro-substituto-manual">Ou digite o nome (se não for colaborador cadastrado, ex: freelancer)</label>
+            <input type="text" id="registro-substituto-manual" placeholder="Nome de quem cobriu">
+          </div>
+          <div class="field" id="campo-registro-arquivo">
             <label for="registro-arquivo">Anexar documento (JPEG, PNG ou PDF)</label>
             <input type="file" id="registro-arquivo" accept=".jpg,.jpeg,.png,.pdf">
           </div>
@@ -723,6 +728,7 @@ function atualizarCamposConformeTipo() {
   document.getElementById('label-data-obrigatoria').textContent = precisaData ? '(obrigatória)' : '(opcional)';
   document.getElementById('campo-data-fim').hidden = !mostraDataFim;
   document.getElementById('campo-substituto').hidden = !mostraSubstituto;
+  document.getElementById('campo-substituto-manual').hidden = !mostraSubstituto;
 
   const labelDataInicio = tipo === 'aso' ? 'Data do exame' : 'Data';
   const labelDataFim = tipo === 'aso' ? 'Data de vencimento' : 'Data final (se souber)';
@@ -731,10 +737,15 @@ function atualizarCamposConformeTipo() {
 }
 
 async function abrirModalRegistro() {
+  eventoIdEmEdicao = null;
+  document.getElementById('registro-modal-titulo').textContent = 'Novo registro';
+  document.getElementById('registro-modal-enviar').textContent = 'Salvar registro';
+  document.getElementById('campo-registro-arquivo').hidden = false;
   document.getElementById('registro-form').reset();
   document.getElementById('registro-modal-erro').classList.remove('visible');
 
   const selectTipo = document.getElementById('registro-tipo');
+  selectTipo.disabled = false;
   selectTipo.innerHTML = TIPOS_EVENTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
 
   const colegas = await Shell.chamarApi(`/colaboradores-dados?empresa_id=${colaboradorAtual.empresa_id}&status_filtro=ativo`);
@@ -750,6 +761,41 @@ async function abrirModalRegistro() {
   document.getElementById('registro-modal-overlay').hidden = false;
 }
 
+async function abrirModalEditarEvento(evento) {
+  eventoIdEmEdicao = evento.id;
+  document.getElementById('registro-modal-titulo').textContent = 'Editar registro';
+  document.getElementById('registro-modal-enviar').textContent = 'Salvar alterações';
+  document.getElementById('campo-registro-arquivo').hidden = true;
+  document.getElementById('registro-form').reset();
+  document.getElementById('registro-modal-erro').classList.remove('visible');
+
+  const selectTipo = document.getElementById('registro-tipo');
+  selectTipo.disabled = false;
+  selectTipo.innerHTML = TIPOS_EVENTO.map((t) => `<option value="${t.chave}">${t.label}</option>`).join('');
+  selectTipo.value = evento.tipo;
+
+  const colegas = await Shell.chamarApi(`/colaboradores-dados?empresa_id=${colaboradorAtual.empresa_id}&status_filtro=ativo`);
+  const selectSubstituto = document.getElementById('registro-substituto');
+  selectSubstituto.innerHTML =
+    '<option value="">Selecione...</option>' +
+    colegas
+      .filter((c) => c.id !== Number(colaboradorId))
+      .map((c) => `<option value="${c.id}">${c.nome}</option>`)
+      .join('');
+
+  document.getElementById('registro-descricao').value = evento.descricao || '';
+  document.getElementById('registro-data-inicio').value = evento.data_inicio || '';
+  document.getElementById('registro-data-fim').value = evento.data_fim || '';
+  if (evento.colaborador_relacionado_id) {
+    selectSubstituto.value = evento.colaborador_relacionado_id;
+  } else if (evento.colaborador_relacionado_nome) {
+    document.getElementById('registro-substituto-manual').value = evento.colaborador_relacionado_nome;
+  }
+
+  atualizarCamposConformeTipo();
+  document.getElementById('registro-modal-overlay').hidden = false;
+}
+
 function fecharModalRegistro() {
   document.getElementById('registro-modal-overlay').hidden = true;
 }
@@ -760,29 +806,42 @@ async function enviarRegistro(evento) {
   const botao = document.getElementById('registro-modal-enviar');
   erroBox.classList.remove('visible');
 
-  const formData = new FormData();
-  formData.append('tipo', document.getElementById('registro-tipo').value);
-  formData.append('descricao', document.getElementById('registro-descricao').value);
-
-  const dataInicio = document.getElementById('registro-data-inicio').value;
-  if (dataInicio) formData.append('data_inicio', dataInicio);
-
-  const dataFim = document.getElementById('registro-data-fim').value;
-  if (dataFim) formData.append('data_fim', dataFim);
-
   const substituto = document.getElementById('registro-substituto').value;
-  if (substituto) formData.append('colaborador_relacionado_id', substituto);
-
-  const arquivoInput = document.getElementById('registro-arquivo');
-  if (arquivoInput.files.length > 0) {
-    formData.append('arquivo', arquivoInput.files[0]);
-  }
+  const substitutoManual = document.getElementById('registro-substituto-manual').value.trim();
+  const dataInicio = document.getElementById('registro-data-inicio').value;
+  const dataFim = document.getElementById('registro-data-fim').value;
 
   botao.disabled = true;
   botao.textContent = 'Salvando...';
 
   try {
-    await enviarFormData(`/colaboradores-dados/${colaboradorId}/eventos`, formData);
+    if (eventoIdEmEdicao) {
+      const corpo = {
+        tipo: document.getElementById('registro-tipo').value,
+        descricao: document.getElementById('registro-descricao').value || null,
+        data_inicio: dataInicio || null,
+        data_fim: dataFim || null,
+        colaborador_relacionado_id: substituto ? Number(substituto) : null,
+        colaborador_relacionado_nome_manual: substitutoManual || null,
+      };
+      await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoIdEmEdicao}`, { method: 'PATCH', body: corpo });
+    } else {
+      const formData = new FormData();
+      formData.append('tipo', document.getElementById('registro-tipo').value);
+      formData.append('descricao', document.getElementById('registro-descricao').value);
+      if (dataInicio) formData.append('data_inicio', dataInicio);
+      if (dataFim) formData.append('data_fim', dataFim);
+      if (substitutoManual) {
+        formData.append('colaborador_relacionado_nome_manual', substitutoManual);
+      } else if (substituto) {
+        formData.append('colaborador_relacionado_id', substituto);
+      }
+      const arquivoInput = document.getElementById('registro-arquivo');
+      if (arquivoInput.files.length > 0) {
+        formData.append('arquivo', arquivoInput.files[0]);
+      }
+      await enviarFormData(`/colaboradores-dados/${colaboradorId}/eventos`, formData);
+    }
     fecharModalRegistro();
     carregarTimeline();
   } catch (erro) {
@@ -790,7 +849,17 @@ async function enviarRegistro(evento) {
     erroBox.classList.add('visible');
   } finally {
     botao.disabled = false;
-    botao.textContent = 'Salvar registro';
+    botao.textContent = eventoIdEmEdicao ? 'Salvar alterações' : 'Salvar registro';
+  }
+}
+
+async function excluirEventoTimeline(eventoId) {
+  if (!confirm('Excluir esse registro do histórico? Essa ação não pode ser desfeita.')) return;
+  try {
+    await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoId}`, { method: 'DELETE' });
+    carregarTimeline();
+  } catch (erro) {
+    alert(erro.detalhe || 'Não foi possível excluir esse registro agora.');
   }
 }
 
@@ -832,11 +901,26 @@ function renderizarTimeline(eventos) {
             ${linhaRelacionado}
             ${linhaArquivo}
             <div class="meta" style="margin-top: 6px;">Registrado por ${e.registrado_por}</div>
+            <div style="margin-top: 8px; display: flex; gap: 6px;">
+              <button class="btn-ghost btn-editar-evento-timeline" data-evento-id="${e.id}" style="padding: 4px 10px; font-size: 11.5px;">Editar</button>
+              <button class="btn-ghost btn-excluir-evento-timeline" data-evento-id="${e.id}" style="padding: 4px 10px; font-size: 11.5px; color: var(--danger);">Excluir</button>
+            </div>
           </div>
         </div>
       `;
     })
     .join('');
+
+  container.querySelectorAll('.btn-editar-evento-timeline').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      const evento = eventos.find((e) => e.id === Number(botao.dataset.eventoId));
+      if (evento) abrirModalEditarEvento(evento);
+    });
+  });
+
+  container.querySelectorAll('.btn-excluir-evento-timeline').forEach((botao) => {
+    botao.addEventListener('click', () => excluirEventoTimeline(botao.dataset.eventoId));
+  });
 }
 
 async function abrirArquivoEvento(eventoId) {
