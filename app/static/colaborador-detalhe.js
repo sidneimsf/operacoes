@@ -1113,6 +1113,58 @@ async function excluirMetlife(id) {
   }
 }
 
+const MESES_LABEL = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+function popularSelectFolhaPonto() {
+  const select = document.getElementById('folha-ponto-mes');
+  const hoje = new Date();
+  const opcoes = [];
+  for (let i = 0; i < 12; i++) {
+    const data = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const ano = data.getFullYear();
+    const mes = data.getMonth() + 1;
+    opcoes.push(`<option value="${ano}-${mes}">${MESES_LABEL[mes - 1]}/${ano}</option>`);
+  }
+  select.innerHTML = opcoes.join('');
+}
+
+async function baixarFolhaPonto() {
+  const autenticacao = Shell.autenticacao();
+  if (!autenticacao) return;
+
+  const [ano, mes] = document.getElementById('folha-ponto-mes').value.split('-');
+  const botao = document.getElementById('btn-folha-ponto');
+  const textoOriginal = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = 'Gerando...';
+
+  try {
+    const resposta = await fetch(`/colaboradores-dados/${colaboradorId}/folha-ponto?ano=${ano}&mes=${mes}`, {
+      headers: { Authorization: `Bearer ${autenticacao.access_token}` },
+    });
+    if (resposta.status === 401) {
+      Shell.sair();
+      return;
+    }
+    if (!resposta.ok) throw new Error('Falha ao gerar a folha de ponto');
+
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `folha-ponto-${colaboradorAtual.nome.replace(/ /g, '-')}-${mes.padStart(2, '0')}-${ano}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (erro) {
+    alert('Não foi possível gerar a folha de ponto agora.');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
+  }
+}
+
 async function iniciar() {
   if (!colaboradorId) {
     document.getElementById('colaborador-header').innerHTML = '<div class="empty-state">Colaborador não especificado.</div>';
@@ -1138,6 +1190,9 @@ async function iniciar() {
     document.getElementById('btn-editar-colaborador').addEventListener('click', abrirModalEditarColaborador);
     montarModalDesligar();
     document.getElementById('btn-desligar-colaborador').addEventListener('click', abrirModalDesligar);
+
+    popularSelectFolhaPonto();
+    document.getElementById('btn-folha-ponto').addEventListener('click', baixarFolhaPonto);
 
     montarModalHorario();
     document.getElementById('mapa-servicos').addEventListener('click', (evento) => {
