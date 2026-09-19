@@ -1826,18 +1826,14 @@ button {
   gap: 4px;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  flex-wrap: nowrap;
 }
 
-@media (max-width: 780px) {
-  .tabs-relatorio {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap;
-  }
-  .tab-relatorio {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
+.tab-relatorio {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .tab-relatorio {
