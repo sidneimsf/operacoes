@@ -3053,6 +3053,21 @@ def criar_custo_diario(
     db.add(custo)
     db.flush()
 
+    if status_diaria == "falta" and colaborador_id is not None:
+        # Registra automaticamente no historico do colaborador que faltou,
+        # ja com quem foi cobrir (colaborador cadastrado, freelancer ou nome digitado)
+        evento_falta = ColaboradorEvento(
+            colaborador_id=colaborador_id,
+            tipo="falta",
+            descricao=f"Falta registrada via Custos Diários (custo #{custo.id})" + (f" - {descricao.strip()}" if descricao else ""),
+            data_inicio=custo.data,
+            data_fim=custo.data,
+            colaborador_relacionado_id=cobertura_colaborador_id,
+            colaborador_relacionado_nome_manual=None if cobertura_colaborador_id else (custo.nome_beneficiario or None),
+            registrado_por_id=usuario.id,
+        )
+        db.add(evento_falta)
+
     for arquivo in comprovantes:
         if not arquivo.filename:
             continue
