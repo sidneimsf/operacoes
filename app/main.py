@@ -4729,6 +4729,6 @@ def relatorio_ultima_visita_por_cliente(
             "dias_sem_visita": dias_sem_visita,
         })
 
-    # nunca visitados primeiro (mais critico), depois do mais tempo sem visita pro mais recente
-    linhas.sort(key=lambda l: l["dias_sem_visita"] if l["dias_sem_visita"] is not None else float("inf"), reverse=True)
+    # visitados mais recentemente no topo, nunca visitados no fundo (mais critico, mas por ultimo na lista)
+    linhas.sort(key=lambda l: l["dias_sem_visita"] if l["dias_sem_visita"] is not None else float("inf"))
     return {"total_clientes": len(linhas), "clientes": linhas}
