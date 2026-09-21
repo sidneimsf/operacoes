@@ -4459,14 +4459,15 @@ def relatorio_postos_vagos(
     if posto_vago is None:
         return {"total": 0, "postos": []}
 
-    horarios_vagos = (
+    query_horarios = (
         db.query(HorarioServico)
         .filter(HorarioServico.colaborador_id == posto_vago.id, HorarioServico.data_fim.is_(None))
         .join(Cliente)
         .filter(Cliente.ativo.is_(True))
-        .order_by(HorarioServico.data_inicio.asc())
-        .all()
     )
+    if usuario.papel != "escritorio":
+        query_horarios = query_horarios.filter(Cliente.supervisor_id == usuario.id)
+    horarios_vagos = query_horarios.order_by(HorarioServico.data_inicio.asc()).all()
 
     postos_vagos = []
     for h in horarios_vagos:
