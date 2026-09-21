@@ -1487,8 +1487,11 @@ def criar_horario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Turno invalido")
     if db.get(Colaborador, dados.colaborador_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
-    if db.get(Cliente, dados.cliente_id) is None:
+    cliente = db.get(Cliente, dados.cliente_id)
+    if cliente is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+    if not cliente.ativo:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente inativo nao pode receber colaborador no mapa de servico")
     if dados.hora_inicio >= dados.hora_fim:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A hora final deve ser depois da hora inicial")
 

@@ -374,6 +374,13 @@ function montarModalEditarCliente() {
             <input type="text" id="editar-cliente-nome" required>
           </div>
           <div class="field">
+            <label for="editar-cliente-status">Status do cliente</label>
+            <select id="editar-cliente-status">
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
+          <div class="field">
             <label for="editar-cliente-cnpj">CNPJ</label>
             <input type="text" id="editar-cliente-cnpj">
           </div>
@@ -442,6 +449,7 @@ async function abrirModalEditarCliente() {
     .map((e) => `<option value="${e.id}" ${e.id === clienteAtual.empresa_id ? 'selected' : ''}>${e.nome}</option>`)
     .join('');
   document.getElementById('editar-cliente-nome').value = clienteAtual.nome;
+  document.getElementById('editar-cliente-status').value = clienteAtual.ativo ? 'true' : 'false';
   document.getElementById('editar-cliente-cnpj').value = clienteAtual.cnpj || '';
   document.getElementById('editar-cliente-municipio').value = clienteAtual.municipio || '';
   document.getElementById('editar-cliente-endereco').value = clienteAtual.endereco || '';
@@ -467,6 +475,7 @@ async function salvarEdicaoCliente(evento) {
   const corpo = {
     empresa_id: Number(document.getElementById('editar-cliente-empresa').value),
     nome: document.getElementById('editar-cliente-nome').value,
+    ativo: document.getElementById('editar-cliente-status').value === 'true',
     cnpj: document.getElementById('editar-cliente-cnpj').value || null,
     municipio: document.getElementById('editar-cliente-municipio').value || null,
     endereco: document.getElementById('editar-cliente-endereco').value || null,
