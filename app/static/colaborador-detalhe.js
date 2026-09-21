@@ -722,7 +722,7 @@ function montarModalRegistro() {
 function atualizarCamposConformeTipo() {
   const tipo = document.getElementById('registro-tipo').value;
   const precisaData = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
-  const mostraDataFim = tipo === 'atestado' || tipo === 'ferias' || tipo === 'aso';
+  const mostraDataFim = tipo === 'atestado' || tipo === 'ferias' || tipo === 'aso' || tipo === 'falta';
   const mostraSubstituto = tipo === 'falta';
 
   document.getElementById('label-data-obrigatoria').textContent = precisaData ? '(obrigatória)' : '(opcional)';
@@ -731,7 +731,11 @@ function atualizarCamposConformeTipo() {
   document.getElementById('campo-substituto-manual').hidden = !mostraSubstituto;
 
   const labelDataInicio = tipo === 'aso' ? 'Data do exame' : 'Data';
-  const labelDataFim = tipo === 'aso' ? 'Data de vencimento' : 'Data final (se souber)';
+  const labelDataFim = tipo === 'aso'
+    ? 'Data de vencimento'
+    : tipo === 'falta'
+      ? 'Data final (obrigatória - pode ser igual à data inicial)'
+      : 'Data final (se souber)';
   document.querySelector('label[for="registro-data-inicio"]').firstChild.textContent = `${labelDataInicio} `;
   document.querySelector('label[for="registro-data-fim"]').textContent = labelDataFim;
 }
