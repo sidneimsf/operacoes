@@ -4,6 +4,30 @@ let colaboradoresCache = [];
 let clientesCache = [];
 let historicoAtual = [];
 
+const CORES_AVATAR = ['#7d5f11', '#2f5b9e', '#8a3fa8', '#1f6b41', '#c13327', '#17354f'];
+
+function corAvatar(nome) {
+  let soma = 0;
+  for (let i = 0; i < nome.length; i++) soma += nome.charCodeAt(i);
+  return CORES_AVATAR[soma % CORES_AVATAR.length];
+}
+
+function iniciais(nome) {
+  const partes = nome.trim().split(/\s+/);
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+function avatarHtml(nome) {
+  return `<div class="pessoa-avatar" style="background:${corAvatar(nome)}">${iniciais(nome)}</div>`;
+}
+
+function popularIconesEstaticos() {
+  document.querySelectorAll('[data-icone]').forEach((el) => {
+    el.innerHTML = Shell.icone(el.dataset.icone);
+  });
+}
+
 function formatarData(isoString) {
   if (!isoString) return '—';
   const [ano, mes, dia] = isoString.split('-');
@@ -29,33 +53,33 @@ function renderizarTabela(lista) {
     return;
   }
 
-  const linhas = lista
+  const maiorDuracao = Math.max(...lista.map((h) => h.duracao_dias), 1);
+
+  const cards = lista
     .map((h) => {
-      const situacao = h.ativo
-        ? `<span class="aso-badge ok">Ativo</span>`
-        : `<span class="aso-badge vencido">Encerrado</span>`;
+      const pct = Math.max(4, Math.round((h.duracao_dias / maiorDuracao) * 100));
       return `
-      <tr class="linha-historico" data-horario-id="${h.id}" style="cursor: pointer;">
-        <td>${h.colaborador_nome}</td>
-        <td>${h.cliente_nome}</td>
-        <td>${h.dia_semana_label} · ${h.turno} (${h.hora_inicio}-${h.hora_fim})</td>
-        <td>${formatarData(h.data_inicio)}</td>
-        <td>${h.ativo ? '—' : formatarData(h.data_fim)}</td>
-        <td>${h.duracao_texto}</td>
-        <td>${situacao}</td>
-      </tr>
+      <button type="button" class="vinculo-card" data-horario-id="${h.id}">
+        <div class="vinculo-card-topo">
+          ${avatarHtml(h.colaborador_nome)}
+          <div class="vinculo-card-nomes">
+            <div class="vinculo-colaborador">${h.colaborador_nome}</div>
+            <div class="vinculo-cliente">${h.cliente_nome}</div>
+          </div>
+          <span class="vinculo-status ${h.ativo ? 'ativo' : 'encerrado'}">${h.ativo ? 'Ativo' : 'Encerrado'}</span>
+        </div>
+        <div class="vinculo-card-meta">${h.dia_semana_label} · ${h.turno} (${h.hora_inicio}-${h.hora_fim})</div>
+        <div class="vinculo-tenure">
+          <div class="vinculo-tenure-track"><div class="vinculo-tenure-fill" style="width:${pct}%"></div></div>
+          <span class="vinculo-tenure-label">${h.duracao_texto}</span>
+        </div>
+        <div class="vinculo-card-datas">${formatarData(h.data_inicio)} → ${h.ativo ? 'atual' : formatarData(h.data_fim)}</div>
+      </button>
     `;
     })
     .join('');
 
-  container.innerHTML = `
-    <div class="table-scroll-wrapper"><table class="table-list">
-      <thead>
-        <tr><th>Colaborador</th><th>Cliente</th><th>Dia / Turno</th><th>Início</th><th>Fim</th><th>Duração</th><th>Situação</th></tr>
-      </thead>
-      <tbody>${linhas}</tbody>
-    </table></div>
-  `;
+  container.innerHTML = `<div class="vinculo-grid">${cards}</div>`;
 }
 
 async function carregarHistorico() {
@@ -121,21 +145,22 @@ async function abrirModalEventos(horarioId) {
       .map((e) => {
         const data = new Date(e.criado_em).toLocaleString('pt-BR');
         return `
-        <tr>
-          <td>${labelEvento[e.tipo_evento] || e.tipo_evento}</td>
-          <td>${data}</td>
-          <td>${e.registrado_por}</td>
-          <td>${e.motivo || '—'}</td>
-        </tr>
+        <div class="timeline-item">
+          <div class="data-col">${data}</div>
+          <div class="conteudo">
+            <div class="linha-topo">
+              <span class="evento-tipo-badge ${e.tipo_evento}">${labelEvento[e.tipo_evento] || e.tipo_evento}</span>
+            </div>
+            ${e.motivo ? `<div class="descricao">${e.motivo}</div>` : ''}
+            <div class="meta">Registrado por ${e.registrado_por}</div>
+          </div>
+        </div>
       `;
       })
       .join('');
     conteudo.innerHTML = `
       <div class="meta" style="margin-bottom: 12px;">${registro.dia_semana_label} · ${registro.turno} (${registro.hora_inicio}-${registro.hora_fim})</div>
-      <div class="table-scroll-wrapper"><table class="table-list">
-        <thead><tr><th>Evento</th><th>Quando</th><th>Registrado por</th><th>Motivo</th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table></div>
+      ${linhas || '<div class="empty-state">Nenhum evento registrado.</div>'}
     `;
   } catch (erro) {
     conteudo.innerHTML = '<div class="empty-state">Não foi possível carregar os eventos agora.</div>';
@@ -143,6 +168,7 @@ async function abrirModalEventos(horarioId) {
 }
 
 async function iniciar() {
+  popularIconesEstaticos();
   colaboradoresCache = await Shell.chamarApi('/colaboradores-dados?incluir_posto_vago=true');
   clientesCache = await Shell.chamarApi('/clientes-dados');
   if (colaboradoresCache === null || clientesCache === null) return;
@@ -160,8 +186,8 @@ document.getElementById('filtro-colaborador').addEventListener('change', carrega
 document.getElementById('filtro-cliente').addEventListener('change', carregarHistorico);
 document.getElementById('filtro-status').addEventListener('change', carregarHistorico);
 document.getElementById('lista-historico').addEventListener('click', (evento) => {
-  const linha = evento.target.closest('.linha-historico');
-  if (linha) abrirModalEventos(linha.dataset.horarioId);
+  const card = evento.target.closest('.vinculo-card');
+  if (card) abrirModalEventos(card.dataset.horarioId);
 });
 
 iniciar();
