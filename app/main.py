@@ -1325,6 +1325,11 @@ DIAS_SEMANA_LABEL = {
 DIAS_SEMANA_PYTHON = {
     "segunda": 0, "terca": 1, "quarta": 2, "quinta": 3, "sexta": 4, "sabado": 5, "domingo": 6,
 }
+TIPO_EVENTO_MAPA_LABEL = {
+    "iniciado": "Início de vínculo",
+    "encerrado": "Encerramento de vínculo",
+    "editado": "Edição de horário",
+}
 
 
 def _horas_por_slot(hora_inicio: str, hora_fim: str) -> float:
@@ -4736,3 +4741,74 @@ def relatorio_ultima_visita_por_cliente(
     # visitados mais recentemente no topo, nunca visitados no fundo (mais critico, mas por ultimo na lista)
     linhas.sort(key=lambda l: l["dias_sem_visita"] if l["dias_sem_visita"] is not None else float("inf"))
     return {"total_clientes": len(linhas), "clientes": linhas}
+
+
+@app.get("/relatorios-dados/estabilidade-posto")
+def relatorio_estabilidade_posto(
+    data_inicio: str | None = None,
+    data_fim: str | None = None,
+    cliente_id: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("relatorios")),
+):
+    """Mede rotatividade de colaboradores por posto a partir do log de
+    historico do mapa de servico: quanto mais encerramento de vinculo um
+    cliente acumula no periodo, mais instavel e o posto dele."""
+    hoje = date.today()
+    inicio = date.fromisoformat(data_inicio) if data_inicio else hoje - timedelta(days=90)
+    fim = date.fromisoformat(data_fim) if data_fim else hoje
+    if inicio > fim:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data inicial nao pode ser depois da final")
+
+    query = db.query(HistoricoMapaServico).filter(func.date(HistoricoMapaServico.criado_em).between(inicio, fim))
+    if cliente_id is not None:
+        query = query.filter(HistoricoMapaServico.cliente_id == cliente_id)
+
+    eventos = query.order_by(HistoricoMapaServico.criado_em.desc()).all()
+
+    por_tipo: dict[str, int] = {}
+    por_cliente: dict[int, dict] = {}
+    for e in eventos:
+        por_tipo[e.tipo_evento] = por_tipo.get(e.tipo_evento, 0) + 1
+        registro = por_cliente.setdefault(e.cliente_id, {
+            "cliente_id": e.cliente_id,
+            "cliente_nome": e.cliente.nome,
+            "iniciados": 0,
+            "encerrados": 0,
+            "editados": 0,
+            "total_eventos": 0,
+        })
+        registro["total_eventos"] += 1
+        if e.tipo_evento == "iniciado":
+            registro["iniciados"] += 1
+        elif e.tipo_evento == "encerrado":
+            registro["encerrados"] += 1
+        elif e.tipo_evento == "editado":
+            registro["editados"] += 1
+
+    lista_por_cliente = sorted(por_cliente.values(), key=lambda x: (-x["encerrados"], -x["total_eventos"]))
+    lista_por_tipo = [
+        {"tipo_evento": t, "label": TIPO_EVENTO_MAPA_LABEL.get(t, t), "total": v}
+        for t, v in sorted(por_tipo.items(), key=lambda x: -x[1])
+    ]
+
+    return {
+        "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
+        "total_eventos": len(eventos),
+        "por_tipo_evento": lista_por_tipo,
+        "por_cliente": lista_por_cliente,
+        "eventos": [
+            {
+                "id": e.id,
+                "data": e.criado_em.isoformat(),
+                "cliente_id": e.cliente_id,
+                "cliente_nome": e.cliente.nome,
+                "colaborador_nome": e.colaborador.nome,
+                "tipo_evento": e.tipo_evento,
+                "tipo_evento_label": TIPO_EVENTO_MAPA_LABEL.get(e.tipo_evento, e.tipo_evento),
+                "motivo": e.motivo,
+                "registrado_por_nome": e.registrado_por.nome,
+            }
+            for e in eventos[:200]
+        ],
+    }

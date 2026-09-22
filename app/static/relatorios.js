@@ -84,7 +84,7 @@ function trocarAba(aba) {
   document.querySelectorAll('.tab-relatorio').forEach((botao) => {
     botao.classList.toggle('ativa', botao.dataset.aba === aba);
   });
-  document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas';
+  document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas' && aba !== 'estabilidade';
   document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas' && aba !== 'horas' && aba !== 'estoque';
   document.getElementById('campo-select-tipo-custo').hidden = aba !== 'custos';
   document.getElementById('filtros-geral').hidden = aba === 'postos-vagos';
@@ -314,6 +314,63 @@ function renderizarPostosVagos(dados) {
       renderizarPostosVagos(dados);
     });
   });
+}
+
+function renderizarEstabilidadePosto(dados) {
+  const container = document.getElementById('relatorio-conteudo');
+
+  const linhasCliente = dados.por_cliente
+    .map(
+      (c) => `
+      <tr>
+        <td><a href="/cliente-detalhe?id=${c.cliente_id}">${c.cliente_nome}</a></td>
+        <td>${c.encerrados}</td>
+        <td>${c.iniciados}</td>
+        <td>${c.editados}</td>
+        <td>${c.total_eventos}</td>
+      </tr>
+    `
+    )
+    .join('');
+
+  const linhasEventos = dados.eventos
+    .map(
+      (e) => `
+      <tr>
+        <td>${formatarDataBR(e.data.slice(0, 10))}</td>
+        <td><a href="/cliente-detalhe?id=${e.cliente_id}">${e.cliente_nome}</a></td>
+        <td>${e.colaborador_nome}</td>
+        <td>${e.tipo_evento_label}</td>
+        <td>${e.motivo || '—'}</td>
+        <td>${e.registrado_por_nome}</td>
+      </tr>
+    `
+    )
+    .join('');
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="label">eventos no período</div><div class="value">${dados.total_eventos}</div></div>
+      <div class="kpi-card"><div class="label">clientes com troca de posto</div><div class="value">${dados.por_cliente.length}</div></div>
+    </div>
+
+    <div class="section-title" style="margin-top: 30px;">Eventos por tipo</div>
+    ${montarBarras(dados.por_tipo_evento, 'label', 'total')}
+
+    <div class="section-title" style="margin-top: 30px;">Rotatividade por cliente</div>
+    ${
+      dados.por_cliente.length > 0
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Cliente</th><th>Encerramentos</th><th>Inícios</th><th>Edições</th><th>Total</th></tr></thead><tbody>${linhasCliente}</tbody></table></div>`
+        : '<div class="empty-state">Nenhum evento no período.</div>'
+    }
+
+    <div class="section-title" style="margin-top: 30px;">Últimos eventos</div>
+    ${
+      dados.eventos.length > 0
+        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Data</th><th>Cliente</th><th>Colaborador</th><th>Evento</th><th>Motivo</th><th>Registrado por</th></tr></thead><tbody>${linhasEventos}</tbody></table></div>`
+        : '<div class="empty-state">Nenhum evento no período.</div>'
+    }
+  `;
 }
 
 function renderizarCustosDiarios(dados) {
@@ -621,6 +678,14 @@ async function carregarRelatorio() {
       if (dados === null) return;
       dadosAtuais = dados;
       renderizarPostosVagos(dados);
+    } else if (abaAtual === 'estabilidade') {
+      await carregarListasSelect();
+      const clienteId = document.getElementById('filtro-cliente').value;
+      if (clienteId) params.set('cliente_id', clienteId);
+      const dados = await Shell.chamarApi(`/relatorios-dados/estabilidade-posto?${params.toString()}`);
+      if (dados === null) return;
+      dadosAtuais = dados;
+      renderizarEstabilidadePosto(dados);
     }
   } catch (erro) {
     if (erro.status === 403) {
@@ -742,6 +807,15 @@ function exportarCSV() {
     baixarCSV(
       'relatorio-custos-diarios.csv',
       ['Data', 'Quem lançou', 'Tipo', 'Valor', 'Reembolsar para', 'Pix', 'Cliente', 'Status'],
+      linhas
+    );
+  } else if (abaAtual === 'estabilidade') {
+    const linhas = dadosAtuais.eventos.map((e) => [
+      formatarDataBR(e.data.slice(0, 10)), e.cliente_nome, e.colaborador_nome, e.tipo_evento_label, e.motivo || '', e.registrado_por_nome,
+    ]);
+    baixarCSV(
+      'relatorio-estabilidade-posto.csv',
+      ['Data', 'Cliente', 'Colaborador', 'Evento', 'Motivo', 'Registrado por'],
       linhas
     );
   }
