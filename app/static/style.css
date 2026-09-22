@@ -2595,6 +2595,24 @@ button {
   border-color: var(--accent);
 }
 
+.filtro-dia-vinculo-linha {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filtro-dia-vinculo {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.filtro-dia-vinculo.ativo {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
 .barra-acao-bloco {
   display: flex;
   align-items: center;

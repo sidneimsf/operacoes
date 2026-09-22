@@ -45,6 +45,18 @@ function renderizarKpis(lista) {
   cards[2].textContent = media;
 }
 
+const DIAS_SEMANA_FILTRO = [
+  { chave: 'segunda', label: 'Seg' },
+  { chave: 'terca', label: 'Ter' },
+  { chave: 'quarta', label: 'Qua' },
+  { chave: 'quinta', label: 'Qui' },
+  { chave: 'sexta', label: 'Sex' },
+  { chave: 'sabado', label: 'Sáb' },
+  { chave: 'domingo', label: 'Dom' },
+];
+
+let diaSemanaFiltroVinculo = null;
+
 function renderizarTabela(lista) {
   const container = document.getElementById('lista-historico');
 
@@ -53,9 +65,20 @@ function renderizarTabela(lista) {
     return;
   }
 
-  const maiorDuracao = Math.max(...lista.map((h) => h.duracao_dias), 1);
+  const diasComVinculo = new Set(lista.map((h) => h.dia_semana));
+  const mostrarFiltroDias = diasComVinculo.size > 1;
 
-  const cards = lista
+  const botoesDiaHtml = DIAS_SEMANA_FILTRO.map((d) => {
+    const qtde = lista.filter((h) => h.dia_semana === d.chave).length;
+    if (qtde === 0) return '';
+    const ativo = diaSemanaFiltroVinculo === d.chave;
+    return `<button type="button" class="btn-ghost filtro-dia-vinculo ${ativo ? 'ativo' : ''}" data-dia="${d.chave}">${d.label} (${qtde})</button>`;
+  }).join('');
+
+  const listaFiltrada = diaSemanaFiltroVinculo ? lista.filter((h) => h.dia_semana === diaSemanaFiltroVinculo) : lista;
+  const maiorDuracao = Math.max(...listaFiltrada.map((h) => h.duracao_dias), 1);
+
+  const cards = listaFiltrada
     .map((h) => {
       const pct = Math.max(4, Math.round((h.duracao_dias / maiorDuracao) * 100));
       return `
@@ -79,12 +102,32 @@ function renderizarTabela(lista) {
     })
     .join('');
 
-  container.innerHTML = `<div class="vinculo-grid">${cards}</div>`;
+  const filtroDiasHtml = mostrarFiltroDias
+    ? `
+    <div class="filtro-dia-vinculo-linha">
+      <button type="button" class="btn-ghost filtro-dia-vinculo ${diaSemanaFiltroVinculo === null ? 'ativo' : ''}" data-dia="">Todos os dias</button>
+      ${botoesDiaHtml}
+    </div>
+  `
+    : '';
+
+  container.innerHTML = `
+    ${filtroDiasHtml}
+    ${listaFiltrada.length > 0 ? `<div class="vinculo-grid">${cards}</div>` : '<div class="empty-state">Nenhum vínculo nesse dia.</div>'}
+  `;
+
+  container.querySelectorAll('.filtro-dia-vinculo').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      diaSemanaFiltroVinculo = botao.dataset.dia || null;
+      renderizarTabela(lista);
+    });
+  });
 }
 
 async function carregarHistorico() {
   const container = document.getElementById('lista-historico');
   container.innerHTML = '<div class="loading-state">Carregando...</div>';
+  diaSemanaFiltroVinculo = null;
 
   const params = new URLSearchParams();
   const colaboradorId = document.getElementById('filtro-colaborador').value;
