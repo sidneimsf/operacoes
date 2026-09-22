@@ -4767,9 +4767,12 @@ def relatorio_estabilidade_posto(
     eventos = query.order_by(HistoricoMapaServico.criado_em.desc()).all()
 
     por_tipo: dict[str, int] = {}
+    por_dia: dict[str, int] = {}
     por_cliente: dict[int, dict] = {}
     for e in eventos:
         por_tipo[e.tipo_evento] = por_tipo.get(e.tipo_evento, 0) + 1
+        chave_dia = e.criado_em.date().isoformat()
+        por_dia[chave_dia] = por_dia.get(chave_dia, 0) + 1
         registro = por_cliente.setdefault(e.cliente_id, {
             "cliente_id": e.cliente_id,
             "cliente_nome": e.cliente.nome,
@@ -4792,10 +4795,18 @@ def relatorio_estabilidade_posto(
         for t, v in sorted(por_tipo.items(), key=lambda x: -x[1])
     ]
 
+    lista_por_dia = []
+    dia_cursor = inicio
+    while dia_cursor <= fim:
+        chave_dia = dia_cursor.isoformat()
+        lista_por_dia.append({"data": chave_dia, "total": por_dia.get(chave_dia, 0)})
+        dia_cursor += timedelta(days=1)
+
     return {
         "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
         "total_eventos": len(eventos),
         "por_tipo_evento": lista_por_tipo,
+        "por_dia": lista_por_dia,
         "por_cliente": lista_por_cliente,
         "eventos": [
             {

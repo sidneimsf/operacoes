@@ -81,10 +81,11 @@ function montarBarras(itens, chaveLabel, chaveValor) {
 function trocarAba(aba) {
   abaAtual = aba;
   diaSemanaFiltroPostosVagos = null;
+  clienteSelecionadoEstabilidade = null;
   document.querySelectorAll('.tab-relatorio').forEach((botao) => {
     botao.classList.toggle('ativa', botao.dataset.aba === aba);
   });
-  document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas' && aba !== 'estabilidade';
+  document.getElementById('campo-select-cliente').hidden = aba !== 'cliente' && aba !== 'horas';
   document.getElementById('campo-select-colaborador').hidden = aba !== 'colaborador' && aba !== 'faltas' && aba !== 'horas' && aba !== 'estoque';
   document.getElementById('campo-select-tipo-custo').hidden = aba !== 'custos';
   document.getElementById('filtros-geral').hidden = aba === 'postos-vagos';
@@ -250,6 +251,12 @@ function renderizarPorColaborador(dados) {
 }
 
 let diaSemanaFiltroPostosVagos = null;
+let clienteSelecionadoEstabilidade = null;
+
+function formatarDataCurta(isoString) {
+  const [, mes, dia] = isoString.split('-');
+  return `${dia}/${mes}`;
+}
 
 function renderizarPostosVagos(dados) {
   const container = document.getElementById('relatorio-conteudo');
@@ -316,61 +323,117 @@ function renderizarPostosVagos(dados) {
   });
 }
 
+function classificarRisco(cliente) {
+  if (cliente.encerrados >= 3) return { chave: 'alto', label: 'Alto risco' };
+  if (cliente.encerrados >= 1) return { chave: 'atencao', label: 'Atenção' };
+  return { chave: 'estavel', label: 'Estável' };
+}
+
 function renderizarEstabilidadePosto(dados) {
   const container = document.getElementById('relatorio-conteudo');
 
-  const linhasCliente = dados.por_cliente
-    .map(
-      (c) => `
-      <tr>
-        <td><a href="/cliente-detalhe?id=${c.cliente_id}">${c.cliente_nome}</a></td>
-        <td>${c.encerrados}</td>
-        <td>${c.iniciados}</td>
-        <td>${c.editados}</td>
-        <td>${c.total_eventos}</td>
-      </tr>
-    `
-    )
+  const clienteMaisCritico = dados.por_cliente.find((c) => c.encerrados > 0);
+
+  // Heatmap de atividade: um quadrado por dia, intensidade proporcional ao volume de eventos.
+  const maiorDia = Math.max(...dados.por_dia.map((d) => d.total), 1);
+  const heatmapHtml = dados.por_dia
+    .map((d) => {
+      const opacidade = d.total === 0 ? 0 : 0.22 + 0.78 * (d.total / maiorDia);
+      const estilo = d.total === 0 ? '' : `style="background: rgba(125, 95, 17, ${opacidade.toFixed(2)})"`;
+      return `<div class="heatmap-dia" ${estilo} title="${formatarDataBR(d.data)} · ${d.total} evento${d.total === 1 ? '' : 's'}"></div>`;
+    })
     .join('');
 
-  const linhasEventos = dados.eventos
+  // Cards de rotatividade por cliente: barra empilhada iniciado/encerrado/editado + selo de risco.
+  const cardsClienteHtml = dados.por_cliente
+    .map((c) => {
+      const risco = classificarRisco(c);
+      const selecionado = clienteSelecionadoEstabilidade === c.cliente_id;
+      const pct = (n) => (c.total_eventos > 0 ? (n / c.total_eventos) * 100 : 0);
+      return `
+      <button type="button" class="posto-card ${selecionado ? 'selecionado' : ''}" data-cliente-id="${c.cliente_id}">
+        <div class="posto-card-topo">
+          <span class="posto-card-nome">${c.cliente_nome}</span>
+          <span class="risco-badge ${risco.chave}">${risco.label}</span>
+        </div>
+        <div class="posto-card-barra">
+          <span class="seg-encerrado" style="width:${pct(c.encerrados)}%"></span>
+          <span class="seg-editado" style="width:${pct(c.editados)}%"></span>
+          <span class="seg-iniciado" style="width:${pct(c.iniciados)}%"></span>
+        </div>
+        <div class="posto-card-legenda">
+          <span>${c.encerrados} encerrado${c.encerrados === 1 ? '' : 's'}</span>
+          <span>${c.editados} edição${c.editados === 1 ? '' : 'ões'}</span>
+          <span>${c.iniciados} iniciado${c.iniciados === 1 ? '' : 's'}</span>
+        </div>
+      </button>
+    `;
+    })
+    .join('');
+
+  const eventosFiltrados = clienteSelecionadoEstabilidade
+    ? dados.eventos.filter((e) => e.cliente_id === clienteSelecionadoEstabilidade)
+    : dados.eventos;
+
+  const timelineHtml = eventosFiltrados
     .map(
       (e) => `
-      <tr>
-        <td>${formatarDataBR(e.data.slice(0, 10))}</td>
-        <td><a href="/cliente-detalhe?id=${e.cliente_id}">${e.cliente_nome}</a></td>
-        <td>${e.colaborador_nome}</td>
-        <td>${e.tipo_evento_label}</td>
-        <td>${e.motivo || '—'}</td>
-        <td>${e.registrado_por_nome}</td>
-      </tr>
+      <div class="timeline-item">
+        <div class="data-col">${formatarDataCurta(e.data.slice(0, 10))}</div>
+        <div class="conteudo">
+          <div class="linha-topo">
+            <span class="evento-tipo-badge ${e.tipo_evento}">${e.tipo_evento_label}</span>
+            <span class="tipo-label"><a href="/cliente-detalhe?id=${e.cliente_id}">${e.cliente_nome}</a> · ${e.colaborador_nome}</span>
+          </div>
+          ${e.motivo ? `<div class="descricao">${e.motivo}</div>` : ''}
+          <div class="meta">Registrado por ${e.registrado_por_nome}</div>
+        </div>
+      </div>
     `
     )
     .join('');
 
   container.innerHTML = `
     <div class="kpi-grid">
-      <div class="kpi-card"><div class="label">eventos no período</div><div class="value">${dados.total_eventos}</div></div>
-      <div class="kpi-card"><div class="label">clientes com troca de posto</div><div class="value">${dados.por_cliente.length}</div></div>
+      <div class="kpi-card"><div class="kpi-card-icon">${Shell.icone('mapa-servico')}</div><div><div class="label">eventos no período</div><div class="value">${dados.total_eventos}</div></div></div>
+      <div class="kpi-card"><div class="kpi-card-icon">${Shell.icone('clientes')}</div><div><div class="label">clientes com troca</div><div class="value">${dados.por_cliente.length}</div></div></div>
+      <div class="kpi-card ${clienteMaisCritico ? 'destaque' : ''}"><div class="kpi-card-icon">${Shell.icone('ocorrencias')}</div><div><div class="label">posto mais instável</div><div class="value" style="font-size: 18px;">${clienteMaisCritico ? clienteMaisCritico.cliente_nome : '—'}</div></div></div>
     </div>
 
-    <div class="section-title" style="margin-top: 30px;">Eventos por tipo</div>
-    ${montarBarras(dados.por_tipo_evento, 'label', 'total')}
+    <div class="section-title" style="margin-top: 30px;">Atividade no período</div>
+    ${
+      dados.por_dia.length > 0
+        ? `<div class="heatmap-atividade">${heatmapHtml}</div>
+           <div class="heatmap-legenda"><span>menos</span><div class="heatmap-dia"></div><div class="heatmap-dia" style="background: rgba(125, 95, 17, 0.35)"></div><div class="heatmap-dia" style="background: rgba(125, 95, 17, 0.65)"></div><div class="heatmap-dia" style="background: rgba(125, 95, 17, 1)"></div><span>mais</span></div>`
+        : '<div class="empty-state">Sem eventos no período.</div>'
+    }
 
-    <div class="section-title" style="margin-top: 30px;">Rotatividade por cliente</div>
+    <div class="section-title">Rotatividade por cliente ${clienteSelecionadoEstabilidade ? '<button type="button" class="btn-ghost" id="btn-limpar-selecao-cliente" style="margin-left: 10px; padding: 3px 10px; font-size: 11.5px;">Ver todos</button>' : ''}</div>
     ${
       dados.por_cliente.length > 0
-        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Cliente</th><th>Encerramentos</th><th>Inícios</th><th>Edições</th><th>Total</th></tr></thead><tbody>${linhasCliente}</tbody></table></div>`
+        ? `<div class="posto-grid">${cardsClienteHtml}</div>`
         : '<div class="empty-state">Nenhum evento no período.</div>'
     }
 
-    <div class="section-title" style="margin-top: 30px;">Últimos eventos</div>
-    ${
-      dados.eventos.length > 0
-        ? `<div class="table-scroll-wrapper"><table class="table-list"><thead><tr><th>Data</th><th>Cliente</th><th>Colaborador</th><th>Evento</th><th>Motivo</th><th>Registrado por</th></tr></thead><tbody>${linhasEventos}</tbody></table></div>`
-        : '<div class="empty-state">Nenhum evento no período.</div>'
-    }
+    <div class="section-title" style="margin-top: 30px;">${clienteSelecionadoEstabilidade ? `Eventos · ${dados.por_cliente.find((c) => c.cliente_id === clienteSelecionadoEstabilidade)?.cliente_nome || ''}` : 'Últimos eventos'}</div>
+    ${eventosFiltrados.length > 0 ? timelineHtml : '<div class="empty-state">Nenhum evento nesse filtro.</div>'}
   `;
+
+  container.querySelectorAll('.posto-card').forEach((botao) => {
+    botao.addEventListener('click', () => {
+      const id = Number(botao.dataset.clienteId);
+      clienteSelecionadoEstabilidade = clienteSelecionadoEstabilidade === id ? null : id;
+      renderizarEstabilidadePosto(dados);
+    });
+  });
+  const botaoLimpar = document.getElementById('btn-limpar-selecao-cliente');
+  if (botaoLimpar) {
+    botaoLimpar.addEventListener('click', (evento) => {
+      evento.stopPropagation();
+      clienteSelecionadoEstabilidade = null;
+      renderizarEstabilidadePosto(dados);
+    });
+  }
 }
 
 function renderizarCustosDiarios(dados) {
@@ -679,9 +742,6 @@ async function carregarRelatorio() {
       dadosAtuais = dados;
       renderizarPostosVagos(dados);
     } else if (abaAtual === 'estabilidade') {
-      await carregarListasSelect();
-      const clienteId = document.getElementById('filtro-cliente').value;
-      if (clienteId) params.set('cliente_id', clienteId);
       const dados = await Shell.chamarApi(`/relatorios-dados/estabilidade-posto?${params.toString()}`);
       if (dados === null) return;
       dadosAtuais = dados;
