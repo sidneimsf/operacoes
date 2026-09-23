@@ -12,7 +12,7 @@ from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFil
 from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import jwt
@@ -23,6 +23,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from database import SessionLocal, get_db
 from models import (
     Aviso,
+    AvisoExclusao,
     Chamado,
     Cliente,
     ClienteCronograma,
@@ -141,10 +142,37 @@ def job_verificar_experiencias():
         db.close()
 
 
+# Janela em que uma exclusao de aviso ainda pode ser desfeita
+PRAZO_DESFAZER_EXCLUSAO_AVISO = timedelta(hours=1)
+
+
+def job_limpar_avisos_excluidos():
+    """Apaga de fato os avisos que o autor excluiu ha mais de 1 hora (prazo de desfazer vencido)."""
+    db = SessionLocal()
+    try:
+        limite = datetime.now(timezone.utc) - PRAZO_DESFAZER_EXCLUSAO_AVISO
+        ids_vencidos = select(Aviso.id).where(Aviso.excluido_em.is_not(None), Aviso.excluido_em <= limite)
+        db.query(AvisoExclusao).filter(AvisoExclusao.aviso_id.in_(ids_vencidos)).delete(synchronize_session=False)
+        total = (
+            db.query(Aviso)
+            .filter(Aviso.excluido_em.is_not(None), Aviso.excluido_em <= limite)
+            .delete(synchronize_session=False)
+        )
+        db.commit()
+        if total:
+            print("[avisos] excluidos definitivamente:", total)
+    except Exception as erro:
+        db.rollback()
+        print("[avisos] erro ao limpar avisos excluidos:", erro)
+    finally:
+        db.close()
+
+
 agendador = BackgroundScheduler()
 agendador.add_job(job_verificar_asos, "cron", hour=8, minute=0)
 agendador.add_job(job_verificar_custos, "cron", hour=19, minute=0)
 agendador.add_job(job_verificar_experiencias, "cron", hour=8, minute=10)
+agendador.add_job(job_limpar_avisos_excluidos, "interval", minutes=10)
 agendador.start()
 
 PASTA_UPLOADS = Path("uploads/colaboradores")
@@ -1691,7 +1719,8 @@ def listar_pessoas(
     return [{"id": p.id, "nome": p.nome, "papel": p.papel} for p in pessoas]
 
 
-def serializar_aviso(a: Aviso) -> dict:
+def serializar_aviso(a: Aviso, excluido_em: datetime | None = None) -> dict:
+    """excluido_em = quando o usuario da requisicao excluiu o aviso (ainda dentro do prazo de desfazer)."""
     return {
         "id": a.id,
         "mensagem": a.mensagem,
@@ -1700,7 +1729,13 @@ def serializar_aviso(a: Aviso) -> dict:
         "destinatario_id": a.destinatario_id,
         "destinatario_nome": a.destinatario.nome if a.destinatario else None,
         "criado_em": a.criado_em.isoformat(),
+        "excluido_em": excluido_em.isoformat() if excluido_em else None,
+        "desfazer_ate": (excluido_em + PRAZO_DESFAZER_EXCLUSAO_AVISO).isoformat() if excluido_em else None,
     }
+
+
+def aviso_visivel_para(aviso: Aviso, usuario: Usuario) -> bool:
+    return aviso.destinatario_id is None or aviso.destinatario_id == usuario.id or aviso.criado_por_id == usuario.id
 
 
 @app.get("/avisos-dados/nao-lidos")
@@ -1709,6 +1744,8 @@ def contar_avisos_nao_lidos(db: Session = Depends(get_db), usuario: Usuario = De
         db.query(Aviso)
         .filter((Aviso.destinatario_id.is_(None)) | (Aviso.destinatario_id == usuario.id))
         .filter(Aviso.criado_por_id != usuario.id)
+        .filter(Aviso.excluido_em.is_(None))
+        .filter(~Aviso.id.in_(select(AvisoExclusao.aviso_id).where(AvisoExclusao.usuario_id == usuario.id)))
     )
     if usuario.avisos_vistos_em is not None:
         query = query.filter(Aviso.criado_em > usuario.avisos_vistos_em)
@@ -1757,18 +1794,34 @@ def criar_aviso(
 
 @app.get("/avisos-dados")
 def listar_avisos(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
-    """Mostra avisos para todos, avisos dirigidos a mim, e avisos que eu mesmo criei."""
-    avisos = (
-        db.query(Aviso)
+    """
+    Mostra avisos para todos, avisos dirigidos a mim, e avisos que eu mesmo criei.
+    Avisos que eu exclui ha menos de 1 hora continuam vindo (marcados com
+    excluido_em) pra tela oferecer o "Desfazer"; depois disso somem.
+    """
+    limite = datetime.now(timezone.utc) - PRAZO_DESFAZER_EXCLUSAO_AVISO
+    linhas = (
+        db.query(Aviso, AvisoExclusao.excluido_em)
+        .outerjoin(
+            AvisoExclusao,
+            (AvisoExclusao.aviso_id == Aviso.id) & (AvisoExclusao.usuario_id == usuario.id),
+        )
         .filter(
             (Aviso.destinatario_id.is_(None))
             | (Aviso.destinatario_id == usuario.id)
             | (Aviso.criado_por_id == usuario.id)
         )
+        # Excluido pelo autor: some pra todos; so o proprio autor ve, e so dentro do prazo
+        .filter(Aviso.excluido_em.is_(None) | ((Aviso.criado_por_id == usuario.id) & (Aviso.excluido_em > limite)))
+        # Excluido por mim (recebedor): so volta dentro do prazo
+        .filter(AvisoExclusao.excluido_em.is_(None) | (AvisoExclusao.excluido_em > limite))
         .order_by(Aviso.criado_em.desc())
         .all()
     )
-    return [serializar_aviso(a) for a in avisos]
+    return [
+        serializar_aviso(a, a.excluido_em if a.criado_por_id == usuario.id else excluido_por_mim_em)
+        for a, excluido_por_mim_em in linhas
+    ]
 
 
 @app.delete("/avisos-dados/{aviso_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -1777,18 +1830,70 @@ def excluir_aviso(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
+    """
+    Autor exclui -> some do mural de todos. Quem recebeu exclui -> some so do
+    proprio mural. Nos dois casos da pra desfazer por 1 hora
+    (POST /avisos-dados/{id}/restaurar).
+    """
     aviso = db.get(Aviso, aviso_id)
-    if aviso is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aviso nao encontrado")
+    if aviso is None or not aviso_visivel_para(aviso, usuario):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aviso não encontrado.")
 
-    if aviso.criado_por_id != usuario.id and usuario.papel != "escritorio":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Voce so pode excluir avisos que voce mesmo criou",
+    agora = datetime.now(timezone.utc)
+    if aviso.criado_por_id == usuario.id:
+        if aviso.excluido_em is None:
+            aviso.excluido_em = agora
+    else:
+        if aviso.excluido_em is not None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aviso não encontrado.")
+        ja_excluido = (
+            db.query(AvisoExclusao)
+            .filter(AvisoExclusao.aviso_id == aviso.id, AvisoExclusao.usuario_id == usuario.id)
+            .first()
         )
-
-    db.delete(aviso)
+        if ja_excluido is None:
+            db.add(AvisoExclusao(aviso_id=aviso.id, usuario_id=usuario.id, excluido_em=agora))
     db.commit()
+
+
+@app.post("/avisos-dados/{aviso_id}/restaurar")
+def restaurar_aviso(
+    aviso_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Desfaz a exclusao de um aviso, se ainda estiver dentro do prazo de 1 hora."""
+    aviso = db.get(Aviso, aviso_id)
+    if aviso is None or not aviso_visivel_para(aviso, usuario):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aviso não encontrado.")
+
+    limite = datetime.now(timezone.utc) - PRAZO_DESFAZER_EXCLUSAO_AVISO
+    prazo_vencido = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="O prazo de 1 hora para desfazer essa exclusão já passou.",
+    )
+
+    if aviso.criado_por_id == usuario.id:
+        if aviso.excluido_em is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse aviso não está excluído.")
+        if aviso.excluido_em <= limite:
+            raise prazo_vencido
+        aviso.excluido_em = None
+    else:
+        exclusao = (
+            db.query(AvisoExclusao)
+            .filter(AvisoExclusao.aviso_id == aviso.id, AvisoExclusao.usuario_id == usuario.id)
+            .first()
+        )
+        if exclusao is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse aviso não está excluído.")
+        if exclusao.excluido_em <= limite:
+            raise prazo_vencido
+        db.delete(exclusao)
+
+    db.commit()
+    db.refresh(aviso)
+    return serializar_aviso(aviso)
 
 
 @app.get("/chamados-tipos")

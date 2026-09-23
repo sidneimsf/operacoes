@@ -2269,6 +2269,29 @@ button {
   background: rgba(193, 51, 39, 0.12);
 }
 
+.postit-excluido {
+  opacity: 0.6;
+}
+
+.postit-excluido .mensagem {
+  text-decoration: line-through;
+}
+
+.postit-desfazer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.postit-desfazer .btn-ghost {
+  padding: 4px 12px;
+  font-size: 12.5px;
+}
+
 .postit .mensagem {
   font-size: 14px;
   line-height: 1.5;

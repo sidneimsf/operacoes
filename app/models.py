@@ -79,12 +79,30 @@ class Aviso(Base):
     criado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     destinatario_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+    # Exclusao feita pelo autor: some pra todos. Pode ser desfeita por 1 hora,
+    # depois o job de limpeza apaga o aviso de fato.
+    excluido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     criado_por: Mapped["Usuario"] = relationship(foreign_keys=[criado_por_id])
     destinatario: Mapped["Usuario | None"] = relationship(foreign_keys=[destinatario_id])
 
     def __repr__(self) -> str:
         return f"<Aviso de {self.criado_por_id}>"
+
+
+class AvisoExclusao(Base):
+    """
+    Exclusao de um aviso feita por quem o recebeu: tira o aviso so do
+    mural dessa pessoa, os demais continuam vendo. Pode ser desfeita
+    por 1 hora; depois disso fica definitiva.
+    """
+    __tablename__ = "avisos_exclusoes"
+    __table_args__ = (UniqueConstraint("aviso_id", "usuario_id", name="uq_aviso_exclusao_usuario"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    aviso_id: Mapped[int] = mapped_column(ForeignKey("avisos.id", ondelete="CASCADE"), nullable=False)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    excluido_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc, nullable=False)
 
 
 class Usuario(Base):
