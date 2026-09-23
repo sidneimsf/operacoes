@@ -137,6 +137,7 @@ function agruparAvisos(avisos) {
       grupoAtual &&
       grupoAtual.mensagem === a.mensagem &&
       grupoAtual.criado_por_id === a.criado_por_id &&
+      Boolean(grupoAtual.desfazer_ate) === Boolean(a.desfazer_ate) &&
       Math.abs(new Date(a.criado_em) - new Date(grupoAtual.ultimoCriadoEm)) <= JANELA_MESMO_ENVIO_MS;
 
     if (pertenceAoGrupoAtual) {
@@ -152,6 +153,7 @@ function agruparAvisos(avisos) {
         criado_em: a.criado_em,
         ultimoCriadoEm: a.criado_em,
         destinatarios: a.destinatario_nome ? [a.destinatario_nome] : [],
+        desfazer_ate: a.desfazer_ate,
       };
       grupos.push(grupoAtual);
     }
@@ -162,24 +164,49 @@ function agruparAvisos(avisos) {
   return grupos;
 }
 
+let avisosCarregados = [];
+
+function formatarHora(isoString) {
+  return new Date(isoString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
 function renderizarMural(avisos) {
   const container = document.getElementById('mural');
 
-  if (avisos.length === 0) {
+  // Exclusoes cujo prazo de desfazer ja venceu somem da tela sem precisar recarregar
+  const agora = Date.now();
+  const visiveis = avisos.filter((a) => !a.desfazer_ate || new Date(a.desfazer_ate).getTime() > agora);
+
+  if (visiveis.length === 0) {
     container.innerHTML = '<div class="empty-state">Nenhum aviso ainda. Seja o primeiro a publicar algo no mural.</div>';
     return;
   }
 
-  const grupos = agruparAvisos(avisos);
+  const grupos = agruparAvisos(visiveis);
 
   container.innerHTML = grupos
     .map((g) => {
-      const podeExcluir = g.criado_por_id === auth.id || auth.papel === 'escritorio';
+      const souAutor = g.criado_por_id === auth.id;
       const textoDestinatarios = g.destinatarios.length > 0 ? g.destinatarios.join(', ') : null;
+
+      if (g.desfazer_ate) {
+        return `
+        <div class="postit postit-excluido">
+          <div class="pin"></div>
+          <div class="mensagem">${escaparHtml(g.mensagem)}</div>
+          <div class="postit-desfazer">
+            <span>${souAutor ? 'Excluído para todos' : 'Excluído do seu mural'} · dá pra desfazer até ${formatarHora(g.desfazer_ate)}</span>
+            <button class="btn-ghost postit-btn-desfazer" data-aviso-ids="${g.ids.join(',')}">Desfazer</button>
+          </div>
+        </div>
+      `;
+      }
+
+      const tituloExcluir = souAutor ? 'Excluir para todos' : 'Excluir do meu mural';
       return `
       <div class="postit">
         <div class="pin"></div>
-        ${podeExcluir ? `<button class="postit-excluir" data-aviso-ids="${g.ids.join(',')}" aria-label="Excluir aviso" title="Excluir">&times;</button>` : ''}
+        <button class="postit-excluir" data-aviso-ids="${g.ids.join(',')}" aria-label="${tituloExcluir}" title="${tituloExcluir}">&times;</button>
         <div class="mensagem">${escaparHtml(g.mensagem)}</div>
         <div class="rodape">
           <span>${g.criado_por_nome} · ${formatarData(g.criado_em)}</span>
@@ -192,13 +219,22 @@ function renderizarMural(avisos) {
 }
 
 async function excluirAviso(avisoIds) {
-  if (!confirm('Excluir este aviso do mural?')) return;
+  // Sem confirm(): a exclusao pode ser desfeita por 1 hora direto no mural
   try {
     await Promise.all(avisoIds.map((id) => Shell.chamarApi(`/avisos-dados/${id}`, { method: 'DELETE' })));
-    carregarAvisos();
   } catch (erro) {
-    alert('Não foi possível excluir o aviso agora.');
+    alert(erro.detalhe || 'Não foi possível excluir o aviso agora.');
   }
+  carregarAvisos();
+}
+
+async function restaurarAviso(avisoIds) {
+  try {
+    await Promise.all(avisoIds.map((id) => Shell.chamarApi(`/avisos-dados/${id}/restaurar`, { method: 'POST' })));
+  } catch (erro) {
+    alert(erro.detalhe || 'Não foi possível desfazer a exclusão agora.');
+  }
+  carregarAvisos();
 }
 
 async function carregarAvisos() {
@@ -207,6 +243,7 @@ async function carregarAvisos() {
   try {
     const avisos = await Shell.chamarApi('/avisos-dados');
     if (avisos === null) return;
+    avisosCarregados = avisos;
     renderizarMural(avisos);
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar os avisos agora.</div>';
@@ -226,10 +263,19 @@ montarModalAviso();
 document.getElementById('btn-novo-aviso').addEventListener('click', abrirModalAviso);
 
 document.getElementById('mural').addEventListener('click', (evento) => {
-  const botao = evento.target.closest('.postit-excluir');
-  if (!botao) return;
-  excluirAviso(botao.dataset.avisoIds.split(',').map(Number));
+  const botaoExcluir = evento.target.closest('.postit-excluir');
+  if (botaoExcluir) {
+    excluirAviso(botaoExcluir.dataset.avisoIds.split(',').map(Number));
+    return;
+  }
+  const botaoDesfazer = evento.target.closest('.postit-btn-desfazer');
+  if (botaoDesfazer) {
+    restaurarAviso(botaoDesfazer.dataset.avisoIds.split(',').map(Number));
+  }
 });
+
+// Tira do mural os excluidos cujo prazo de desfazer venceu enquanto a tela estava aberta
+setInterval(() => renderizarMural(avisosCarregados), 30000);
 
 carregarAvisos();
 marcarAvisosComoVistos();
