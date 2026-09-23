@@ -152,7 +152,7 @@ function renderizarMural(vagas) {
       <div class="postit ${v.aberta ? '' : 'postit-fechada'}">
         <div class="pin"></div>
         ${podeGerenciar ? `<button class="postit-excluir" data-vaga-id="${v.id}" aria-label="Excluir vaga" title="Excluir">&times;</button>` : ''}
-        <div class="mensagem"><strong>${escaparHtml(v.titulo)}</strong>${!v.aberta ? ' <span class="meta">(preenchida)</span>' : ''}</div>
+        <div class="mensagem"><strong>${escaparHtml(v.titulo)}</strong>${!v.aberta ? ' <span class="vaga-preenchida">(preenchida)</span>' : ''}</div>
         <div class="mensagem" style="font-size: 13px; margin-top: 6px;">${escaparHtml(v.descricao)}</div>
         <div class="rodape">
           <span>${v.cliente_nome ? `${v.cliente_nome} · ` : ''}${v.criado_por_nome} · ${formatarData(v.criado_em)}</span>

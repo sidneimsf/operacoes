@@ -2292,6 +2292,11 @@ button {
   font-size: 12.5px;
 }
 
+.postit .vaga-preenchida {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .postit .mensagem {
   font-size: 14px;
   line-height: 1.5;
