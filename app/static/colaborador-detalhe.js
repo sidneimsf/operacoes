@@ -375,6 +375,10 @@ function montarModalEditarColaborador() {
             <input type="text" id="editar-colab-registro">
           </div>
           <div class="field">
+            <label for="editar-colab-cpf">CPF</label>
+            <input type="text" id="editar-colab-cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric">
+          </div>
+          <div class="field">
             <label for="editar-colab-cargo">Cargo</label>
             <input type="text" id="editar-colab-cargo">
           </div>
@@ -472,6 +476,7 @@ async function abrirModalEditarColaborador() {
 
   document.getElementById('editar-colab-nome').value = colaboradorAtual.nome;
   document.getElementById('editar-colab-registro').value = colaboradorAtual.registro || '';
+  document.getElementById('editar-colab-cpf').value = Shell.formatarCpf(colaboradorAtual.cpf);
   document.getElementById('editar-colab-cargo').value = colaboradorAtual.cargo || '';
   document.getElementById('editar-colab-contato').value = colaboradorAtual.contato || '';
   document.getElementById('editar-colab-admissao').value = colaboradorAtual.data_admissao || '';
@@ -517,6 +522,7 @@ async function salvarEdicaoColaborador(evento) {
     empresa_id: Number(document.getElementById('editar-colab-empresa').value),
     nome: document.getElementById('editar-colab-nome').value,
     registro: document.getElementById('editar-colab-registro').value || null,
+    cpf: document.getElementById('editar-colab-cpf').value || null,
     cargo: document.getElementById('editar-colab-cargo').value || null,
     contato: document.getElementById('editar-colab-contato').value || null,
     data_admissao: document.getElementById('editar-colab-admissao').value || null,
@@ -597,6 +603,12 @@ function renderizarHeaderColaborador() {
     label: 'Contato',
     valor: c.contato
       ? `${c.contato} <button class="btn-icone-acao btn-copiar-contato" data-valor="${c.contato}" title="Copiar telefone">${ICONE_COPIAR}</button>`
+      : '—',
+  });
+  itens.push({
+    label: 'CPF',
+    valor: c.cpf
+      ? `${Shell.formatarCpf(c.cpf)} <button class="btn-icone-acao btn-copiar-contato" data-valor="${c.cpf}" title="Copiar CPF">${ICONE_COPIAR}</button>`
       : '—',
   });
   itens.push({ label: 'Admissão', valor: formatarData(c.data_admissao) });

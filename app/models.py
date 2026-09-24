@@ -201,6 +201,7 @@ class Colaborador(Base):
     cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
     registro: Mapped[str | None] = mapped_column(String(20), nullable=True)
     nome: Mapped[str] = mapped_column(String(200), nullable=False)
+    cpf: Mapped[str | None] = mapped_column(String(11), nullable=True)  # so os 11 digitos, sem mascara
     cargo: Mapped[str | None] = mapped_column(String(100), nullable=True)
     contato: Mapped[str | None] = mapped_column(String(50), nullable=True)
     data_admissao: Mapped[date | None] = mapped_column(Date, nullable=True)

@@ -79,6 +79,7 @@ class ColaboradorCreate(BaseModel):
     empresa_id: int
     nome: str
     registro: str | None = None
+    cpf: str | None = None
     cargo: str | None = None
     contato: str | None = None
     data_admissao: str | None = None
@@ -92,6 +93,7 @@ class ColaboradorUpdate(BaseModel):
     empresa_id: int | None = None
     nome: str | None = None
     registro: str | None = None
+    cpf: str | None = None
     cargo: str | None = None
     contato: str | None = None
     data_admissao: str | None = None

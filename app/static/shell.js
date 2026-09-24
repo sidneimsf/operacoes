@@ -99,6 +99,13 @@ const Shell = (() => {
     return `https://wa.me/${comCodigoPais}`;
   }
 
+  function formatarCpf(cpf) {
+    if (!cpf) return '';
+    const digitos = cpf.replace(/\D/g, '');
+    if (digitos.length !== 11) return cpf;
+    return `${digitos.slice(0, 3)}.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-${digitos.slice(9)}`;
+  }
+
   function icone(chave) {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[chave] || ''}</svg>`;
   }
@@ -443,7 +450,7 @@ const Shell = (() => {
     }
   }
 
-  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, atualizarBadgeOcorrencias, linkWhatsApp };
+  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, atualizarBadgeOcorrencias, linkWhatsApp, formatarCpf };
 })();
 
 if ('serviceWorker' in navigator) {

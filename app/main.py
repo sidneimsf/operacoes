@@ -800,6 +800,7 @@ def serializar_colaborador(c: Colaborador) -> dict:
     return {
         "id": c.id,
         "registro": c.registro,
+        "cpf": c.cpf,
         "nome": c.nome,
         "cargo": c.cargo,
         "contato": c.contato,
@@ -848,9 +849,32 @@ def listar_colaboradores(
     if cargo:
         query = query.filter(Colaborador.cargo == cargo)
     if busca:
-        query = query.filter(Colaborador.nome.ilike(f"%{busca}%"))
+        busca_digitos = "".join(ch for ch in busca if ch.isdigit())
+        if len(busca_digitos) >= 3:
+            query = query.filter(
+                Colaborador.nome.ilike(f"%{busca}%") | Colaborador.cpf.like(f"%{busca_digitos}%")
+            )
+        else:
+            query = query.filter(Colaborador.nome.ilike(f"%{busca}%"))
     colaboradores = query.order_by(Colaborador.nome).all()
     return [serializar_colaborador(c) for c in colaboradores]
+
+
+def _normalizar_cpf(cpf: str | None) -> str | None:
+    """Aceita CPF com ou sem mascara, valida os digitos verificadores e devolve so os 11 digitos (None se vazio)."""
+    if not cpf or not cpf.strip():
+        return None
+    digitos = "".join(ch for ch in cpf if ch.isdigit())
+    invalido = HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST, detail="CPF inválido. Confira os números digitados."
+    )
+    if len(digitos) != 11 or digitos == digitos[0] * 11:
+        raise invalido
+    for tamanho in (9, 10):
+        soma = sum(int(digitos[i]) * (tamanho + 1 - i) for i in range(tamanho))
+        if (soma * 10) % 11 % 10 != int(digitos[tamanho]):
+            raise invalido
+    return digitos
 
 
 def _validar_aniversario(dia: int | None, mes: int | None) -> None:
@@ -886,6 +910,7 @@ def criar_colaborador(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
 
     _validar_aniversario(dados.aniversario_dia, dados.aniversario_mes)
+    cpf = _normalizar_cpf(dados.cpf)
 
     admissao = date.fromisoformat(dados.data_admissao) if dados.data_admissao else None
 
@@ -895,6 +920,7 @@ def criar_colaborador(
     colaborador = Colaborador(
         empresa_id=dados.empresa_id,
         registro=dados.registro.strip() if dados.registro else None,
+        cpf=cpf,
         nome=nome,
         cargo=dados.cargo.strip() if dados.cargo else None,
         contato=dados.contato.strip() if dados.contato else None,
@@ -1052,6 +1078,8 @@ def editar_colaborador(
         colaborador.nome = nome
     if "registro" in campos:
         colaborador.registro = campos["registro"].strip() if campos["registro"] else None
+    if "cpf" in campos:
+        colaborador.cpf = _normalizar_cpf(campos["cpf"])
     if "cargo" in campos:
         colaborador.cargo = campos["cargo"].strip() if campos["cargo"] else None
     if "contato" in campos:

@@ -179,6 +179,10 @@ function montarModalColaborador() {
             <input type="text" id="colaborador-form-registro">
           </div>
           <div class="field">
+            <label for="colaborador-form-cpf">CPF (opcional)</label>
+            <input type="text" id="colaborador-form-cpf" placeholder="000.000.000-00" maxlength="14" inputmode="numeric">
+          </div>
+          <div class="field">
             <label for="colaborador-form-cargo">Cargo (opcional)</label>
             <input type="text" id="colaborador-form-cargo">
           </div>
@@ -315,6 +319,7 @@ async function enviarNovoColaborador(evento) {
     empresa_id: Number(document.getElementById('colaborador-form-empresa').value),
     nome: document.getElementById('colaborador-form-nome').value,
     registro: document.getElementById('colaborador-form-registro').value || null,
+    cpf: document.getElementById('colaborador-form-cpf').value || null,
     cargo: document.getElementById('colaborador-form-cargo').value || null,
     contato: document.getElementById('colaborador-form-contato').value || null,
     data_admissao: document.getElementById('colaborador-form-admissao').value || null,
