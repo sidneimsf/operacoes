@@ -1199,6 +1199,17 @@ button {
   vertical-align: top;
 }
 
+.horario-celula-sub {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.horario-celula.encerrado {
+  opacity: 0.55;
+}
+
 .badge-papel {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;
@@ -2487,7 +2498,8 @@ button {
   .alerta-posto-vago-texto {
     flex-basis: 100%;
   }
-  #mapa-servicos {
+  #mapa-servicos,
+  #lista-historico {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }

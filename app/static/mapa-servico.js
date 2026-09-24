@@ -4,24 +4,6 @@ let colaboradoresCache = [];
 let clientesCache = [];
 let historicoAtual = [];
 
-const CORES_AVATAR = ['#7d5f11', '#2f5b9e', '#8a3fa8', '#1f6b41', '#c13327', '#17354f'];
-
-function corAvatar(nome) {
-  let soma = 0;
-  for (let i = 0; i < nome.length; i++) soma += nome.charCodeAt(i);
-  return CORES_AVATAR[soma % CORES_AVATAR.length];
-}
-
-function iniciais(nome) {
-  const partes = nome.trim().split(/\s+/);
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
-  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
-}
-
-function avatarHtml(nome) {
-  return `<div class="pessoa-avatar" style="background:${corAvatar(nome)}">${iniciais(nome)}</div>`;
-}
-
 function popularIconesEstaticos() {
   document.querySelectorAll('[data-icone]').forEach((el) => {
     el.innerHTML = Shell.icone(el.dataset.icone);
@@ -45,17 +27,39 @@ function renderizarKpis(lista) {
   cards[2].textContent = media;
 }
 
-const DIAS_SEMANA_FILTRO = [
-  { chave: 'segunda', label: 'Seg' },
-  { chave: 'terca', label: 'Ter' },
-  { chave: 'quarta', label: 'Qua' },
-  { chave: 'quinta', label: 'Qui' },
-  { chave: 'sexta', label: 'Sex' },
-  { chave: 'sabado', label: 'Sáb' },
-  { chave: 'domingo', label: 'Dom' },
-];
+const DIAS_PADRAO = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+const DIAS_LABEL = {
+  segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta',
+  sexta: 'Sexta', sabado: 'Sábado', domingo: 'Domingo',
+};
 
-let diaSemanaFiltroVinculo = null;
+// Mesmo formato da grade "Mapa de serviço da semana" do colaborador.
+// Com um colaborador filtrado mostra o cliente; com um cliente filtrado
+// mostra o colaborador; sem filtro mostra os dois.
+function nomeNaCelula(registro) {
+  const filtrouColaborador = document.getElementById('filtro-colaborador').value;
+  const filtrouCliente = document.getElementById('filtro-cliente').value;
+  if (filtrouColaborador && !filtrouCliente) return registro.cliente_nome;
+  if (filtrouCliente && !filtrouColaborador) return registro.colaborador_nome;
+  if (filtrouCliente && filtrouColaborador) return registro.cliente_nome;
+  return `${registro.colaborador_nome}<span class="horario-celula-sub">${registro.cliente_nome}</span>`;
+}
+
+function celulaHorarioHtml(registros) {
+  const lista = (registros || []).slice().sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+  if (lista.length === 0) return '<td><span class="horario-celula-vazia">—</span></td>';
+  const itensHtml = lista
+    .map(
+      (registro) => `
+      <div class="horario-celula ${registro.ativo ? '' : 'encerrado'}" data-horario-id="${registro.id}" title="${registro.duracao_texto}">
+        <span class="nome">${nomeNaCelula(registro)}</span>
+        <span class="hora">${registro.hora_inicio}-${registro.hora_fim}${registro.ativo ? '' : ' · encerrado'}</span>
+      </div>
+    `
+    )
+    .join('');
+  return `<td>${itensHtml}</td>`;
+}
 
 function renderizarTabela(lista) {
   const container = document.getElementById('lista-historico');
@@ -65,69 +69,34 @@ function renderizarTabela(lista) {
     return;
   }
 
-  const diasComVinculo = new Set(lista.map((h) => h.dia_semana));
-  const mostrarFiltroDias = diasComVinculo.size > 1;
+  const dias = [...DIAS_PADRAO];
+  if (lista.some((h) => h.dia_semana === 'domingo')) dias.push('domingo');
 
-  const botoesDiaHtml = DIAS_SEMANA_FILTRO.map((d) => {
-    const qtde = lista.filter((h) => h.dia_semana === d.chave).length;
-    if (qtde === 0) return '';
-    const ativo = diaSemanaFiltroVinculo === d.chave;
-    return `<button type="button" class="btn-ghost filtro-dia-vinculo ${ativo ? 'ativo' : ''}" data-dia="${d.chave}">${d.label} (${qtde})</button>`;
-  }).join('');
+  const porDiaTurno = {};
+  lista.forEach((h) => {
+    const chave = `${h.dia_semana}_${h.turno}`;
+    if (!porDiaTurno[chave]) porDiaTurno[chave] = [];
+    porDiaTurno[chave].push(h);
+  });
 
-  const listaFiltrada = diaSemanaFiltroVinculo ? lista.filter((h) => h.dia_semana === diaSemanaFiltroVinculo) : lista;
-  const maiorDuracao = Math.max(...listaFiltrada.map((h) => h.duracao_dias), 1);
-
-  const cards = listaFiltrada
-    .map((h) => {
-      const pct = Math.max(4, Math.round((h.duracao_dias / maiorDuracao) * 100));
-      return `
-      <button type="button" class="vinculo-card" data-horario-id="${h.id}">
-        <div class="vinculo-card-topo">
-          ${avatarHtml(h.colaborador_nome)}
-          <div class="vinculo-card-nomes">
-            <div class="vinculo-colaborador">${h.colaborador_nome}</div>
-            <div class="vinculo-cliente">${h.cliente_nome}</div>
-          </div>
-          <span class="vinculo-status ${h.ativo ? 'ativo' : 'encerrado'}">${h.ativo ? 'Ativo' : 'Encerrado'}</span>
-        </div>
-        <div class="vinculo-card-meta">${h.dia_semana_label} · ${h.turno} (${h.hora_inicio}-${h.hora_fim})</div>
-        <div class="vinculo-tenure">
-          <div class="vinculo-tenure-track"><div class="vinculo-tenure-fill" style="width:${pct}%"></div></div>
-          <span class="vinculo-tenure-label">${h.duracao_texto}</span>
-        </div>
-        <div class="vinculo-card-datas">${formatarData(h.data_inicio)} → ${h.ativo ? 'atual' : formatarData(h.data_fim)}</div>
-      </button>
-    `;
-    })
-    .join('');
-
-  const filtroDiasHtml = mostrarFiltroDias
-    ? `
-    <div class="filtro-dia-vinculo-linha">
-      <button type="button" class="btn-ghost filtro-dia-vinculo ${diaSemanaFiltroVinculo === null ? 'ativo' : ''}" data-dia="">Todos os dias</button>
-      ${botoesDiaHtml}
-    </div>
-  `
-    : '';
+  const headerCols = dias.map((d) => `<th>${DIAS_LABEL[d]}</th>`).join('');
+  const linha = (turno) => dias.map((d) => celulaHorarioHtml(porDiaTurno[`${d}_${turno}`])).join('');
 
   container.innerHTML = `
-    ${filtroDiasHtml}
-    ${listaFiltrada.length > 0 ? `<div class="vinculo-grid">${cards}</div>` : '<div class="empty-state">Nenhum vínculo nesse dia.</div>'}
+    <table class="horario-grid">
+      <thead><tr><th></th>${headerCols}</tr></thead>
+      <tbody>
+        <tr><td>Manhã</td>${linha('manha')}</tr>
+        <tr><td>Tarde</td>${linha('tarde')}</tr>
+        <tr><td>Noite</td>${linha('noite')}</tr>
+      </tbody>
+    </table>
   `;
-
-  container.querySelectorAll('.filtro-dia-vinculo').forEach((botao) => {
-    botao.addEventListener('click', () => {
-      diaSemanaFiltroVinculo = botao.dataset.dia || null;
-      renderizarTabela(lista);
-    });
-  });
 }
 
 async function carregarHistorico() {
   const container = document.getElementById('lista-historico');
   container.innerHTML = '<div class="loading-state">Carregando...</div>';
-  diaSemanaFiltroVinculo = null;
 
   const params = new URLSearchParams();
   const colaboradorId = document.getElementById('filtro-colaborador').value;
@@ -202,7 +171,7 @@ async function abrirModalEventos(horarioId) {
       })
       .join('');
     conteudo.innerHTML = `
-      <div class="meta" style="margin-bottom: 12px;">${registro.dia_semana_label} · ${registro.turno} (${registro.hora_inicio}-${registro.hora_fim})</div>
+      <div class="meta" style="margin-bottom: 12px;">${registro.dia_semana_label} · ${registro.turno} (${registro.hora_inicio}-${registro.hora_fim}) · ${formatarData(registro.data_inicio)} → ${registro.ativo ? 'atual' : formatarData(registro.data_fim)} · ${registro.duracao_texto}</div>
       ${linhas || '<div class="empty-state">Nenhum evento registrado.</div>'}
     `;
   } catch (erro) {
@@ -229,8 +198,8 @@ document.getElementById('filtro-colaborador').addEventListener('change', carrega
 document.getElementById('filtro-cliente').addEventListener('change', carregarHistorico);
 document.getElementById('filtro-status').addEventListener('change', carregarHistorico);
 document.getElementById('lista-historico').addEventListener('click', (evento) => {
-  const card = evento.target.closest('.vinculo-card');
-  if (card) abrirModalEventos(card.dataset.horarioId);
+  const celula = evento.target.closest('.horario-celula');
+  if (celula) abrirModalEventos(celula.dataset.horarioId);
 });
 
 iniciar();
