@@ -26,12 +26,13 @@
 
       <div class="tabs-relatorio" style="margin-bottom: 20px;">
         <button class="tab-relatorio ativa" data-aba="visao-geral">Visão geral</button>
+        <button class="tab-relatorio" data-aba="resumo">Resumo do dia</button>
         <button class="tab-relatorio" data-aba="saude">Saúde da carteira</button>
         <button class="tab-relatorio" data-aba="contratos">Contratos</button>
         <button class="tab-relatorio" data-aba="satisfacao">Satisfação (NPS)</button>
       </div>
 
-      <div class="crm-toolbar">
+      <div class="crm-toolbar" id="crm-toolbar">
         <span class="meta" id="crm-atualizado-em"></span>
         <div style="display: flex; gap: 8px;">
           <button class="btn-ghost" id="btn-atualizar">Atualizar</button>
@@ -40,6 +41,7 @@
       </div>
 
       <div id="aba-visao-geral"><div class="loading-state">Analisando a carteira...</div></div>
+      <div id="aba-resumo" hidden></div>
       <div id="aba-saude" hidden></div>
       <div id="aba-contratos" hidden></div>
       <div id="aba-satisfacao" hidden></div>

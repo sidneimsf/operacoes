@@ -69,6 +69,8 @@ from models import (
     Veiculo,
 )
 from folha_ponto import gerar_folha_ponto_pdf
+from resumo_dia import hoje_brasilia, montar_resumo_dia
+from resumo_dia_pdf import gerar_resumo_dia_pdf
 from schemas import (
     AvisoCreate,
     ChamadoCreate,
@@ -5639,3 +5641,32 @@ def crm_excluir_pesquisa(pesquisa_id: int, db: Session = Depends(get_db), usuari
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pesquisa não encontrada")
     db.delete(pesquisa)
     db.commit()
+
+
+def _resumo_do_dia(db: Session, data: str | None) -> dict:
+    dia = _data_opcional(data, "data") or hoje_brasilia()
+    if dia > hoje_brasilia():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Não dá para gerar o resumo de um dia que ainda não aconteceu")
+    return montar_resumo_dia(
+        db,
+        dia,
+        labels_tipo_chamado={t["chave"]: t["label"] for t in TIPOS_CHAMADO},
+        labels_status_diaria={s["chave"]: s["label"] for s in STATUS_DIARIA},
+        labels_tipo_custo={t["chave"]: t["label"] for t in TIPOS_CUSTO_DIARIO},
+    )
+
+
+@app.get("/crm-dados/resumo-dia")
+def crm_resumo_dia(data: str | None = None, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    """Resumo analitico de um dia de operacao (padrao: hoje, horario de Brasilia)."""
+    return _resumo_do_dia(db, data)
+
+
+@app.get("/crm-dados/resumo-dia/pdf")
+def crm_resumo_dia_pdf(data: str | None = None, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    resumo = _resumo_do_dia(db, data)
+    return Response(
+        content=gerar_resumo_dia_pdf(resumo),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="resumo-operacao-{resumo["data"]}.pdf"'},
+    )

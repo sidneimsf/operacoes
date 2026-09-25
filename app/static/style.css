@@ -3134,3 +3134,196 @@ button {
 @media (max-width: 520px) {
   .crm-duas-colunas { grid-template-columns: 1fr; }
 }
+
+/* ---------- CRM: Resumo do dia ---------- */
+
+.crm-resumo-barra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.crm-resumo-barra input[type="date"] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.crm-resumo-barra .btn-ghost { padding: 8px 12px; }
+.crm-resumo-barra .espaco { flex: 1; }
+
+.crm-resumo-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--crm-info);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  margin-bottom: 18px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.crm-resumo-hero.critico { border-left-color: var(--crm-risco); }
+.crm-resumo-hero.atencao { border-left-color: var(--crm-atencao); }
+.crm-resumo-hero.tranquilo { border-left-color: var(--crm-saudavel); }
+
+.crm-resumo-hero .data {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.crm-resumo-hero .manchete {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 19px;
+  line-height: 1.35;
+  margin-top: 4px;
+}
+
+.crm-status-pill {
+  display: inline-block;
+  padding: 7px 16px;
+  border-radius: 20px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  background: var(--crm-info);
+}
+
+.crm-status-pill.critico { background: var(--crm-risco); }
+.crm-status-pill.atencao { background: var(--crm-atencao); }
+.crm-status-pill.tranquilo { background: var(--crm-saudavel); }
+
+.kpi-card.crm-kpi-clicavel { cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+.kpi-card.crm-kpi-clicavel:hover { border-color: var(--accent); transform: translateY(-1px); }
+
+.crm-delta {
+  display: inline-block;
+  font-size: 11.5px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  margin-top: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.crm-delta.acima { background: rgba(193, 51, 39, 0.12); color: var(--crm-risco); }
+.crm-delta.abaixo { background: rgba(31, 107, 65, 0.12); color: var(--crm-saudavel); }
+
+.crm-baloes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px 16px;
+}
+
+.crm-balao {
+  position: relative;
+  background: var(--surface-2);
+  border-radius: 14px 14px 14px 4px;
+  padding: 12px 14px 12px 16px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  border-left: 4px solid var(--crm-info);
+}
+
+.crm-balao.alerta { border-left-color: var(--crm-risco); background: rgba(193, 51, 39, 0.06); }
+.crm-balao.atencao { border-left-color: var(--crm-atencao); background: rgba(168, 118, 10, 0.07); }
+.crm-balao.positivo { border-left-color: var(--crm-saudavel); background: rgba(31, 107, 65, 0.06); }
+
+.crm-balao .rotulo {
+  display: block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.crm-foco-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 14px;
+}
+
+.crm-foco-card {
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--crm-info);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+}
+
+.crm-foco-card.alerta { border-top-color: var(--crm-risco); }
+.crm-foco-card.atencao { border-top-color: var(--crm-atencao); }
+
+.crm-foco-card .topo { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.crm-foco-card .nome { font-weight: 600; font-size: 15px; }
+.crm-foco-card .sub { font-size: 12px; color: var(--text-muted); }
+.crm-foco-card .leitura { font-size: 13px; color: var(--text); background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+.crm-foco-card .rodape { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; margin-top: auto; }
+.crm-foco-card .rodape a { text-decoration: none; }
+
+.crm-ocorrencias { display: flex; flex-direction: column; gap: 4px; }
+
+.crm-ocorrencia {
+  font-size: 12.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.crm-ocorrencia.reclamacao, .crm-ocorrencia.detrator { background: rgba(193, 51, 39, 0.10); color: var(--crm-risco); }
+.crm-ocorrencia.chamado_urgente, .crm-ocorrencia.falta, .crm-ocorrencia.saida, .crm-ocorrencia.posto_vago { background: rgba(168, 118, 10, 0.12); color: var(--crm-atencao); }
+
+.crm-pendencia-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--surface-2);
+  font-size: 14px;
+}
+
+.crm-pendencia-item:last-child { border-bottom: none; }
+.crm-pendencia-item input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+.crm-pendencia-item .ponto { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; background: var(--crm-info); }
+.crm-pendencia-item .ponto.alta { background: var(--crm-risco); }
+.crm-pendencia-item .ponto.media { background: var(--crm-atencao); }
+.crm-pendencia-item.feita label { text-decoration: line-through; color: var(--text-muted); }
+.crm-pendencia-item a { font-size: 12.5px; margin-left: 6px; }
+
+.crm-timeline-dia { position: relative; padding-left: 4px; }
+
+.crm-timeline-evento {
+  display: grid;
+  grid-template-columns: 52px 14px 1fr;
+  gap: 10px;
+  padding: 7px 0;
+  align-items: start;
+}
+
+.crm-timeline-evento .hora { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: var(--text-muted); padding-top: 1px; }
+.crm-timeline-evento .marco { width: 12px; height: 12px; border-radius: 50%; margin-top: 3px; background: var(--border); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--border); }
+.crm-timeline-evento.negativo .marco { background: var(--crm-risco); }
+.crm-timeline-evento.positivo .marco { background: var(--crm-saudavel); }
+.crm-timeline-evento .titulo { font-size: 14px; font-weight: 500; }
+.crm-timeline-evento .detalhe { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
+
+.crm-toolbar[hidden] { display: none; }

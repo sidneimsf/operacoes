@@ -36,6 +36,8 @@ app/
   migrar_*.py      # one hand-written, idempotent migration script per schema change (no Alembic)
   alertas_*.py     # the background-job bodies (ASO, custos, experiência, crm)
   crm_saude.py     # CRM engine: per-client health score (0-100), contract alerts, portfolio insights - shared by /crm-dados/* and alertas_crm.py
+  resumo_dia.py    # daily operations digest (CRM tab "Resumo do dia"): crosses the day's records per client, compares with the same weekday of the last 4 weeks; dates are Brasilia (UTC-3)
+  resumo_dia_pdf.py # reportlab PDF of that digest
   email_alertas.py # SMTP sending helper shared by the alertas_* jobs
   folha_ponto.py   # timesheet PDF generation
   static/          # one .html + .js per screen, shared shell.js, single style.css
