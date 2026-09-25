@@ -3989,7 +3989,7 @@ def relatorio_faltas_atestados(
     query = (
         db.query(ColaboradorEvento)
         .filter(
-            ColaboradorEvento.tipo.in_(["falta", "atestado"]),
+            ColaboradorEvento.tipo.in_(["falta", "horas_falta", "atestado"]),
             data_referencia.between(inicio, fim),
         )
     )
@@ -4008,32 +4008,40 @@ def relatorio_faltas_atestados(
                 "empresa_nome": e.colaborador.empresa.nome,
                 "cargo": e.colaborador.cargo,
                 "total_faltas": 0,
+                "total_horas_falta": 0.0,
                 "total_atestados": 0,
                 "eventos": [],
             }
         grupo = por_colaborador[cid]
         if e.tipo == "falta":
             grupo["total_faltas"] += 1
+        elif e.tipo == "horas_falta":
+            grupo["total_horas_falta"] += e.horas or 0
         else:
             grupo["total_atestados"] += 1
         data_evento = e.data_inicio if e.data_inicio else e.criado_em.date()
         grupo["eventos"].append(
             {
                 "data": data_evento.isoformat(),
-                "tipo": "Falta" if e.tipo == "falta" else "Atestado médico",
+                "tipo": {"falta": "Falta", "horas_falta": "Horas falta"}.get(e.tipo, "Atestado médico"),
+                "horas": e.horas if e.tipo == "horas_falta" else None,
                 "descricao": e.descricao or "—",
                 "registrado_por": e.registrado_por.nome,
             }
         )
 
     lista_colaboradores = sorted(por_colaborador.values(), key=lambda g: g["colaborador_nome"])
+    for g in lista_colaboradores:
+        g["total_horas_falta"] = round(g["total_horas_falta"], 2)
 
     total_faltas = sum(g["total_faltas"] for g in lista_colaboradores)
+    total_horas_falta = round(sum(g["total_horas_falta"] for g in lista_colaboradores), 2)
     total_atestados = sum(g["total_atestados"] for g in lista_colaboradores)
 
     return {
         "periodo": {"inicio": inicio.isoformat(), "fim": fim.isoformat()},
         "total_faltas": total_faltas,
+        "total_horas_falta": total_horas_falta,
         "total_atestados": total_atestados,
         "colaboradores_com_ocorrencia": len(lista_colaboradores),
         "por_colaborador": lista_colaboradores,

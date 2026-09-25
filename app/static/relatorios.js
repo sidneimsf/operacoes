@@ -616,6 +616,13 @@ function renderizarHorasTrabalhadas(dados) {
   `;
 }
 
+// 1.5 -> "1h30", 2 -> "2h"
+function formatarHorasFalta(horas) {
+  const inteiras = Math.floor(horas);
+  const minutos = Math.round((horas - inteiras) * 60);
+  return minutos ? `${inteiras}h${String(minutos).padStart(2, '0')}` : `${inteiras}h`;
+}
+
 function renderizarFaltasAtestados(dados) {
   const container = document.getElementById('relatorio-conteudo');
 
@@ -627,6 +634,7 @@ function renderizarFaltasAtestados(dados) {
           <tr>
             <td>${formatarDataBR(e.data)}</td>
             <td>${e.tipo}</td>
+            <td>${e.horas ? formatarHorasFalta(e.horas) : '—'}</td>
             <td>${e.descricao}</td>
             <td>${e.registrado_por}</td>
           </tr>
@@ -639,10 +647,10 @@ function renderizarFaltasAtestados(dados) {
           <div style="display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
             <strong style="font-size: 15px;">${g.colaborador_nome}</strong>
             <span class="meta">${g.cargo || 'Cargo não informado'} · ${g.empresa_nome}</span>
-            <span class="meta" style="margin-left: auto;">Faltas: <strong>${g.total_faltas}</strong> · Atestados: <strong>${g.total_atestados}</strong></span>
+            <span class="meta" style="margin-left: auto;">Faltas: <strong>${g.total_faltas}</strong> · Horas falta: <strong>${g.total_horas_falta ? formatarHorasFalta(g.total_horas_falta) : '0h'}</strong> · Atestados: <strong>${g.total_atestados}</strong></span>
           </div>
           <div class="table-scroll-wrapper"><table class="table-list">
-            <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Registrado por</th></tr></thead>
+            <thead><tr><th>Data</th><th>Tipo</th><th>Horas</th><th>Descrição</th><th>Registrado por</th></tr></thead>
             <tbody>${linhasEventos}</tbody>
           </table></div>
         </div>
@@ -655,12 +663,13 @@ function renderizarFaltasAtestados(dados) {
 
     <div class="kpi-grid">
       <div class="kpi-card"><div class="label">total de faltas</div><div class="value">${dados.total_faltas}</div></div>
+      <div class="kpi-card"><div class="label">horas de falta</div><div class="value">${dados.total_horas_falta ? formatarHorasFalta(dados.total_horas_falta) : '0h'}</div></div>
       <div class="kpi-card"><div class="label">total de atestados</div><div class="value">${dados.total_atestados}</div></div>
       <div class="kpi-card"><div class="label">colaboradores com ocorrência</div><div class="value">${dados.colaboradores_com_ocorrencia}</div></div>
     </div>
 
     <div class="section-title" style="margin-top: 30px;">Detalhamento por colaborador</div>
-    ${dados.por_colaborador.length > 0 ? gruposHtml : '<div class="empty-state">Nenhuma falta ou atestado registrado nesse período.</div>'}
+    ${dados.por_colaborador.length > 0 ? gruposHtml : '<div class="empty-state">Nenhuma falta, hora de falta ou atestado registrado nesse período.</div>'}
   `;
 }
 
@@ -840,12 +849,12 @@ function exportarCSV() {
     const linhas = [];
     dadosAtuais.por_colaborador.forEach((g) => {
       g.eventos.forEach((e) => {
-        linhas.push([g.colaborador_nome, g.empresa_nome, e.data, e.tipo, e.descricao, e.registrado_por]);
+        linhas.push([g.colaborador_nome, g.empresa_nome, e.data, e.tipo, e.horas ? String(e.horas).replace('.', ',') : '', e.descricao, e.registrado_por]);
       });
     });
     baixarCSV(
       'relatorio-faltas-e-atestados.csv',
-      ['Colaborador', 'Empresa', 'Data', 'Tipo', 'Descrição', 'Registrado por'],
+      ['Colaborador', 'Empresa', 'Data', 'Tipo', 'Horas', 'Descrição', 'Registrado por'],
       linhas
     );
   } else if (abaAtual === 'horas') {
