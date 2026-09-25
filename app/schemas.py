@@ -314,3 +314,39 @@ class VisitaSupervisaoUpdate(BaseModel):
     pessoa_com_quem_falou: str | None = None
     observacoes: str | None = None
     acoes: str | None = None
+
+
+class ClienteContratoUpdate(BaseModel):
+    valor_mensal: float | None = None
+    data_inicio: str | None = None
+    data_fim: str | None = None
+    renovacao_automatica: bool = False
+    data_reajuste: str | None = None
+    indice_reajuste: str | None = None
+    postos_contratados: int | None = None
+    observacoes: str | None = None
+
+
+class ClienteContatoCreate(BaseModel):
+    nome: str
+    papel: str = "outro"
+    telefone: str | None = None
+    email: str | None = None
+    principal: bool = False
+    observacoes: str | None = None
+
+
+class ClienteContatoUpdate(BaseModel):
+    nome: str | None = None
+    papel: str | None = None
+    telefone: str | None = None
+    email: str | None = None
+    principal: bool | None = None
+    observacoes: str | None = None
+
+
+class PesquisaSatisfacaoCreate(BaseModel):
+    data_pesquisa: str
+    nota: int
+    respondido_por: str | None = None
+    comentario: str | None = None

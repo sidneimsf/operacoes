@@ -664,3 +664,80 @@ class VisitaSupervisao(Base):
 
     def __repr__(self) -> str:
         return f"<VisitaSupervisao cliente={self.cliente_id} data={self.data_visita}>"
+
+
+class ClienteContrato(Base):
+    """
+    Dados comerciais do contrato de um cliente (CRM): quanto ele paga,
+    desde quando, ate quando, quando e o proximo reajuste e quantos
+    postos (pessoas) foram contratados. Um contrato por cliente - quando
+    o contrato e renovado, os campos sao atualizados no mesmo registro.
+    """
+    __tablename__ = "cliente_contratos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), unique=True, nullable=False)
+    valor_mensal: Mapped[float | None] = mapped_column(Float, nullable=True)
+    data_inicio: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_fim: Mapped[date | None] = mapped_column(Date, nullable=True)
+    renovacao_automatica: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    data_reajuste: Mapped[date | None] = mapped_column(Date, nullable=True)
+    indice_reajuste: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    postos_contratados: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc, onupdate=agora_utc)
+    atualizado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+
+    cliente: Mapped["Cliente"] = relationship()
+    atualizado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<ClienteContrato cliente={self.cliente_id} valor={self.valor_mensal}>"
+
+
+class ClienteContato(Base):
+    """
+    Pessoa de contato do lado do cliente (sindico, administradora,
+    zelador, financeiro...). Um cliente pode ter varios; um deles pode
+    ser marcado como principal.
+    """
+    __tablename__ = "cliente_contatos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    nome: Mapped[str] = mapped_column(String(150), nullable=False)
+    papel: Mapped[str] = mapped_column(String(30), nullable=False, default="outro")
+    telefone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    principal: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    observacoes: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    cliente: Mapped["Cliente"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<ClienteContato {self.nome} ({self.papel})>"
+
+
+class PesquisaSatisfacao(Base):
+    """
+    Resposta de pesquisa de satisfacao de um cliente, no formato NPS
+    (nota de 0 a 10 para "o quanto recomendaria nosso servico"). Pode ser
+    registrada pelo supervisor na visita ou pelo escritorio por telefone.
+    """
+    __tablename__ = "pesquisas_satisfacao"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cliente_id: Mapped[int] = mapped_column(ForeignKey("clientes.id"), nullable=False)
+    data_pesquisa: Mapped[date] = mapped_column(Date, nullable=False)
+    nota: Mapped[int] = mapped_column(Integer, nullable=False)
+    respondido_por: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    comentario: Mapped[str | None] = mapped_column(String(1500), nullable=True)
+    registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    cliente: Mapped["Cliente"] = relationship()
+    registrado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<PesquisaSatisfacao cliente={self.cliente_id} nota={self.nota}>"

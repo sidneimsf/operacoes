@@ -18,7 +18,7 @@ Browser → nginx (VPS, port 80) → 127.0.0.1:8002 → container "app" (uvicorn
 
 - **Backend**: Python 3.12, FastAPI 0.115, SQLAlchemy 2.0 (`Mapped`/`mapped_column` style, synchronous), Postgres 16, JWT auth (PyJWT/HS256) + bcrypt.
 - **Frontend**: plain HTML/CSS/JS, no framework, no bundler, no npm. One page = one `.html` + one `.js` of the same name in `app/static/`.
-- **Background jobs**: APScheduler `BackgroundScheduler` inside the app process (`app/main.py`), three daily cron jobs — ASO expiry alerts (08:00), pending-reimbursement alerts (19:00), probation-period alerts (08:10). Each job opens its own `SessionLocal()`.
+- **Background jobs**: APScheduler `BackgroundScheduler` inside the app process (`app/main.py`), four cron jobs — ASO expiry alerts (08:00), pending-reimbursement alerts (19:00), probation-period alerts (08:10), and the weekly CRM digest (Mondays 08:20). Each job opens its own `SessionLocal()`.
 - **File uploads**: stored on disk under `uploads/<area>/...` (colaboradores, custos_diarios, chamados, cronogramas), persisted via the `uploads_data` Docker volume — not in the DB, not in git.
 - **PDF/Excel generation**: `folha_ponto.py` (reportlab) generates timesheets; several `/relatorios-dados/*` endpoints export via `openpyxl`.
 
@@ -34,7 +34,8 @@ app/
   init_db.py       # Base.metadata.create_all() — new tables only
   seed_clientes.py # seeds the 4 empresas + 160 clientes
   migrar_*.py      # one hand-written, idempotent migration script per schema change (no Alembic)
-  alertas_*.py     # the three background-job bodies (ASO, custos, experiência)
+  alertas_*.py     # the background-job bodies (ASO, custos, experiência, crm)
+  crm_saude.py     # CRM engine: per-client health score (0-100), contract alerts, portfolio insights - shared by /crm-dados/* and alertas_crm.py
   email_alertas.py # SMTP sending helper shared by the alertas_* jobs
   folha_ponto.py   # timesheet PDF generation
   static/          # one .html + .js per screen, shared shell.js, single style.css
@@ -45,7 +46,7 @@ app/
 Every authenticated route depends on `usuario_atual` (decodes the JWT, loads the `Usuario`, checks `ativo`). Three layers of authorization sit on top of that, and routes pick whichever applies:
 
 1. **`exigir_papel(*papeis)`** — hard role gate. Only two roles exist: `supervisor` and `escritorio`.
-2. **`exigir_modulo(modulo)`** — the module-permission system (`MODULOS_PERMISSAO` in `main.py`). Each module (veiculos, asos, usuarios, criar_cliente, criar_colaborador, relatorios, estoque, mapa_servico, excluir_registros) has a default (`padrao_escritorio_apenas` → escritorio-only, otherwise anyone logged in) that a `UsuarioPermissao` row can override per-user. Check with `tem_permissao(db, usuario, modulo)`; override always wins over the default.
+2. **`exigir_modulo(modulo)`** — the module-permission system (`MODULOS_PERMISSAO` in `main.py`). Each module (veiculos, asos, usuarios, criar_cliente, criar_colaborador, relatorios, estoque, mapa_servico, excluir_registros, crm) has a default (`padrao_escritorio_apenas` → escritorio-only, otherwise anyone logged in) that a `UsuarioPermissao` row can override per-user. Check with `tem_permissao(db, usuario, modulo)`; override always wins over the default.
 3. **`exigir_super_admin`** — gates `/admin/permissoes*` (managing the overrides themselves); checks `Usuario.super_admin`.
 
 The frontend mirrors module gating in `shell.js`'s `NAV_ITEMS` (`moduloPermissao` / `apenasSuperAdmin` keys hide nav items), but the backend check is what actually matters — never rely on the frontend hide alone when adding a protected route.
@@ -108,7 +109,7 @@ There is no Alembic. `init_db.py` only creates tables that don't exist yet. **Ad
 
 ## Environment variables
 
-Defined in `.env` (gitignored, never commit it), modeled by `.env.example` — update the example in the same commit whenever you add a variable. Notable ones beyond DB/JWT: `SMTP_*` + `ALERTA_ASO_EMAILS` / `REEMBOLSO_EMAILS` / `ALERTA_EXPERIENCIA_EMAILS` feed the three background alert jobs.
+Defined in `.env` (gitignored, never commit it), modeled by `.env.example` — update the example in the same commit whenever you add a variable. Notable ones beyond DB/JWT: `SMTP_*` + `ALERTA_ASO_EMAILS` / `REEMBOLSO_EMAILS` / `ALERTA_EXPERIENCIA_EMAILS` / `ALERTA_CRM_EMAILS` feed the background alert jobs.
 
 ## Git workflow
 

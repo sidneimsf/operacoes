@@ -17,15 +17,35 @@ from sqlalchemy.orm import Session
 
 import jwt
 from alertas_aso import verificar_e_enviar_alertas
+from alertas_crm import verificar_e_enviar_crm
 from alertas_custos import verificar_e_enviar_custos
 from alertas_experiencia import verificar_e_enviar_experiencias
 from apscheduler.schedulers.background import BackgroundScheduler
+from crm_saude import (
+    CATEGORIAS_MOTIVO,
+    CHAVES_INDICE_REAJUSTE,
+    CHAVES_PAPEL_CONTATO,
+    FAIXAS_SAUDE,
+    INDICES_REAJUSTE,
+    JANELA_PESQUISA_DIAS,
+    NOME_CLIENTE_INTERNO,
+    PAPEIS_CONTATO,
+    PESQUISA_DESATUALIZADA_DIAS,
+    calcular_nps,
+    calcular_saude_carteira,
+    classificar_nps,
+    notas_nps_vigentes,
+    resumir_carteira,
+    serializar_contrato,
+)
 from database import SessionLocal, get_db
 from models import (
     Aviso,
     AvisoExclusao,
     Chamado,
     Cliente,
+    ClienteContato,
+    ClienteContrato,
     ClienteCronograma,
     ConfirmacaoPostoVago,
     Freelancer,
@@ -43,6 +63,7 @@ from models import (
     HorarioServico,
     ManutencaoVeiculo,
     MetlifeLancamento,
+    PesquisaSatisfacao,
     Usuario,
     UsuarioPermissao,
     Veiculo,
@@ -61,6 +82,9 @@ from schemas import (
     ChamadoEdicaoUpdate,
     ChamadoFinalizar,
     ChamadoStatusUpdate,
+    ClienteContatoCreate,
+    ClienteContatoUpdate,
+    ClienteContratoUpdate,
     ClienteCreate,
     ClienteUpdate,
     ColaboradorCreate,
@@ -78,6 +102,7 @@ from schemas import (
     MetlifeLancamentoCreate,
     MetlifeLancamentoUpdate,
     PermissaoUpdate,
+    PesquisaSatisfacaoCreate,
     TokenResponse,
     UsuarioAcessoUpdate,
     UsuarioCreate,
@@ -142,6 +167,18 @@ def job_verificar_experiencias():
         db.close()
 
 
+def job_verificar_crm():
+    """Roda em background toda segunda - resumo semanal de clientes em risco e contratos."""
+    db = SessionLocal()
+    try:
+        resultado = verificar_e_enviar_crm(db)
+        print("[crm]", resultado)
+    except Exception as erro:
+        print("[crm] erro ao verificar/enviar:", erro)
+    finally:
+        db.close()
+
+
 # Janela em que uma exclusao de aviso ainda pode ser desfeita
 PRAZO_DESFAZER_EXCLUSAO_AVISO = timedelta(hours=1)
 
@@ -172,6 +209,7 @@ agendador = BackgroundScheduler()
 agendador.add_job(job_verificar_asos, "cron", hour=8, minute=0)
 agendador.add_job(job_verificar_custos, "cron", hour=19, minute=0)
 agendador.add_job(job_verificar_experiencias, "cron", hour=8, minute=10)
+agendador.add_job(job_verificar_crm, "cron", day_of_week="mon", hour=8, minute=20)
 agendador.add_job(job_limpar_avisos_excluidos, "interval", minutes=10)
 agendador.start()
 
@@ -308,6 +346,7 @@ MODULOS_PERMISSAO = [
     {"chave": "estoque", "label": "Controle de Estoque", "padrao_escritorio_apenas": True},
     {"chave": "mapa_servico", "label": "Histórico do Mapa de Serviço", "padrao_escritorio_apenas": True},
     {"chave": "excluir_registros", "label": "Excluir custos, chamados e lançamentos", "padrao_escritorio_apenas": True},
+    {"chave": "crm", "label": "CRM (carteira, contratos e satisfação)", "padrao_escritorio_apenas": True},
 ]
 CHAVES_MODULOS_VALIDAS = {m["chave"] for m in MODULOS_PERMISSAO}
 
@@ -518,6 +557,16 @@ def pagina_cliente_detalhe():
 @app.get("/colaborador-detalhe", include_in_schema=False)
 def pagina_colaborador_detalhe():
     return FileResponse("static/colaborador-detalhe.html")
+
+
+@app.get("/crm", include_in_schema=False)
+def pagina_crm():
+    return FileResponse("static/crm.html")
+
+
+@app.get("/crm-cliente", include_in_schema=False)
+def pagina_crm_cliente():
+    return FileResponse("static/crm-cliente.html")
 
 
 @app.get("/ponto", include_in_schema=False)
@@ -4956,3 +5005,604 @@ def relatorio_estabilidade_posto(
             for e in eventos[:200]
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# CRM (saude da carteira, contratos, contatos e satisfacao dos clientes)
+# ---------------------------------------------------------------------------
+# A nota de saude e as leituras da carteira sao calculadas em crm_saude.py
+# (o mesmo calculo alimenta o e-mail semanal de alertas_crm.py).
+
+def serializar_contato(c: ClienteContato) -> dict:
+    papel = next((p for p in PAPEIS_CONTATO if p["chave"] == c.papel), None)
+    return {
+        "id": c.id,
+        "cliente_id": c.cliente_id,
+        "nome": c.nome,
+        "papel": c.papel,
+        "papel_label": papel["label"] if papel else c.papel,
+        "telefone": c.telefone,
+        "email": c.email,
+        "principal": c.principal,
+        "observacoes": c.observacoes,
+    }
+
+
+def serializar_pesquisa(p: PesquisaSatisfacao) -> dict:
+    return {
+        "id": p.id,
+        "cliente_id": p.cliente_id,
+        "cliente_nome": p.cliente.nome,
+        "empresa_nome": p.cliente.empresa.nome,
+        "data_pesquisa": p.data_pesquisa.isoformat(),
+        "nota": p.nota,
+        "classificacao": classificar_nps(p.nota),
+        "respondido_por": p.respondido_por,
+        "comentario": p.comentario,
+        "registrado_por_nome": p.registrado_por.nome,
+    }
+
+
+def _data_opcional(valor: str | None, campo: str) -> date | None:
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(valor)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Data inválida em \"{campo}\"")
+
+
+def _cliente_crm_ou_404(db: Session, cliente_id: int) -> Cliente:
+    cliente = db.get(Cliente, cliente_id)
+    if cliente is None or cliente.nome == NOME_CLIENTE_INTERNO:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado")
+    return cliente
+
+
+def _meses_anteriores(hoje: date, quantidade: int) -> list[tuple[int, int]]:
+    """(ano, mes) dos ultimos N meses, do mais antigo pro atual."""
+    meses = []
+    ano, mes = hoje.year, hoje.month
+    for _ in range(quantidade):
+        meses.append((ano, mes))
+        mes -= 1
+        if mes == 0:
+            ano, mes = ano - 1, 12
+    meses.reverse()
+    return meses
+
+
+@app.get("/crm-constantes")
+def crm_constantes(usuario: Usuario = Depends(exigir_modulo("crm"))):
+    return {
+        "papeis_contato": PAPEIS_CONTATO,
+        "indices_reajuste": INDICES_REAJUSTE,
+        "faixas_saude": FAIXAS_SAUDE,
+        "categorias_motivo": [{"chave": k, **v} for k, v in CATEGORIAS_MOTIVO.items()],
+    }
+
+
+@app.get("/crm-dados/carteira")
+def crm_carteira(db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    """Saude de todos os clientes ativos + resumo da carteira (indicadores, insights, prioridades)."""
+    linhas = calcular_saude_carteira(db)
+    notas = notas_nps_vigentes(db, [l["cliente_id"] for l in linhas]) if linhas else {}
+    resumo = resumir_carteira(linhas, list(notas.values()))
+    return {**resumo, "clientes": linhas, "gerado_em": datetime.now(timezone.utc).isoformat()}
+
+
+@app.get("/crm-dados/carteira/excel")
+def crm_carteira_excel(db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    linhas = sorted(calcular_saude_carteira(db), key=lambda l: l["score"])
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Saude da carteira"
+    ws.append([
+        "Cliente", "Empresa", "Supervisor", "Nota", "Faixa", "Tendência", "Principais motivos", "Próxima ação",
+        "Reclamações 90d", "Dias sem visita", "Turnos vagos", "Trocas de colaborador 90d", "Faltas cobertas 90d",
+        "Custo diárias 90d", "Última nota NPS", "Valor mensal", "Fim do contrato", "Próximo reajuste", "Alertas de contrato",
+    ])
+    for celula in ws[1]:
+        celula.font = Font(bold=True)
+
+    rotulo_tendencia = {"piorando": "Piorando", "melhorando": "Melhorando", "estavel": "Estável"}
+    for l in linhas:
+        s = l["sinais"]
+        contrato = l["contrato"] or {}
+        ws.append([
+            l["cliente_nome"], l["empresa_nome"], l["supervisor_nome"] or "", l["score"], l["faixa_label"],
+            rotulo_tendencia[l["tendencia"]], "; ".join(m["texto"] for m in l["motivos"]), l["acao_sugerida"],
+            s["reclamacoes"], s["dias_sem_visita"] if s["dias_sem_visita"] is not None else "nunca",
+            s["turnos_vagos"], s["trocas_colaborador"], s["faltas"], s["custo_diarias"],
+            s["ultima_nota"] if s["ultima_nota"] is not None else "",
+            contrato.get("valor_mensal") or "",
+            date.fromisoformat(contrato["data_fim"]) if contrato.get("data_fim") else "",
+            date.fromisoformat(contrato["data_reajuste"]) if contrato.get("data_reajuste") else "",
+            "; ".join(a["texto"] for a in l["alertas_contrato"]),
+        ])
+
+    formato_moeda = '[$-416]"R$"\\ #,##0.00'
+    for linha in ws.iter_rows(min_row=2):
+        linha[13].number_format = formato_moeda
+        linha[15].number_format = formato_moeda
+        linha[16].number_format = "dd/mm/yyyy"
+        linha[17].number_format = "dd/mm/yyyy"
+        for celula in (linha[6], linha[7], linha[18]):
+            celula.alignment = Alignment(wrap_text=True, vertical="top")
+
+    larguras = [34, 14, 18, 7, 11, 12, 55, 45, 10, 10, 9, 12, 11, 14, 9, 14, 13, 13, 40]
+    for idx, largura in enumerate(larguras, start=1):
+        ws.column_dimensions[get_column_letter(idx)].width = largura
+    ws.freeze_panes = "B2"
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    nome_arquivo = f"crm-saude-carteira-{date.today().isoformat()}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
+
+
+@app.get("/crm-dados/satisfacao")
+def crm_satisfacao(db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    """NPS da carteira: nota geral, evolucao mensal, por empresa, detratores a tratar e quem nao foi avaliado."""
+    hoje = date.today()
+    clientes = (
+        db.query(Cliente)
+        .filter(Cliente.ativo.is_(True), Cliente.nome != NOME_CLIENTE_INTERNO)
+        .order_by(Cliente.nome)
+        .all()
+    )
+    ids = [c.id for c in clientes]
+    pesquisas = (
+        db.query(PesquisaSatisfacao)
+        .filter(PesquisaSatisfacao.cliente_id.in_(ids),
+                PesquisaSatisfacao.data_pesquisa >= hoje - timedelta(days=JANELA_PESQUISA_DIAS))
+        .order_by(PesquisaSatisfacao.data_pesquisa.desc(), PesquisaSatisfacao.id.desc())
+        .all()
+    ) if ids else []
+    ultima_data_geral = dict(
+        db.query(PesquisaSatisfacao.cliente_id, func.max(PesquisaSatisfacao.data_pesquisa))
+        .group_by(PesquisaSatisfacao.cliente_id)
+        .all()
+    )
+
+    ultima_por_cliente: dict[int, PesquisaSatisfacao] = {}
+    for p in pesquisas:
+        ultima_por_cliente.setdefault(p.cliente_id, p)
+    notas_vigentes = [p.nota for p in ultima_por_cliente.values()]
+
+    promotores = sum(1 for n in notas_vigentes if n >= 9)
+    detratores = sum(1 for n in notas_vigentes if n <= 6)
+    neutros = len(notas_vigentes) - promotores - detratores
+
+    # evolucao: NPS de todas as respostas de cada mes, ultimos 12 meses
+    por_mes: dict[str, list[int]] = {}
+    for p in pesquisas:
+        por_mes.setdefault(p.data_pesquisa.strftime("%Y-%m"), []).append(p.nota)
+    evolucao = []
+    for ano, mes in _meses_anteriores(hoje, 12):
+        chave = f"{ano:04d}-{mes:02d}"
+        notas_mes = por_mes.get(chave, [])
+        evolucao.append({"mes": chave, "respostas": len(notas_mes), "nps": calcular_nps(notas_mes),
+                         "media": round(sum(notas_mes) / len(notas_mes), 1) if notas_mes else None})
+
+    por_empresa: dict[str, dict] = {}
+    for c in clientes:
+        grupo = por_empresa.setdefault(c.empresa.nome, {"empresa": c.empresa.nome, "clientes": 0, "notas": []})
+        grupo["clientes"] += 1
+        if c.id in ultima_por_cliente:
+            grupo["notas"].append(ultima_por_cliente[c.id].nota)
+    lista_por_empresa = []
+    for grupo in por_empresa.values():
+        notas = grupo.pop("notas")
+        grupo.update({"avaliados": len(notas), "nps": calcular_nps(notas),
+                      "cobertura_pct": round(len(notas) * 100 / grupo["clientes"]) if grupo["clientes"] else 0})
+        lista_por_empresa.append(grupo)
+    lista_por_empresa.sort(key=lambda g: (g["nps"] is None, g["nps"] if g["nps"] is not None else 0))
+
+    detratores_a_tratar = sorted(
+        (serializar_pesquisa(p) for p in ultima_por_cliente.values() if p.nota <= 6),
+        key=lambda p: p["data_pesquisa"], reverse=True,
+    )
+
+    sem_pesquisa = []
+    for c in clientes:
+        ultima = ultima_data_geral.get(c.id)
+        if ultima is None or (hoje - ultima).days > PESQUISA_DESATUALIZADA_DIAS:
+            sem_pesquisa.append({
+                "cliente_id": c.id, "cliente_nome": c.nome, "empresa_nome": c.empresa.nome,
+                "supervisor_nome": c.supervisor.nome if c.supervisor else None,
+                "ultima_pesquisa": ultima.isoformat() if ultima else None,
+            })
+    sem_pesquisa.sort(key=lambda s: (s["ultima_pesquisa"] is not None, s["ultima_pesquisa"] or "", s["cliente_nome"]))
+
+    nps = calcular_nps(notas_vigentes)
+    insights = []
+    if nps is None:
+        insights.append({"nivel": "info", "texto": "Ainda não há avaliações registradas. Comece pelos clientes em risco e pelos contratos maiores (aba Saúde da carteira)."})
+    else:
+        leitura = "excelente" if nps >= 75 else "muito bom" if nps >= 50 else "razoável" if nps >= 0 else "crítico"
+        insights.append({"nivel": "positivo" if nps >= 50 else "atencao" if nps >= 0 else "alerta",
+                         "texto": f"NPS {'+' if nps > 0 else ''}{nps} ({leitura}): {promotores} promotores, {neutros} neutros e {detratores} detratores entre {len(notas_vigentes)} clientes avaliados."})
+        if detratores:
+            insights.append({"nivel": "alerta", "texto": f"{detratores} cliente(s) deram nota 6 ou menos na última avaliação. Detrator sem retorno é contrato com chance real de cancelamento."})
+        # com poucas respostas no mes o NPS oscila demais - so compara meses com base minima
+        meses_com_dado = [e for e in evolucao if e["respostas"] >= 3]
+        if len(meses_com_dado) >= 2:
+            diferenca = meses_com_dado[-1]["nps"] - meses_com_dado[-2]["nps"]
+            if abs(diferenca) >= 10:
+                insights.append({"nivel": "positivo" if diferenca > 0 else "atencao",
+                                 "texto": f"O NPS do último mês com 3+ respostas {'subiu' if diferenca > 0 else 'caiu'} {abs(diferenca)} pontos em relação ao mês anterior comparável."})
+    if clientes:
+        cobertura = round(len(notas_vigentes) * 100 / len(clientes))
+        insights.append({"nivel": "info" if cobertura >= 50 else "atencao",
+                         "texto": f"{cobertura}% da carteira foi avaliada nos últimos 12 meses; {len(sem_pesquisa)} clientes estão sem avaliação há mais de {PESQUISA_DESATUALIZADA_DIAS} dias."})
+
+    return {
+        "nps": nps,
+        "avaliados": len(notas_vigentes),
+        "total_clientes": len(clientes),
+        "promotores": promotores,
+        "neutros": neutros,
+        "detratores": detratores,
+        "media_notas": round(sum(notas_vigentes) / len(notas_vigentes), 1) if notas_vigentes else None,
+        "evolucao_mensal": evolucao,
+        "por_empresa": lista_por_empresa,
+        "detratores_a_tratar": detratores_a_tratar,
+        "sem_pesquisa": sem_pesquisa,
+        "respostas_recentes": [serializar_pesquisa(p) for p in pesquisas[:40]],
+        "insights": insights,
+    }
+
+
+@app.get("/crm-dados/clientes/{cliente_id}")
+def crm_ficha_cliente(cliente_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    """Ficha 360 graus: saude, contrato, contatos, equipe alocada, indicadores de 12 meses e linha do tempo unificada."""
+    cliente = _cliente_crm_ou_404(db, cliente_id)
+    hoje = date.today()
+    inicio_12m = hoje - timedelta(days=365)
+    inicio_timeline = hoje - timedelta(days=180)
+
+    saude = calcular_saude_carteira(db, [cliente_id])
+    contrato = db.query(ClienteContrato).filter_by(cliente_id=cliente_id).first()
+    contatos = (
+        db.query(ClienteContato).filter_by(cliente_id=cliente_id)
+        .order_by(ClienteContato.principal.desc(), ClienteContato.nome).all()
+    )
+    pesquisas = (
+        db.query(PesquisaSatisfacao).filter_by(cliente_id=cliente_id)
+        .order_by(PesquisaSatisfacao.data_pesquisa.desc(), PesquisaSatisfacao.id.desc()).all()
+    )
+
+    # equipe alocada hoje (mapa de servico), agrupada por colaborador
+    rotulo_turno = {"manha": "manhã", "tarde": "tarde"}
+    equipe: dict[int, dict] = {}
+    for h in (
+        db.query(HorarioServico)
+        .join(Colaborador, HorarioServico.colaborador_id == Colaborador.id)
+        .filter(HorarioServico.cliente_id == cliente_id, HorarioServico.data_fim.is_(None),
+                Colaborador.eh_posto_vago.is_(False))
+        .all()
+    ):
+        registro = equipe.setdefault(h.colaborador_id, {
+            "colaborador_id": h.colaborador_id, "nome": h.colaborador.nome, "cargo": h.colaborador.cargo,
+            "desde": h.data_inicio, "horarios": [],
+        })
+        registro["desde"] = min(registro["desde"], h.data_inicio)
+        ordem_dia = DIAS_SEMANA_ORDEM.index(h.dia_semana) if h.dia_semana in DIAS_SEMANA_ORDEM else 9
+        registro["horarios"].append((ordem_dia, h.turno, (
+            f"{DIAS_SEMANA_LABEL.get(h.dia_semana, h.dia_semana)} {rotulo_turno.get(h.turno, h.turno)} "
+            f"{h.hora_inicio}-{h.hora_fim}"
+        )))
+    lista_equipe = []
+    for registro in equipe.values():
+        registro["horarios"] = [texto for _, _, texto in sorted(registro["horarios"])]
+        registro["meses_no_posto"] = (hoje - registro["desde"]).days // 30
+        registro["desde"] = registro["desde"].isoformat()
+        lista_equipe.append(registro)
+    lista_equipe.sort(key=lambda r: r["nome"])
+
+    # indicadores dos ultimos 12 meses
+    chamados_12m = (
+        db.query(Chamado)
+        .filter(Chamado.cliente_id == cliente_id,
+                Chamado.criado_em >= datetime.combine(inicio_12m, time.min, tzinfo=timezone.utc))
+        .all()
+    )
+    labels_tipo = {t["chave"]: t["label"] for t in TIPOS_CHAMADO}
+    contagem_tipo: dict[str, int] = {}
+    for c in chamados_12m:
+        contagem_tipo[c.tipo] = contagem_tipo.get(c.tipo, 0) + 1
+    horas_resolucao = [
+        (c.finalizado_em - c.criado_em).total_seconds() / 3600
+        for c in chamados_12m if c.finalizado_em is not None
+    ]
+
+    chamados_por_mes = []
+    for ano, mes in _meses_anteriores(hoje, 6):
+        do_mes = [c for c in chamados_12m if c.criado_em.year == ano and c.criado_em.month == mes]
+        chamados_por_mes.append({
+            "mes": f"{ano:04d}-{mes:02d}",
+            "chamados": len(do_mes),
+            "reclamacoes": sum(1 for c in do_mes if c.tipo == "reclamacao"),
+        })
+
+    visitas_12m = (
+        db.query(VisitaSupervisao)
+        .filter(VisitaSupervisao.cliente_id == cliente_id, VisitaSupervisao.data_visita >= inicio_12m)
+        .order_by(VisitaSupervisao.data_visita.desc())
+        .all()
+    )
+    diarias_12m = (
+        db.query(CustoDiario)
+        .filter(CustoDiario.cliente_id == cliente_id, CustoDiario.status_diaria.is_not(None), CustoDiario.data >= inicio_12m)
+        .all()
+    )
+    custo_diarias_12m = round(sum(d.valor or 0 for d in diarias_12m), 2)
+
+    indicadores = {
+        "chamados_12m": len(chamados_12m),
+        "chamados_em_aberto": db.query(Chamado).filter(Chamado.cliente_id == cliente_id, Chamado.status != "finalizado").count(),
+        "reclamacoes_12m": contagem_tipo.get("reclamacao", 0),
+        "tempo_medio_resolucao_horas": round(sum(horas_resolucao) / len(horas_resolucao)) if horas_resolucao else None,
+        "visitas_12m": len(visitas_12m),
+        "diarias_12m": len(diarias_12m),
+        "custo_diarias_12m": custo_diarias_12m,
+        # quanto das diarias pagas em 12 meses representa sobre 12 mensalidades do contrato
+        "peso_diarias_no_contrato_pct": (
+            round(custo_diarias_12m * 100 / (contrato.valor_mensal * 12), 1)
+            if contrato and contrato.valor_mensal else None
+        ),
+        "chamados_por_tipo": sorted(
+            ({"tipo": labels_tipo.get(k, k), "total": v} for k, v in contagem_tipo.items()), key=lambda x: -x["total"]
+        ),
+        "chamados_por_mes": chamados_por_mes,
+    }
+
+    # linha do tempo unificada (ultimos 180 dias)
+    labels_status = {s["chave"]: s["label"] for s in STATUS_CHAMADO}
+    labels_diaria = {s["chave"]: s["label"] for s in STATUS_DIARIA}
+    timeline = []
+    for c in chamados_12m:
+        if c.criado_em.date() < inicio_timeline:
+            continue
+        timeline.append({
+            "data": c.criado_em.isoformat(), "tipo": "chamado",
+            "titulo": f"Chamado: {labels_tipo.get(c.tipo, c.tipo)}",
+            "descricao": c.descricao,
+            "meta": f"{labels_status.get(c.status, c.status)} · aberto por {c.aberto_por.nome}",
+            "sentimento": "negativo" if c.tipo == "reclamacao" else "neutro",
+        })
+    for v in visitas_12m:
+        if v.data_visita < inicio_timeline:
+            continue
+        meta = f"por {v.supervisor.nome}"
+        if v.pessoa_com_quem_falou:
+            meta += f" · falou com {v.pessoa_com_quem_falou}"
+        timeline.append({
+            "data": v.data_visita.isoformat(), "tipo": "visita", "titulo": "Visita de supervisão",
+            "descricao": " / ".join(t for t in (v.observacoes, v.acoes) if t), "meta": meta, "sentimento": "positivo",
+        })
+    for p in pesquisas:
+        if p.data_pesquisa < inicio_timeline:
+            continue
+        classe = classificar_nps(p.nota)
+        timeline.append({
+            "data": p.data_pesquisa.isoformat(), "tipo": "pesquisa", "titulo": f"Avaliação de satisfação: {p.nota}/10",
+            "descricao": p.comentario,
+            "meta": f"respondida por {p.respondido_por or 'não informado'} · registrada por {p.registrado_por.nome}",
+            "sentimento": {"promotor": "positivo", "neutro": "neutro", "detrator": "negativo"}[classe],
+        })
+    # o log do mapa grava um evento por dia/turno - mostra cada colaborador uma vez por dia
+    vistos_mapa = set()
+    for e in (
+        db.query(HistoricoMapaServico)
+        .join(Colaborador, HistoricoMapaServico.colaborador_id == Colaborador.id)
+        .filter(HistoricoMapaServico.cliente_id == cliente_id,
+                HistoricoMapaServico.tipo_evento.in_(["iniciado", "encerrado"]),
+                Colaborador.eh_posto_vago.is_(False),
+                HistoricoMapaServico.criado_em >= datetime.combine(inicio_timeline, time.min, tzinfo=timezone.utc))
+        .order_by(HistoricoMapaServico.criado_em.desc())
+        .all()
+    ):
+        chave = (e.colaborador_id, e.tipo_evento, e.criado_em.date())
+        if chave in vistos_mapa:
+            continue
+        vistos_mapa.add(chave)
+        entrou = e.tipo_evento == "iniciado"
+        timeline.append({
+            "data": e.criado_em.isoformat(), "tipo": "equipe",
+            "titulo": f"{'Entrou no posto' if entrou else 'Saiu do posto'}: {e.colaborador.nome}",
+            "descricao": e.motivo, "meta": f"registrado por {e.registrado_por.nome}",
+            "sentimento": "neutro" if entrou else "negativo",
+        })
+    for d in diarias_12m:
+        if d.data < inicio_timeline:
+            continue
+        valor_txt = f"R$ {d.valor or 0:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        timeline.append({
+            "data": d.data.isoformat(), "tipo": "cobertura",
+            "titulo": f"Diária de cobertura: {labels_diaria.get(d.status_diaria, d.status_diaria)}",
+            "descricao": d.descricao, "meta": f"{valor_txt} · lançada por {d.usuario.nome}",
+            "sentimento": "negativo" if d.status_diaria in ("falta", "atestado", "posto_vago") else "neutro",
+        })
+    timeline.sort(key=lambda t: t["data"], reverse=True)
+
+    return {
+        "cliente": serializar_cliente(cliente),
+        "saude": saude[0] if saude else None,
+        "contrato": serializar_contrato(contrato),
+        "contatos": [serializar_contato(c) for c in contatos],
+        "pesquisas": [serializar_pesquisa(p) for p in pesquisas],
+        "nps_cliente": calcular_nps([
+            p.nota for p in pesquisas if p.data_pesquisa >= hoje - timedelta(days=JANELA_PESQUISA_DIAS)
+        ]),
+        "equipe": lista_equipe,
+        "indicadores": indicadores,
+        "linha_do_tempo": timeline[:120],
+    }
+
+
+@app.put("/crm-dados/clientes/{cliente_id}/contrato")
+def crm_salvar_contrato(
+    cliente_id: int,
+    dados: ClienteContratoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("crm")),
+):
+    _cliente_crm_ou_404(db, cliente_id)
+    if dados.valor_mensal is not None and dados.valor_mensal < 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O valor mensal não pode ser negativo")
+    if dados.postos_contratados is not None and dados.postos_contratados < 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O número de postos não pode ser negativo")
+    indice = (dados.indice_reajuste or "").strip() or None
+    if indice is not None and indice not in CHAVES_INDICE_REAJUSTE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Índice de reajuste inválido")
+    data_inicio = _data_opcional(dados.data_inicio, "início do contrato")
+    data_fim = _data_opcional(dados.data_fim, "fim do contrato")
+    if data_inicio and data_fim and data_fim < data_inicio:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O fim do contrato não pode ser antes do início")
+    data_reajuste = _data_opcional(dados.data_reajuste, "próximo reajuste")
+
+    contrato = db.query(ClienteContrato).filter_by(cliente_id=cliente_id).first()
+    if contrato is None:
+        contrato = ClienteContrato(cliente_id=cliente_id, atualizado_por_id=usuario.id)
+        db.add(contrato)
+    contrato.valor_mensal = dados.valor_mensal
+    contrato.data_inicio = data_inicio
+    contrato.data_fim = data_fim
+    contrato.renovacao_automatica = dados.renovacao_automatica
+    contrato.data_reajuste = data_reajuste
+    contrato.indice_reajuste = indice
+    contrato.postos_contratados = dados.postos_contratados
+    contrato.observacoes = (dados.observacoes or "").strip() or None
+    contrato.atualizado_por_id = usuario.id
+    db.commit()
+    db.refresh(contrato)
+    return serializar_contrato(contrato)
+
+
+def _desmarcar_outros_principais(db: Session, cliente_id: int, manter_id: int | None):
+    query = db.query(ClienteContato).filter(ClienteContato.cliente_id == cliente_id, ClienteContato.principal.is_(True))
+    if manter_id is not None:
+        query = query.filter(ClienteContato.id != manter_id)
+    for outro in query.all():
+        outro.principal = False
+
+
+@app.post("/crm-dados/clientes/{cliente_id}/contatos", status_code=status.HTTP_201_CREATED)
+def crm_criar_contato(
+    cliente_id: int,
+    dados: ClienteContatoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("crm")),
+):
+    _cliente_crm_ou_404(db, cliente_id)
+    nome = dados.nome.strip()
+    if not nome:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do contato")
+    if dados.papel not in CHAVES_PAPEL_CONTATO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Papel do contato inválido")
+
+    if dados.principal:
+        _desmarcar_outros_principais(db, cliente_id, None)
+    contato = ClienteContato(
+        cliente_id=cliente_id,
+        nome=nome,
+        papel=dados.papel,
+        telefone=(dados.telefone or "").strip() or None,
+        email=(dados.email or "").strip() or None,
+        principal=dados.principal,
+        observacoes=(dados.observacoes or "").strip() or None,
+    )
+    db.add(contato)
+    db.commit()
+    db.refresh(contato)
+    return serializar_contato(contato)
+
+
+@app.patch("/crm-dados/contatos/{contato_id}")
+def crm_editar_contato(
+    contato_id: int,
+    dados: ClienteContatoUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("crm")),
+):
+    contato = db.get(ClienteContato, contato_id)
+    if contato is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contato não encontrado")
+
+    campos = dados.model_dump(exclude_unset=True)
+    if "nome" in campos:
+        nome = (campos["nome"] or "").strip()
+        if not nome:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do contato")
+        contato.nome = nome
+    if "papel" in campos:
+        if campos["papel"] not in CHAVES_PAPEL_CONTATO:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Papel do contato inválido")
+        contato.papel = campos["papel"]
+    for campo in ("telefone", "email", "observacoes"):
+        if campo in campos:
+            setattr(contato, campo, (campos[campo] or "").strip() or None)
+    if "principal" in campos:
+        contato.principal = bool(campos["principal"])
+        if contato.principal:
+            _desmarcar_outros_principais(db, contato.cliente_id, contato.id)
+
+    db.commit()
+    db.refresh(contato)
+    return serializar_contato(contato)
+
+
+@app.delete("/crm-dados/contatos/{contato_id}", status_code=status.HTTP_204_NO_CONTENT)
+def crm_excluir_contato(contato_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    contato = db.get(ClienteContato, contato_id)
+    if contato is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contato não encontrado")
+    db.delete(contato)
+    db.commit()
+
+
+@app.post("/crm-dados/clientes/{cliente_id}/pesquisas", status_code=status.HTTP_201_CREATED)
+def crm_registrar_pesquisa(
+    cliente_id: int,
+    dados: PesquisaSatisfacaoCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("crm")),
+):
+    _cliente_crm_ou_404(db, cliente_id)
+    if not 0 <= dados.nota <= 10:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A nota precisa ser de 0 a 10")
+    data_pesquisa = _data_opcional(dados.data_pesquisa, "data da pesquisa")
+    if data_pesquisa is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data da pesquisa")
+    if data_pesquisa > date.today():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data da pesquisa não pode ser no futuro")
+
+    pesquisa = PesquisaSatisfacao(
+        cliente_id=cliente_id,
+        data_pesquisa=data_pesquisa,
+        nota=dados.nota,
+        respondido_por=(dados.respondido_por or "").strip() or None,
+        comentario=(dados.comentario or "").strip() or None,
+        registrado_por_id=usuario.id,
+    )
+    db.add(pesquisa)
+    db.commit()
+    db.refresh(pesquisa)
+    return serializar_pesquisa(pesquisa)
+
+
+@app.delete("/crm-dados/pesquisas/{pesquisa_id}", status_code=status.HTTP_204_NO_CONTENT)
+def crm_excluir_pesquisa(pesquisa_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_modulo("crm"))):
+    pesquisa = db.get(PesquisaSatisfacao, pesquisa_id)
+    if pesquisa is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pesquisa não encontrada")
+    db.delete(pesquisa)
+    db.commit()

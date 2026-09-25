@@ -2677,3 +2677,459 @@ button {
 .barra-acao-bloco .btn-ghost {
   width: auto;
 }
+
+/* ---------- CRM (carteira, saude, contratos, satisfacao) ---------- */
+
+:root {
+  --crm-info: #2f5b9e;
+  --crm-saudavel: var(--success);
+  --crm-atencao: #a8760a;
+  --crm-risco: var(--danger);
+}
+
+.crm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.crm-toolbar .meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.kpi-card .sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.kpi-card.kpi-risco .value { color: var(--crm-risco); }
+.kpi-card.kpi-atencao .value { color: var(--crm-atencao); }
+.kpi-card.kpi-saudavel .value { color: var(--crm-saudavel); }
+
+.crm-insights {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.crm-insight {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-2);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.crm-insight:last-child { border-bottom: none; }
+
+.crm-insight::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+  background: var(--crm-info);
+}
+
+.crm-insight.alerta::before { background: var(--crm-risco); }
+.crm-insight.atencao::before { background: var(--crm-atencao); }
+.crm-insight.positivo::before { background: var(--crm-saudavel); }
+
+.crm-distribuicao {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--surface-2);
+  margin: 6px 0 10px;
+}
+
+.crm-distribuicao > div { height: 100%; }
+.crm-distribuicao .saudavel, .crm-distribuicao .promotor { background: var(--crm-saudavel); }
+.crm-distribuicao .atencao, .crm-distribuicao .neutro { background: var(--crm-atencao); }
+.crm-distribuicao .risco, .crm-distribuicao .detrator { background: var(--crm-risco); }
+
+.crm-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.crm-legenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crm-legenda i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.crm-legenda i.saudavel, .crm-legenda i.promotor { background: var(--crm-saudavel); }
+.crm-legenda i.atencao, .crm-legenda i.neutro { background: var(--crm-atencao); }
+.crm-legenda i.risco, .crm-legenda i.detrator { background: var(--crm-risco); }
+
+.crm-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.crm-score.saudavel { background: rgba(31, 107, 65, 0.12); color: var(--crm-saudavel); }
+.crm-score.atencao { background: rgba(168, 118, 10, 0.14); color: var(--crm-atencao); }
+.crm-score.risco { background: rgba(193, 51, 39, 0.12); color: var(--crm-risco); }
+
+.crm-tendencia {
+  font-size: 12.5px;
+  white-space: nowrap;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.crm-tendencia.piorando { color: var(--crm-risco); }
+.crm-tendencia.melhorando { color: var(--crm-saudavel); }
+.crm-tendencia.estavel { color: var(--text-muted); }
+
+.crm-motivos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.crm-motivos li + li { margin-top: 2px; }
+
+.crm-motivos .impacto {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--crm-risco);
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.crm-acao {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.crm-linha-clicavel { cursor: pointer; }
+.crm-linha-clicavel:hover td { background: var(--surface-2); }
+
+.crm-prioridade {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px 14px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--surface-2);
+  text-decoration: none;
+  color: inherit;
+}
+
+.crm-prioridade:hover { background: var(--surface-2); }
+.crm-prioridade:last-child { border-bottom: none; }
+
+.crm-prioridade .urgencia {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: var(--crm-atencao);
+  grid-row: span 2;
+}
+
+.crm-prioridade .urgencia.alta { background: var(--crm-risco); }
+
+.crm-prioridade .titulo {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+.crm-prioridade .titulo small {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin-left: 6px;
+}
+
+.crm-prioridade .detalhe {
+  font-size: 13px;
+  color: var(--text-muted);
+  grid-column: 2 / 4;
+}
+
+.crm-prioridade .detalhe b {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.crm-alerta {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  margin: 2px 4px 2px 0;
+  white-space: nowrap;
+  background: rgba(47, 91, 158, 0.12);
+  color: var(--crm-info);
+}
+
+.crm-alerta.alta { background: rgba(193, 51, 39, 0.12); color: var(--crm-risco); }
+.crm-alerta.media { background: rgba(168, 118, 10, 0.14); color: var(--crm-atencao); }
+
+.crm-pendencia {
+  display: inline-block;
+  font-size: 11.5px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  margin: 2px 4px 2px 0;
+}
+
+.crm-como-funciona {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  font-size: 13.5px;
+}
+
+.crm-como-funciona summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.crm-como-funciona table {
+  border-collapse: collapse;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.crm-como-funciona td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--surface-2);
+  vertical-align: top;
+}
+
+.crm-como-funciona td:last-child {
+  font-family: 'IBM Plex Mono', monospace;
+  white-space: nowrap;
+  color: var(--crm-risco);
+}
+
+.crm-colunas {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 150px;
+  padding-top: 20px;
+}
+
+.crm-coluna {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 4px;
+}
+
+.crm-coluna .barras {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 100%;
+  justify-content: center;
+  flex: 1;
+}
+
+.crm-coluna .barra {
+  width: 100%;
+  max-width: 22px;
+  border-radius: 4px 4px 0 0;
+  background: var(--accent);
+  min-height: 2px;
+  position: relative;
+}
+
+.crm-coluna .barra.secundaria { background: var(--crm-risco); }
+.crm-coluna .barra.vazia { background: var(--surface-2); }
+
+.crm-coluna .valor {
+  font-size: 11.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text);
+}
+
+.crm-coluna .rotulo {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  white-space: nowrap;
+}
+
+/* ---------- Ficha 360 do cliente ---------- */
+
+.crm-ficha-topo {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 860px) {
+  .crm-ficha-topo { grid-template-columns: 1fr; }
+}
+
+.crm-gauge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.crm-gauge svg {
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+}
+
+.crm-gauge .faixa {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.crm-gauge .faixa.saudavel { color: var(--crm-saudavel); }
+.crm-gauge .faixa.atencao { color: var(--crm-atencao); }
+.crm-gauge .faixa.risco { color: var(--crm-risco); }
+
+.crm-proxima-acao {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  margin-top: 12px;
+}
+
+.crm-proxima-acao b {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.crm-dash-card-acao {
+  margin-left: auto;
+}
+
+.crm-dash-card-acao.btn-ghost {
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+
+.crm-contato {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-2);
+  font-size: 14px;
+}
+
+.crm-contato:last-child { border-bottom: none; }
+
+.crm-contato .dados { flex: 1; min-width: 0; }
+.crm-contato .papel { font-size: 12px; color: var(--text-muted); }
+.crm-contato .canais { font-size: 13px; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.crm-contato .canais a { text-decoration: none; }
+.crm-contato .principal { color: var(--accent); font-size: 12px; margin-left: 4px; }
+
+.crm-nota-grade {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 4px;
+}
+
+.crm-nota-grade button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.crm-nota-grade button.selecionada.detrator { background: var(--crm-risco); border-color: var(--crm-risco); color: #fff; }
+.crm-nota-grade button.selecionada.neutro { background: var(--crm-atencao); border-color: var(--crm-atencao); color: #fff; }
+.crm-nota-grade button.selecionada.promotor { background: var(--crm-saudavel); border-color: var(--crm-saudavel); color: #fff; }
+
+.crm-nota-pilula {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-weight: 600;
+  font-family: 'Space Grotesk', sans-serif;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.crm-nota-pilula.detrator { background: var(--crm-risco); }
+.crm-nota-pilula.neutro { background: var(--crm-atencao); }
+.crm-nota-pilula.promotor { background: var(--crm-saudavel); }
+
+.timeline-item.sentimento-negativo .tipo-label { color: var(--crm-risco); }
+.timeline-item.sentimento-positivo .tipo-label { color: var(--crm-saudavel); }
+
+.crm-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
+.crm-checkbox input { width: auto; }
+
+.crm-duas-colunas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+@media (max-width: 520px) {
+  .crm-duas-colunas { grid-template-columns: 1fr; }
+}

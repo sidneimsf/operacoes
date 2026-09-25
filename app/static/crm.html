@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM · operações</title>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#17354f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Operações">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="tabs-relatorio" style="margin-bottom: 20px;">
+        <button class="tab-relatorio ativa" data-aba="visao-geral">Visão geral</button>
+        <button class="tab-relatorio" data-aba="saude">Saúde da carteira</button>
+        <button class="tab-relatorio" data-aba="contratos">Contratos</button>
+        <button class="tab-relatorio" data-aba="satisfacao">Satisfação (NPS)</button>
+      </div>
+
+      <div class="crm-toolbar">
+        <span class="meta" id="crm-atualizado-em"></span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-ghost" id="btn-atualizar">Atualizar</button>
+          <button class="btn-ghost" id="btn-exportar-excel">Exportar Excel</button>
+        </div>
+      </div>
+
+      <div id="aba-visao-geral"><div class="loading-state">Analisando a carteira...</div></div>
+      <div id="aba-saude" hidden></div>
+      <div id="aba-contratos" hidden></div>
+      <div id="aba-satisfacao" hidden></div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/crm.js"></script>
+</body>
+</html>
