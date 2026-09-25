@@ -1082,6 +1082,7 @@ button {
 
 .evento-tipo-badge.atestado { background: rgba(125, 95, 17, 0.15); color: var(--accent); }
 .evento-tipo-badge.falta { background: rgba(193, 51, 39, 0.15); color: var(--danger); }
+.evento-tipo-badge.horas_falta { background: rgba(193, 51, 39, 0.10); color: var(--danger); }
 .evento-tipo-badge.cobertura { background: rgba(92, 184, 138, 0.15); color: var(--success); }
 .evento-tipo-badge.documento { background: rgba(140, 170, 220, 0.15); color: #2f5b9e; }
 .evento-tipo-badge.ferias { background: rgba(196, 140, 220, 0.15); color: #8a3fa8; }

@@ -246,6 +246,7 @@ class ColaboradorEvento(Base):
         ForeignKey("colaboradores.id"), nullable=True
     )
     colaborador_relacionado_nome_manual: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    horas: Mapped[float | None] = mapped_column(Float, nullable=True)  # so no tipo horas_falta (falta parcial no dia)
     arquivo_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
     arquivo_nome_original: Mapped[str | None] = mapped_column(String(200), nullable=True)
     registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)

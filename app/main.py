@@ -268,12 +268,22 @@ TIPOS_EVENTO_COLABORADOR = [
     {"chave": "atestado", "label": "Atestado médico"},
     {"chave": "aso", "label": "ASO (exame ocupacional)"},
     {"chave": "falta", "label": "Falta"},
+    {"chave": "horas_falta", "label": "Horas falta"},
     {"chave": "cobertura", "label": "Cobriu falta"},
     {"chave": "ferias", "label": "Férias"},
     {"chave": "advertencia", "label": "Advertência"},
     {"chave": "outros", "label": "Outros"},
 ]
 CHAVES_TIPO_EVENTO_VALIDAS = {t["chave"] for t in TIPOS_EVENTO_COLABORADOR}
+
+
+def _validar_horas_falta(horas: float | None) -> float:
+    """Horas de uma falta parcial: obrigatorio, maior que zero e no maximo um dia."""
+    if horas is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe quantas horas o colaborador faltou")
+    if horas <= 0 or horas > 24:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="As horas de falta precisam ser entre 0 e 24")
+    return round(horas, 2)
 
 TIPOS_CHAMADO = [
     {"chave": "manutencao", "label": "Manutenção corretiva"},
@@ -1084,6 +1094,7 @@ def serializar_evento_colaborador(e: ColaboradorEvento) -> dict:
         "colaborador_relacionado_id": e.colaborador_relacionado_id,
         "colaborador_relacionado_nome": (e.colaborador_relacionado.nome if e.colaborador_relacionado else None) or e.colaborador_relacionado_nome_manual,
         "colaborador_relacionado_nome_manual": e.colaborador_relacionado_nome_manual,
+        "horas": e.horas,
         "tem_arquivo": e.arquivo_path is not None,
         "arquivo_nome_original": e.arquivo_nome_original,
         "registrado_por": e.registrado_por.nome,
@@ -1225,6 +1236,7 @@ def criar_evento_colaborador(
     data_fim: str | None = Form(None),
     colaborador_relacionado_id: int | None = Form(None),
     colaborador_relacionado_nome_manual: str | None = Form(None),
+    horas: float | None = Form(None),
     arquivo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
@@ -1236,8 +1248,15 @@ def criar_evento_colaborador(
     if tipo not in CHAVES_TIPO_EVENTO_VALIDAS or tipo == "cobertura":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de evento invalido")
 
-    if tipo in ("atestado", "falta", "ferias") and not data_inicio:
+    if tipo in ("atestado", "falta", "ferias", "horas_falta") and not data_inicio:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data")
+
+    # falta parcial e de um dia so: guarda as horas e ignora data final
+    if tipo == "horas_falta":
+        horas = _validar_horas_falta(horas)
+        data_fim = None
+    else:
+        horas = None
 
     if tipo == "falta" and not data_fim:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data final da falta (pode ser igual à data inicial, se for só um dia)")
@@ -1288,6 +1307,7 @@ def criar_evento_colaborador(
         data_fim=data_fim_obj,
         colaborador_relacionado_id=colaborador_relacionado_id,
         colaborador_relacionado_nome_manual=(colaborador_relacionado_nome_manual or "").strip() or None,
+        horas=horas,
         arquivo_path=arquivo_path_salvo,
         arquivo_nome_original=arquivo_nome_original,
         registrado_por_id=usuario.id,
@@ -1358,7 +1378,12 @@ def editar_evento_colaborador(
         evento.colaborador_relacionado_nome_manual = valor.strip() if valor else None
 
     tipo_final = campos.get("tipo", evento.tipo)
-    if tipo_final in ("atestado", "falta", "ferias") and evento.data_inicio is None:
+    if tipo_final == "horas_falta":
+        evento.horas = _validar_horas_falta(campos["horas"] if "horas" in campos else evento.horas)
+        evento.data_fim = None
+    else:
+        evento.horas = None
+    if tipo_final in ("atestado", "falta", "ferias", "horas_falta") and evento.data_inicio is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data")
     if tipo_final == "falta" and evento.data_fim is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data final da falta")

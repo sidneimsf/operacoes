@@ -677,6 +677,13 @@ async function enviarFormData(caminho, formData) {
   return resposta.json();
 }
 
+// 1.5 -> "1h30", 2 -> "2h"
+function formatarHorasFalta(horas) {
+  const inteiras = Math.floor(horas);
+  const minutos = Math.round((horas - inteiras) * 60);
+  return minutos ? `${inteiras}h${String(minutos).padStart(2, '0')}` : `${inteiras}h`;
+}
+
 function montarModalRegistro() {
   const html = `
     <div class="modal-overlay" id="registro-modal-overlay" hidden>
@@ -697,6 +704,10 @@ function montarModalRegistro() {
           <div class="field" id="campo-data-inicio">
             <label for="registro-data-inicio">Data <span id="label-data-obrigatoria"></span></label>
             <input type="date" id="registro-data-inicio">
+          </div>
+          <div class="field" id="campo-horas-falta" hidden>
+            <label for="registro-horas">Quantas horas faltou? (obrigatório)</label>
+            <input type="number" id="registro-horas" min="0.25" max="24" step="0.25" placeholder="Ex: 2 ou 1,5 (1h30)">
           </div>
           <div class="field" id="campo-data-fim" hidden>
             <label for="registro-data-fim">Data final (se souber)</label>
@@ -733,12 +744,14 @@ function montarModalRegistro() {
 
 function atualizarCamposConformeTipo() {
   const tipo = document.getElementById('registro-tipo').value;
-  const precisaData = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso';
+  const precisaData = tipo === 'atestado' || tipo === 'falta' || tipo === 'ferias' || tipo === 'aso' || tipo === 'horas_falta';
   const mostraDataFim = tipo === 'atestado' || tipo === 'ferias' || tipo === 'aso' || tipo === 'falta';
   const mostraSubstituto = tipo === 'falta';
 
   document.getElementById('label-data-obrigatoria').textContent = precisaData ? '(obrigatória)' : '(opcional)';
   document.getElementById('campo-data-fim').hidden = !mostraDataFim;
+  document.getElementById('campo-horas-falta').hidden = tipo !== 'horas_falta';
+  document.getElementById('registro-horas').required = tipo === 'horas_falta';
   document.getElementById('campo-substituto').hidden = !mostraSubstituto;
   document.getElementById('campo-substituto-manual').hidden = !mostraSubstituto;
 
@@ -802,6 +815,7 @@ async function abrirModalEditarEvento(evento) {
   document.getElementById('registro-descricao').value = evento.descricao || '';
   document.getElementById('registro-data-inicio').value = evento.data_inicio || '';
   document.getElementById('registro-data-fim').value = evento.data_fim || '';
+  document.getElementById('registro-horas').value = evento.horas ?? '';
   if (evento.colaborador_relacionado_id) {
     selectSubstituto.value = evento.colaborador_relacionado_id;
   } else if (evento.colaborador_relacionado_nome) {
@@ -826,6 +840,8 @@ async function enviarRegistro(evento) {
   const substitutoManual = document.getElementById('registro-substituto-manual').value.trim();
   const dataInicio = document.getElementById('registro-data-inicio').value;
   const dataFim = document.getElementById('registro-data-fim').value;
+  const tipoSelecionado = document.getElementById('registro-tipo').value;
+  const horas = tipoSelecionado === 'horas_falta' ? document.getElementById('registro-horas').value : '';
 
   botao.disabled = true;
   botao.textContent = 'Salvando...';
@@ -839,6 +855,7 @@ async function enviarRegistro(evento) {
         data_fim: dataFim || null,
         colaborador_relacionado_id: substituto ? Number(substituto) : null,
         colaborador_relacionado_nome_manual: substitutoManual || null,
+        horas: horas ? Number(horas) : null,
       };
       await Shell.chamarApi(`/colaboradores-dados/eventos/${eventoIdEmEdicao}`, { method: 'PATCH', body: corpo });
     } else {
@@ -847,6 +864,7 @@ async function enviarRegistro(evento) {
       formData.append('descricao', document.getElementById('registro-descricao').value);
       if (dataInicio) formData.append('data_inicio', dataInicio);
       if (dataFim) formData.append('data_fim', dataFim);
+      if (horas) formData.append('horas', horas);
       if (substitutoManual) {
         formData.append('colaborador_relacionado_nome_manual', substitutoManual);
       } else if (substituto) {
@@ -912,6 +930,7 @@ function renderizarTimeline(eventos) {
             <div class="linha-topo">
               <span class="evento-tipo-badge ${e.tipo}">${labelTipoEvento(e.tipo)}</span>
               ${e.data_inicio ? `<span class="meta">${periodo}</span>` : ''}
+              ${e.tipo === 'horas_falta' && e.horas ? `<span class="meta"><strong>${formatarHorasFalta(e.horas)}</strong> de falta</span>` : ''}
             </div>
             ${e.descricao ? `<div class="descricao">${e.descricao}</div>` : ''}
             ${linhaRelacionado}

@@ -134,6 +134,7 @@ class ColaboradorEventoUpdate(BaseModel):
     data_fim: str | None = None
     colaborador_relacionado_id: int | None = None
     colaborador_relacionado_nome_manual: str | None = None
+    horas: float | None = None
 
 
 class HorarioServicoCreate(BaseModel):
