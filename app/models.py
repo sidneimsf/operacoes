@@ -9,6 +9,7 @@ from sqlalchemy import (
     Integer,
     JSON,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -712,6 +713,9 @@ class VisitaComercial(Base):
     anexos: Mapped[list["VisitaComercialAnexo"]] = relationship(
         back_populates="visita", order_by="VisitaComercialAnexo.criado_em", cascade="all, delete-orphan"
     )
+    audios: Mapped[list["VisitaComercialAudio"]] = relationship(
+        back_populates="visita", order_by="VisitaComercialAudio.criado_em", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<VisitaComercial {self.nome_local} ({self.status})>"
@@ -810,3 +814,36 @@ class PesquisaSatisfacao(Base):
 
     def __repr__(self) -> str:
         return f"<PesquisaSatisfacao cliente={self.cliente_id} nota={self.nota}>"
+
+
+class VisitaComercialAudio(Base):
+    """
+    Audio gravado pelo supervisor descrevendo a visita. Um job transcreve
+    o audio na propria VPS (Whisper) e preenche os campos vazios da visita
+    com o que conseguir reconhecer. Depois de 30 dias o arquivo de audio e
+    apagado (arquivo_path vira None) e so a transcricao fica guardada.
+    """
+    __tablename__ = "visitas_comerciais_audios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    visita_comercial_id: Mapped[int] = mapped_column(ForeignKey("visitas_comerciais.id"), nullable=False)
+    arquivo_path: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    arquivo_mime: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tamanho_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duracao_segundos: Mapped[float | None] = mapped_column(Float, nullable=True)
+    status_transcricao: Mapped[str] = mapped_column(String(20), nullable=False, default="pendente")  # pendente, processando, concluida, erro
+    transcricao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sugestoes: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    campos_preenchidos: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    erro_transcricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    transcricao_iniciada_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    transcrito_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    audio_apagado_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    enviado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    visita: Mapped["VisitaComercial"] = relationship(back_populates="audios")
+    enviado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<VisitaComercialAudio visita={self.visita_comercial_id} status={self.status_transcricao}>"

@@ -10,3 +10,6 @@ python-multipart==0.0.12
 apscheduler==3.10.4
 reportlab==4.2.5
 openpyxl==3.1.5
+faster-whisper==1.2.1
+# av fixo: o PyAV 19 nao aceita mais um parametro que o faster-whisper 1.2.1 usa (15.1.0 testado)
+av==15.1.0

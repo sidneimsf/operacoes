@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 import jwt
 from alertas_aso import verificar_e_enviar_alertas
+from audios_visita import apagar_audios_expirados, transcrever_audios_pendentes
 from alertas_crm import verificar_e_enviar_crm
 from alertas_custos import verificar_e_enviar_custos
 from alertas_experiencia import verificar_e_enviar_experiencias
@@ -53,6 +54,7 @@ from models import (
     VagaAberta,
     VisitaComercial,
     VisitaComercialAnexo,
+    VisitaComercialAudio,
     VisitaSupervisao,
     Colaborador,
     ColaboradorEvento,
@@ -122,6 +124,18 @@ app = FastAPI(title="Operacoes SolarSync", version="0.1.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
+@app.middleware("http")
+async def revalidar_arquivos_estaticos(request, call_next):
+    """Sem Cache-Control o navegador "chuta" por quanto tempo pode reusar
+    um arquivo e continua mostrando shell.js/css antigos depois de um
+    deploy (ex.: item novo de menu sumindo ate dar F5). no-cache obriga a
+    conferir com o servidor (ETag) - se nao mudou, volta um 304 rapido."""
+    resposta = await call_next(request)
+    if "last-modified" in resposta.headers and "cache-control" not in resposta.headers:
+        resposta.headers["Cache-Control"] = "no-cache"
+    return resposta
+
+
 @app.get("/service-worker.js", include_in_schema=False)
 def service_worker():
     """
@@ -186,6 +200,22 @@ def job_verificar_crm():
         db.close()
 
 
+def job_transcrever_audios():
+    """Roda a cada 30s - transcreve (na propria VPS) os audios de visita comercial que chegaram."""
+    try:
+        transcrever_audios_pendentes()
+    except Exception as erro:
+        print("[audios] erro ao transcrever:", erro)
+
+
+def job_apagar_audios_expirados():
+    """Roda de madrugada - apaga os audios com mais de 30 dias, mantendo a transcricao."""
+    try:
+        print("[audios] audios expirados apagados:", apagar_audios_expirados())
+    except Exception as erro:
+        print("[audios] erro ao apagar audios expirados:", erro)
+
+
 # Janela em que uma exclusao de aviso ainda pode ser desfeita
 PRAZO_DESFAZER_EXCLUSAO_AVISO = timedelta(hours=1)
 
@@ -218,6 +248,8 @@ agendador.add_job(job_verificar_custos, "cron", hour=19, minute=0)
 agendador.add_job(job_verificar_experiencias, "cron", hour=8, minute=10)
 agendador.add_job(job_verificar_crm, "cron", day_of_week="mon", hour=8, minute=20)
 agendador.add_job(job_limpar_avisos_excluidos, "interval", minutes=10)
+agendador.add_job(job_transcrever_audios, "interval", seconds=30, max_instances=1, coalesce=True)
+agendador.add_job(job_apagar_audios_expirados, "cron", hour=3, minute=30)
 agendador.start()
 
 PASTA_UPLOADS = Path("uploads/colaboradores")
@@ -5085,6 +5117,10 @@ CHAVES_TIPO_SERVICO_COMERCIAL = {t["chave"] for t in TIPOS_SERVICO_COMERCIAL}
 PASTA_UPLOADS_VISITAS_COMERCIAIS = Path("uploads/visitas_comerciais")
 PASTA_UPLOADS_VISITAS_COMERCIAIS.mkdir(parents=True, exist_ok=True)
 
+PASTA_UPLOADS_AUDIOS_VISITAS = PASTA_UPLOADS_VISITAS_COMERCIAIS / "audios"
+EXTENSOES_AUDIO_PERMITIDAS = {".webm", ".ogg", ".mp4", ".m4a", ".mp3", ".wav", ".aac"}
+TAMANHO_MAXIMO_AUDIO = 30 * 1024 * 1024  # 30 MB (~10 min gravando no celular sobra)
+
 # campos de texto livre da visita comercial -> tamanho maximo da coluna
 CAMPOS_TEXTO_VISITA_COMERCIAL = {
     "endereco": 300,
@@ -5162,8 +5198,25 @@ def serializar_visita_comercial(v: VisitaComercial) -> dict:
             }
             for a in v.anexos
         ],
+        "audios": [serializar_audio_visita(a) for a in v.audios],
         "criado_em": v.criado_em.isoformat(),
         "atualizado_em": v.atualizado_em.isoformat() if v.atualizado_em else None,
+    }
+
+
+def serializar_audio_visita(a: VisitaComercialAudio) -> dict:
+    return {
+        "id": a.id,
+        "status_transcricao": a.status_transcricao,
+        "transcricao": a.transcricao,
+        "erro_transcricao": a.erro_transcricao,
+        "campos_preenchidos": a.campos_preenchidos or [],
+        "duracao_segundos": a.duracao_segundos,
+        "audio_disponivel": a.arquivo_path is not None,
+        "audio_apagado_em": a.audio_apagado_em.isoformat() if a.audio_apagado_em else None,
+        "enviado_por_id": a.enviado_por_id,
+        "enviado_por_nome": a.enviado_por.nome,
+        "criado_em": a.criado_em.isoformat(),
     }
 
 
@@ -5310,9 +5363,13 @@ def criar_visita_comercial(
     campos = dados.model_dump()
     if usuario.papel != "escritorio" or campos.get("responsavel_id") is None:
         campos["responsavel_id"] = usuario.id
+    # a tela nao pergunta mais a origem: quem pede a visita e o escritorio
+    # (orcamento aprovado); quando o proprio supervisor cadastra, e prospeccao
+    if not campos.get("origem"):
+        campos["origem"] = "orcamento_aprovado" if usuario.papel == "escritorio" else "prospeccao"
 
     visita = VisitaComercial(
-        origem=dados.origem,
+        origem=campos["origem"],
         nome_local=dados.nome_local,
         status="solicitada",
         responsavel_id=usuario.id,
@@ -5364,6 +5421,9 @@ def excluir_visita_comercial(
     for anexo in visita.anexos:
         if os.path.exists(anexo.arquivo_path):
             os.remove(anexo.arquivo_path)
+    for audio in visita.audios:
+        if audio.arquivo_path and os.path.exists(audio.arquivo_path):
+            os.remove(audio.arquivo_path)
     db.delete(visita)
     db.commit()
 
@@ -5428,6 +5488,100 @@ def excluir_anexo_visita_comercial(
     if os.path.exists(anexo.arquivo_path):
         os.remove(anexo.arquivo_path)
     db.delete(anexo)
+    db.commit()
+
+
+@app.post("/visitas-comerciais-dados/{visita_id}/audios", status_code=status.HTTP_201_CREATED)
+def enviar_audio_visita_comercial(
+    visita_id: int,
+    audio: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Recebe a gravacao e coloca na fila de transcricao (job a cada 30s).
+    Quando a transcricao termina, os campos vazios da visita sao
+    preenchidos com o que foi reconhecido no audio."""
+    visita = _buscar_visita_comercial(db, visita_id, usuario)
+
+    extensao = Path(audio.filename or "").suffix.lower()
+    if extensao not in EXTENSOES_AUDIO_PERMITIDAS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Formato de áudio não suportado")
+    conteudo = audio.file.read()
+    if not conteudo:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O áudio chegou vazio, grave de novo")
+    if len(conteudo) > TAMANHO_MAXIMO_AUDIO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Áudio maior que 30MB, grave um áudio mais curto")
+
+    pasta = PASTA_UPLOADS_AUDIOS_VISITAS / str(visita.id)
+    pasta.mkdir(parents=True, exist_ok=True)
+    caminho = pasta / f"{uuid.uuid4().hex}{extensao}"
+    caminho.write_bytes(conteudo)
+
+    registro = VisitaComercialAudio(
+        visita_comercial_id=visita.id,
+        arquivo_path=str(caminho),
+        arquivo_mime=audio.content_type,
+        tamanho_bytes=len(conteudo),
+        status_transcricao="pendente",
+        enviado_por_id=usuario.id,
+    )
+    db.add(registro)
+    db.commit()
+    db.refresh(visita)
+    return serializar_visita_comercial(visita)
+
+
+def _buscar_audio_visita(db: Session, audio_id: int, usuario: Usuario) -> VisitaComercialAudio:
+    audio = db.get(VisitaComercialAudio, audio_id)
+    if audio is None or not _pode_ver_visita_comercial(usuario, audio.visita):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Áudio não encontrado")
+    return audio
+
+
+@app.get("/visitas-comerciais-dados/audios/{audio_id}")
+def ouvir_audio_visita_comercial(
+    audio_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    audio = _buscar_audio_visita(db, audio_id, usuario)
+    if not audio.arquivo_path or not os.path.exists(audio.arquivo_path):
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Esse áudio já foi apagado (mais de 30 dias); a transcrição continua disponível")
+    return FileResponse(audio.arquivo_path, media_type=audio.arquivo_mime or "application/octet-stream")
+
+
+@app.post("/visitas-comerciais-dados/audios/{audio_id}/transcrever-novamente")
+def retranscrever_audio_visita_comercial(
+    audio_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    audio = _buscar_audio_visita(db, audio_id, usuario)
+    if not audio.arquivo_path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O áudio já foi apagado, não dá pra transcrever de novo")
+    if audio.status_transcricao in ("pendente", "processando"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse áudio já está na fila de transcrição")
+    audio.status_transcricao = "pendente"
+    audio.erro_transcricao = None
+    db.commit()
+    db.refresh(audio.visita)
+    return serializar_visita_comercial(audio.visita)
+
+
+@app.delete("/visitas-comerciais-dados/audios/{audio_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_audio_visita_comercial(
+    audio_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    audio = _buscar_audio_visita(db, audio_id, usuario)
+    if usuario.papel != "escritorio" and audio.enviado_por_id != usuario.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só quem gravou (ou o escritório) pode excluir esse áudio")
+    if audio.status_transcricao == "processando":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O áudio está sendo transcrito agora, tente de novo em instantes")
+    if audio.arquivo_path and os.path.exists(audio.arquivo_path):
+        os.remove(audio.arquivo_path)
+    db.delete(audio)
     db.commit()
 
 

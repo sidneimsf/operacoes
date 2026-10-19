@@ -3345,7 +3345,6 @@ button {
   margin: 18px 0 12px;
 }
 
-.vc-secao:first-of-type { margin-top: 0; }
 
 .vc-duas-colunas {
   display: grid;
@@ -3389,3 +3388,53 @@ button {
 @media (max-width: 520px) {
   .vc-duas-colunas { grid-template-columns: 1fr; }
 }
+
+.vc-dica-audio { margin: 0 0 10px; font-size: 12.5px; line-height: 1.45; }
+
+.vc-gravador { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.vc-gravador .vc-player { width: 100%; }
+
+.vc-btn-gravar {
+  background: var(--surface-2);
+  border: 1px dashed var(--accent);
+  color: var(--accent);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.vc-btn-gravar.gravando { border-style: solid; border-color: var(--danger); color: var(--danger); width: auto; flex: 1; }
+
+.vc-gravando { display: inline-flex; align-items: center; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 15px; color: var(--danger); }
+.vc-ponto-gravando { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); animation: vc-piscar 1s infinite; }
+
+@keyframes vc-piscar { 50% { opacity: 0.2; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vc-ponto-gravando { animation: none; }
+}
+
+.vc-gravado-acoes { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; width: 100%; }
+
+.vc-player { width: 100%; height: 40px; margin: 6px 0; }
+
+.vc-audio {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: var(--surface-2);
+}
+
+.vc-audio-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.vc-audio-acoes { display: inline-flex; gap: 6px; }
+.vc-audio-acoes .btn-ghost { padding: 3px 10px; font-size: 12px; }
+.vc-transcricao { font-size: 13.5px; line-height: 1.5; margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.vc-preenchidos { font-size: 12.5px; color: var(--success); margin-top: 6px; }
+.vc-audio-erro { font-size: 12.5px; color: var(--danger); margin: 6px 0; }
+.vc-audio-erro[hidden] { display: none; }
+
+.vc-mais-detalhes { margin: 18px 0 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+.vc-mais-detalhes > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--accent); padding: 4px 0; }

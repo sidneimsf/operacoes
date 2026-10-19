@@ -318,8 +318,8 @@ class VisitaSupervisaoUpdate(BaseModel):
 
 
 class VisitaComercialCreate(BaseModel):
-    origem: str
     nome_local: str
+    origem: str | None = None
     status: str | None = None
     empresa_id: int | None = None
     endereco: str | None = None
