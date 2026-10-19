@@ -124,6 +124,7 @@ class Usuario(Base):
     super_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # so Caroline e Sidnei - gerencia permissoes
     avisos_vistos_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ocorrencias_vistas_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    visitas_comerciais_vistas_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     def __repr__(self) -> str:

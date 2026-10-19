@@ -1032,6 +1032,9 @@ async function abrirModalConverter(visita) {
 
 async function iniciar() {
   if (!auth) return;
+  Shell.chamarApi('/visitas-comerciais-dados/marcar-vistas', { method: 'POST' })
+    .then(() => Shell.atualizarBadgeVisitasComerciais())
+    .catch(() => {});
   const container = document.getElementById('lista-visitas-comerciais');
   try {
     const [opcoes, empresas, permissoes, pessoas] = await Promise.all([

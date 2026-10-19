@@ -204,25 +204,29 @@ const Shell = (() => {
     document.getElementById('btn-abrir-chamado').addEventListener('click', abrirModalChamado);
     atualizarBadgeAvisos();
     atualizarBadgeOcorrencias();
-    setInterval(atualizarBadgeOcorrencias, 60000);
+    atualizarBadgeVisitasComerciais();
+    setInterval(() => {
+      atualizarBadgeOcorrencias();
+      atualizarBadgeVisitasComerciais();
+    }, 60000);
     ajustarMenuConformePermissoes();
 
     return auth;
   }
 
-  async function atualizarBadgeAvisos() {
+  async function atualizarBadge(caminhoApi, hrefMenu) {
     try {
-      const resultado = await chamarApi('/avisos-dados/nao-lidos');
+      const resultado = await chamarApi(caminhoApi);
       if (!resultado) return;
 
-      const linkAvisos = document.querySelector('.nav-item[href="/avisos"]');
-      if (!linkAvisos) return;
+      const link = document.querySelector(`.nav-item[href="${hrefMenu}"]`);
+      if (!link) return;
 
-      const badgeExistente = linkAvisos.querySelector('.nav-badge');
+      const badgeExistente = link.querySelector('.nav-badge');
       if (badgeExistente) badgeExistente.remove();
 
       if (resultado.total > 0) {
-        linkAvisos.insertAdjacentHTML(
+        link.insertAdjacentHTML(
           'beforeend',
           `<span class="nav-badge">${resultado.total > 9 ? '9+' : resultado.total}</span>`
         );
@@ -232,26 +236,16 @@ const Shell = (() => {
     }
   }
 
-  async function atualizarBadgeOcorrencias() {
-    try {
-      const resultado = await chamarApi('/chamados-dados/nao-vistos');
-      if (!resultado) return;
+  function atualizarBadgeAvisos() {
+    return atualizarBadge('/avisos-dados/nao-lidos', '/avisos');
+  }
 
-      const linkOcorrencias = document.querySelector('.nav-item[href="/ocorrencias"]');
-      if (!linkOcorrencias) return;
+  function atualizarBadgeOcorrencias() {
+    return atualizarBadge('/chamados-dados/nao-vistos', '/ocorrencias');
+  }
 
-      const badgeExistente = linkOcorrencias.querySelector('.nav-badge');
-      if (badgeExistente) badgeExistente.remove();
-
-      if (resultado.total > 0) {
-        linkOcorrencias.insertAdjacentHTML(
-          'beforeend',
-          `<span class="nav-badge">${resultado.total > 9 ? '9+' : resultado.total}</span>`
-        );
-      }
-    } catch (erro) {
-      // silencioso: o balaozinho e' um extra, nao pode quebrar a navegacao
-    }
+  function atualizarBadgeVisitasComerciais() {
+    return atualizarBadge('/visitas-comerciais-dados/nao-vistas', '/visita-comercial');
   }
 
   let clientesChamadoCache = [];
@@ -454,7 +448,7 @@ const Shell = (() => {
     }
   }
 
-  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, atualizarBadgeOcorrencias, linkWhatsApp, formatarCpf };
+  return { montar, chamarApi, sair, autenticacao, icone, atualizarBadgeAvisos, atualizarBadgeOcorrencias, atualizarBadgeVisitasComerciais, linkWhatsApp, formatarCpf };
 })();
 
 if ('serviceWorker' in navigator) {
