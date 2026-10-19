@@ -3327,3 +3327,65 @@ button {
 .crm-timeline-evento .detalhe { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
 
 .crm-toolbar[hidden] { display: none; }
+
+/* ---------- Visita comercial ---------- */
+
+.vc-modal {
+  max-width: 680px;
+}
+
+.vc-secao {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+  margin: 18px 0 12px;
+}
+
+.vc-secao:first-of-type { margin-top: 0; }
+
+.vc-duas-colunas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 14px;
+}
+
+.vc-status {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.vc-status.solicitada { background: rgba(125, 95, 17, 0.15); color: var(--accent); }
+.vc-status.visitada { background: rgba(140, 170, 220, 0.15); color: #2f5b9e; }
+.vc-status.proposta_enviada { background: rgba(110, 80, 170, 0.13); color: #5a3f97; }
+.vc-status.fechada { background: rgba(92, 184, 138, 0.15); color: var(--success); }
+.vc-status.perdida { background: var(--surface-2); color: var(--text-muted); }
+
+.vc-sinais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.vc-anexo {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.vc-anexo .vc-link-anexo { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.vc-anexo .vc-remover-anexo { padding: 3px 8px; font-size: 11.5px; color: var(--danger); }
+
+@media (max-width: 520px) {
+  .vc-duas-colunas { grid-template-columns: 1fr; }
+}

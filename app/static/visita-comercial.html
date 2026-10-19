@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visita Comercial · operações</title>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#17354f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Operações">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="kpi-grid" id="vc-resumo"></div>
+
+      <div class="avisos-header">
+        <span class="section-title" style="margin: 0;">Locais visitados</span>
+        <button class="btn-primary" id="btn-nova-visita-comercial">+ Nova visita</button>
+      </div>
+
+      <div class="filter-row">
+        <div class="field">
+          <label for="vc-filtro-busca">Buscar local ou cidade</label>
+          <input type="text" id="vc-filtro-busca" placeholder="Digite pra filtrar..." autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="vc-filtro-status">Status</label>
+          <select id="vc-filtro-status"><option value="">Todos</option></select>
+        </div>
+        <div class="field">
+          <label for="vc-filtro-origem">Origem</label>
+          <select id="vc-filtro-origem"><option value="">Todas</option></select>
+        </div>
+        <div class="field" id="vc-campo-filtro-responsavel" hidden>
+          <label for="vc-filtro-responsavel">Responsável</label>
+          <select id="vc-filtro-responsavel"><option value="">Todos</option></select>
+        </div>
+      </div>
+
+      <div id="lista-visitas-comerciais">
+        <div class="loading-state">Carregando visitas...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/visita-comercial.js"></script>
+</body>
+</html>

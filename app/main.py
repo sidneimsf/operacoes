@@ -51,6 +51,8 @@ from models import (
     Freelancer,
     TarefaAgendada,
     VagaAberta,
+    VisitaComercial,
+    VisitaComercialAnexo,
     VisitaSupervisao,
     Colaborador,
     ColaboradorEvento,
@@ -79,6 +81,9 @@ from schemas import (
     TarefaAgendadaUpdate,
     VagaAbertaCreate,
     VagaAbertaUpdate,
+    VisitaComercialConverter,
+    VisitaComercialCreate,
+    VisitaComercialUpdate,
     VisitaSupervisaoCreate,
     VisitaSupervisaoUpdate,
     ChamadoEdicaoUpdate,
@@ -225,8 +230,8 @@ EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
 TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024  # 10 MB
 
 
-def _salvar_arquivo_upload(arquivo: UploadFile, usuario_id: int) -> tuple[str, str]:
-    """Valida e salva um arquivo enviado, devolvendo (path_salvo, nome_original)."""
+def _salvar_arquivo_upload(arquivo: UploadFile, subpasta: int, pasta_base: Path = PASTA_UPLOADS_CUSTOS) -> tuple[str, str]:
+    """Valida e salva um arquivo enviado em pasta_base/subpasta, devolvendo (path_salvo, nome_original)."""
     extensao = Path(arquivo.filename).suffix.lower()
     if extensao not in EXTENSOES_PERMITIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF")
@@ -234,7 +239,7 @@ def _salvar_arquivo_upload(arquivo: UploadFile, usuario_id: int) -> tuple[str, s
     if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
 
-    pasta_usuario = PASTA_UPLOADS_CUSTOS / str(usuario_id)
+    pasta_usuario = pasta_base / str(subpasta)
     pasta_usuario.mkdir(parents=True, exist_ok=True)
     nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
     caminho_completo = pasta_usuario / nome_arquivo
@@ -559,6 +564,11 @@ def pagina_vagas():
 @app.get("/supervisao", include_in_schema=False)
 def pagina_supervisao():
     return FileResponse("static/supervisao.html")
+
+
+@app.get("/visita-comercial", include_in_schema=False)
+def pagina_visita_comercial():
+    return FileResponse("static/visita-comercial.html")
 
 
 @app.get("/cliente-detalhe", include_in_schema=False)
@@ -5040,6 +5050,436 @@ def relatorio_estabilidade_posto(
             for e in eventos[:200]
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Visita comercial (locais novos: prospeccao ou orcamento aprovado)
+# ---------------------------------------------------------------------------
+
+ORIGENS_VISITA_COMERCIAL = [
+    {"chave": "prospeccao", "label": "Prospecção"},
+    {"chave": "orcamento_aprovado", "label": "Orçamento aprovado"},
+]
+CHAVES_ORIGEM_VISITA_COMERCIAL = {o["chave"] for o in ORIGENS_VISITA_COMERCIAL}
+
+STATUS_VISITA_COMERCIAL = [
+    {"chave": "solicitada", "label": "Solicitada"},
+    {"chave": "visitada", "label": "Visitada"},
+    {"chave": "proposta_enviada", "label": "Proposta enviada"},
+    {"chave": "fechada", "label": "Fechada"},
+    {"chave": "perdida", "label": "Perdida"},
+]
+CHAVES_STATUS_VISITA_COMERCIAL = {s["chave"] for s in STATUS_VISITA_COMERCIAL}
+
+TIPOS_SERVICO_COMERCIAL = [
+    {"chave": "limpeza", "label": "Limpeza / conservação"},
+    {"chave": "portaria", "label": "Portaria"},
+    {"chave": "zeladoria", "label": "Zeladoria"},
+    {"chave": "recepcao", "label": "Recepção"},
+    {"chave": "jardinagem", "label": "Jardinagem"},
+    {"chave": "manutencao", "label": "Manutenção predial"},
+    {"chave": "outros", "label": "Outros"},
+]
+CHAVES_TIPO_SERVICO_COMERCIAL = {t["chave"] for t in TIPOS_SERVICO_COMERCIAL}
+
+PASTA_UPLOADS_VISITAS_COMERCIAIS = Path("uploads/visitas_comerciais")
+PASTA_UPLOADS_VISITAS_COMERCIAIS.mkdir(parents=True, exist_ok=True)
+
+# campos de texto livre da visita comercial -> tamanho maximo da coluna
+CAMPOS_TEXTO_VISITA_COMERCIAL = {
+    "endereco": 300,
+    "bairro": 100,
+    "cidade": 100,
+    "contato_nome": 150,
+    "contato_cargo": 100,
+    "contato_telefone": 50,
+    "contato_email": 150,
+    "horarios": 300,
+    "observacoes": 2000,
+    "proximo_passo": 500,
+    "motivo_perda": 500,
+}
+CAMPOS_DATA_VISITA_COMERCIAL = {
+    "data_prevista": "Data prevista",
+    "data_visita": "Data da visita",
+    "data_retorno": "Data de retorno",
+}
+
+
+def _label_por_chave(lista: list[dict], chave: str | None) -> str | None:
+    if chave is None:
+        return None
+    return next((item["label"] for item in lista if item["chave"] == chave), chave)
+
+
+def serializar_visita_comercial(v: VisitaComercial) -> dict:
+    hoje = hoje_brasilia()
+    return {
+        "id": v.id,
+        "origem": v.origem,
+        "origem_label": _label_por_chave(ORIGENS_VISITA_COMERCIAL, v.origem),
+        "status": v.status,
+        "status_label": _label_por_chave(STATUS_VISITA_COMERCIAL, v.status),
+        "empresa_id": v.empresa_id,
+        "empresa_nome": v.empresa.nome if v.empresa else None,
+        "nome_local": v.nome_local,
+        "endereco": v.endereco,
+        "bairro": v.bairro,
+        "cidade": v.cidade,
+        "contato_nome": v.contato_nome,
+        "contato_cargo": v.contato_cargo,
+        "contato_telefone": v.contato_telefone,
+        "contato_email": v.contato_email,
+        "data_prevista": v.data_prevista.isoformat() if v.data_prevista else None,
+        "data_visita": v.data_visita.isoformat() if v.data_visita else None,
+        "tipo_servico": v.tipo_servico,
+        "tipo_servico_label": _label_por_chave(TIPOS_SERVICO_COMERCIAL, v.tipo_servico),
+        "qtd_postos": v.qtd_postos,
+        "horarios": v.horarios,
+        "valor_estimado": v.valor_estimado,
+        "observacoes": v.observacoes,
+        "proximo_passo": v.proximo_passo,
+        "data_retorno": v.data_retorno.isoformat() if v.data_retorno else None,
+        "motivo_perda": v.motivo_perda,
+        "responsavel_id": v.responsavel_id,
+        "responsavel_nome": v.responsavel.nome,
+        "criado_por_id": v.criado_por_id,
+        "criado_por_nome": v.criado_por.nome,
+        "cliente_id": v.cliente_id,
+        "cliente_nome": v.cliente.nome if v.cliente else None,
+        # solicitada e a data prevista ja passou sem ninguem registrar a visita
+        "visita_atrasada": v.status == "solicitada" and v.data_prevista is not None and v.data_prevista < hoje,
+        # em negociacao e a data combinada de retorno chegou
+        "retorno_vencido": (
+            v.status in ("visitada", "proposta_enviada") and v.data_retorno is not None and v.data_retorno <= hoje
+        ),
+        "anexos": [
+            {
+                "id": a.id,
+                "nome_original": a.arquivo_nome_original,
+                "enviado_por_nome": a.enviado_por.nome,
+                "criado_em": a.criado_em.isoformat(),
+            }
+            for a in v.anexos
+        ],
+        "criado_em": v.criado_em.isoformat(),
+        "atualizado_em": v.atualizado_em.isoformat() if v.atualizado_em else None,
+    }
+
+
+def _pode_ver_visita_comercial(usuario: Usuario, visita: VisitaComercial) -> bool:
+    return usuario.papel == "escritorio" or usuario.id in (visita.responsavel_id, visita.criado_por_id)
+
+
+def _buscar_visita_comercial(db: Session, visita_id: int, usuario: Usuario) -> VisitaComercial:
+    visita = db.get(VisitaComercial, visita_id)
+    if visita is None or not _pode_ver_visita_comercial(usuario, visita):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Visita comercial não encontrada")
+    return visita
+
+
+def _aplicar_campos_visita_comercial(db: Session, visita: VisitaComercial, campos: dict, usuario: Usuario) -> None:
+    """Valida e grava na visita os campos enviados (criacao ou edicao). O
+    status final e conferido depois, em _validar_status_visita_comercial."""
+    if "origem" in campos:
+        if campos["origem"] not in CHAVES_ORIGEM_VISITA_COMERCIAL:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Origem da visita inválida")
+        visita.origem = campos["origem"]
+
+    if "nome_local" in campos:
+        nome = (campos["nome_local"] or "").strip()
+        if not nome:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do local visitado")
+        visita.nome_local = nome[:200]
+
+    if "status" in campos and campos["status"] is not None:
+        if campos["status"] not in CHAVES_STATUS_VISITA_COMERCIAL:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Status da visita inválido")
+        visita.status = campos["status"]
+
+    if "empresa_id" in campos:
+        if campos["empresa_id"] is not None and db.get(Empresa, campos["empresa_id"]) is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa inválida")
+        visita.empresa_id = campos["empresa_id"]
+
+    if "tipo_servico" in campos:
+        tipo = campos["tipo_servico"] or None
+        if tipo is not None and tipo not in CHAVES_TIPO_SERVICO_COMERCIAL:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de serviço inválido")
+        visita.tipo_servico = tipo
+
+    if "qtd_postos" in campos:
+        if campos["qtd_postos"] is not None and campos["qtd_postos"] < 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A quantidade de postos não pode ser negativa")
+        visita.qtd_postos = campos["qtd_postos"]
+
+    if "valor_estimado" in campos:
+        if campos["valor_estimado"] is not None and campos["valor_estimado"] < 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O valor estimado não pode ser negativo")
+        visita.valor_estimado = campos["valor_estimado"]
+
+    for campo, tamanho in CAMPOS_TEXTO_VISITA_COMERCIAL.items():
+        if campo in campos:
+            valor = (campos[campo] or "").strip()
+            setattr(visita, campo, valor[:tamanho] or None)
+
+    for campo, rotulo in CAMPOS_DATA_VISITA_COMERCIAL.items():
+        if campo in campos:
+            if not campos[campo]:
+                setattr(visita, campo, None)
+                continue
+            try:
+                setattr(visita, campo, date.fromisoformat(campos[campo]))
+            except ValueError:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{rotulo} inválida")
+
+    if "responsavel_id" in campos and campos["responsavel_id"] is not None:
+        if campos["responsavel_id"] != visita.responsavel_id and usuario.papel != "escritorio":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só o escritório pode trocar o responsável pela visita")
+        responsavel = db.get(Usuario, campos["responsavel_id"])
+        if responsavel is None or not responsavel.ativo:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Responsável inválido")
+        visita.responsavel_id = responsavel.id
+
+
+def _validar_status_visita_comercial(visita: VisitaComercial, status_enviado: bool) -> None:
+    # registrar a data da visita numa solicitacao ja a move pra "visitada",
+    # a nao ser que o usuario tenha escolhido outro status na mesma hora
+    if visita.status == "solicitada" and visita.data_visita is not None and not status_enviado:
+        visita.status = "visitada"
+    if visita.status == "visitada" and visita.data_visita is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe a data em que a visita foi feita")
+    if visita.status == "perdida" and not visita.motivo_perda:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o motivo da perda")
+    if visita.status != "perdida":
+        visita.motivo_perda = None
+
+
+@app.get("/visitas-comerciais-opcoes")
+def opcoes_visita_comercial(usuario: Usuario = Depends(usuario_atual)):
+    return {
+        "origens": ORIGENS_VISITA_COMERCIAL,
+        "status": STATUS_VISITA_COMERCIAL,
+        "tipos_servico": TIPOS_SERVICO_COMERCIAL,
+    }
+
+
+@app.get("/visitas-comerciais-dados")
+def listar_visitas_comerciais(
+    status_visita: str | None = None,
+    origem: str | None = None,
+    responsavel_id: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Supervisor ve as visitas em que e responsavel ou que ele mesmo
+    cadastrou; escritorio ve todas."""
+    query = db.query(VisitaComercial)
+    if usuario.papel != "escritorio":
+        query = query.filter(
+            (VisitaComercial.responsavel_id == usuario.id) | (VisitaComercial.criado_por_id == usuario.id)
+        )
+    if status_visita:
+        query = query.filter(VisitaComercial.status == status_visita)
+    if origem:
+        query = query.filter(VisitaComercial.origem == origem)
+    if responsavel_id is not None:
+        query = query.filter(VisitaComercial.responsavel_id == responsavel_id)
+    visitas = query.order_by(VisitaComercial.criado_em.desc()).all()
+    return [serializar_visita_comercial(v) for v in visitas]
+
+
+@app.get("/visitas-comerciais-dados/{visita_id}")
+def detalhe_visita_comercial(
+    visita_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    return serializar_visita_comercial(_buscar_visita_comercial(db, visita_id, usuario))
+
+
+@app.post("/visitas-comerciais-dados", status_code=status.HTTP_201_CREATED)
+def criar_visita_comercial(
+    dados: VisitaComercialCreate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Supervisor cadastra a visita como responsavel dele mesmo. O escritorio
+    pode solicitar a visita pra outra pessoa (escolhendo o responsavel) -
+    sem data de visita ela nasce como "solicitada" e fica pendente pra ele."""
+    campos = dados.model_dump()
+    if usuario.papel != "escritorio" or campos.get("responsavel_id") is None:
+        campos["responsavel_id"] = usuario.id
+
+    visita = VisitaComercial(
+        origem=dados.origem,
+        nome_local=dados.nome_local,
+        status="solicitada",
+        responsavel_id=usuario.id,
+        criado_por_id=usuario.id,
+    )
+    _aplicar_campos_visita_comercial(db, visita, campos, usuario)
+    _validar_status_visita_comercial(visita, status_enviado=dados.status is not None)
+    if visita.status == "fechada":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cadastre a visita primeiro e depois use \"Converter em cliente\" para fechar")
+
+    db.add(visita)
+    db.commit()
+    db.refresh(visita)
+    return serializar_visita_comercial(visita)
+
+
+@app.patch("/visitas-comerciais-dados/{visita_id}")
+def editar_visita_comercial(
+    visita_id: int,
+    dados: VisitaComercialUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    visita = _buscar_visita_comercial(db, visita_id, usuario)
+    campos = dados.model_dump(exclude_unset=True)
+    if visita.cliente_id is not None and campos.get("status") not in (None, "fechada"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Essa visita já virou cliente e não pode mudar de status")
+    if campos.get("status") == "fechada" and visita.status != "fechada":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Para fechar, use \"Converter em cliente\"")
+
+    _aplicar_campos_visita_comercial(db, visita, campos, usuario)
+    _validar_status_visita_comercial(visita, status_enviado=campos.get("status") is not None)
+
+    db.commit()
+    db.refresh(visita)
+    return serializar_visita_comercial(visita)
+
+
+@app.delete("/visitas-comerciais-dados/{visita_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_visita_comercial(
+    visita_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    visita = _buscar_visita_comercial(db, visita_id, usuario)
+    if usuario.papel != "escritorio" and visita.criado_por_id != usuario.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só quem cadastrou (ou o escritório) pode excluir essa visita")
+
+    for anexo in visita.anexos:
+        if os.path.exists(anexo.arquivo_path):
+            os.remove(anexo.arquivo_path)
+    db.delete(visita)
+    db.commit()
+
+
+@app.post("/visitas-comerciais-dados/{visita_id}/anexos", status_code=status.HTTP_201_CREATED)
+def adicionar_anexos_visita_comercial(
+    visita_id: int,
+    arquivos: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Fotos do local e documentos (planta, orcamento) - podem ser anexados
+    a qualquer momento, por qualquer um que enxerga a visita."""
+    visita = _buscar_visita_comercial(db, visita_id, usuario)
+
+    novos_anexos = []
+    for arquivo in arquivos:
+        if not arquivo.filename:
+            continue
+        arquivo_path, arquivo_nome = _salvar_arquivo_upload(arquivo, visita.id, PASTA_UPLOADS_VISITAS_COMERCIAIS)
+        anexo = VisitaComercialAnexo(
+            visita_comercial_id=visita.id,
+            arquivo_path=arquivo_path,
+            arquivo_nome_original=arquivo_nome,
+            enviado_por_id=usuario.id,
+        )
+        db.add(anexo)
+        novos_anexos.append(anexo)
+
+    if not novos_anexos:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nenhum arquivo válido enviado")
+
+    db.commit()
+    db.refresh(visita)
+    return serializar_visita_comercial(visita)
+
+
+@app.get("/visitas-comerciais-dados/anexos/{anexo_id}")
+def baixar_anexo_visita_comercial(
+    anexo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    anexo = db.get(VisitaComercialAnexo, anexo_id)
+    if anexo is None or not _pode_ver_visita_comercial(usuario, anexo.visita):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anexo não encontrado")
+    return FileResponse(anexo.arquivo_path, filename=anexo.arquivo_nome_original)
+
+
+@app.delete("/visitas-comerciais-dados/anexos/{anexo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir_anexo_visita_comercial(
+    anexo_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    anexo = db.get(VisitaComercialAnexo, anexo_id)
+    if anexo is None or not _pode_ver_visita_comercial(usuario, anexo.visita):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anexo não encontrado")
+    if usuario.papel != "escritorio" and anexo.enviado_por_id != usuario.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só quem enviou (ou o escritório) pode excluir esse anexo")
+
+    if os.path.exists(anexo.arquivo_path):
+        os.remove(anexo.arquivo_path)
+    db.delete(anexo)
+    db.commit()
+
+
+@app.post("/visitas-comerciais-dados/{visita_id}/converter-cliente", status_code=status.HTTP_201_CREATED)
+def converter_visita_comercial_em_cliente(
+    visita_id: int,
+    dados: VisitaComercialConverter,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
+):
+    """Fecha o negocio: cria o Cliente com os dados levantados na visita
+    (nome, endereco, contato) e deixa a visita vinculada a ele."""
+    visita = _buscar_visita_comercial(db, visita_id, usuario)
+    if visita.cliente_id is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Essa visita já foi convertida em cliente")
+
+    if db.get(Empresa, dados.empresa_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empresa inválida")
+    nome = dados.nome.strip()[:200]
+    if not nome:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do cliente")
+    if db.query(Cliente).filter_by(empresa_id=dados.empresa_id, nome=nome).first() is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Já existe um cliente com esse nome nessa empresa")
+    if dados.supervisor_id is not None and db.get(Usuario, dados.supervisor_id) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor inválido")
+
+    observacoes = f"Cliente criado a partir da visita comercial #{visita.id}."
+    if visita.observacoes:
+        observacoes = f"{observacoes} {visita.observacoes}"
+
+    cliente = Cliente(
+        empresa_id=dados.empresa_id,
+        nome=nome,
+        municipio=visita.cidade,
+        endereco=visita.endereco,
+        bairro=visita.bairro,
+        cidade=visita.cidade,
+        responsavel_nome=visita.contato_nome,
+        responsavel_telefone=visita.contato_telefone,
+        observacoes=observacoes[:1000],
+        supervisor_id=dados.supervisor_id,
+    )
+    db.add(cliente)
+    db.flush()
+
+    visita.cliente_id = cliente.id
+    visita.empresa_id = dados.empresa_id
+    visita.status = "fechada"
+    visita.motivo_perda = None
+    db.commit()
+    db.refresh(visita)
+    return serializar_visita_comercial(visita)
 
 
 # ---------------------------------------------------------------------------

@@ -317,6 +317,62 @@ class VisitaSupervisaoUpdate(BaseModel):
     acoes: str | None = None
 
 
+class VisitaComercialCreate(BaseModel):
+    origem: str
+    nome_local: str
+    status: str | None = None
+    empresa_id: int | None = None
+    endereco: str | None = None
+    bairro: str | None = None
+    cidade: str | None = None
+    contato_nome: str | None = None
+    contato_cargo: str | None = None
+    contato_telefone: str | None = None
+    contato_email: str | None = None
+    data_prevista: str | None = None
+    data_visita: str | None = None
+    tipo_servico: str | None = None
+    qtd_postos: int | None = None
+    horarios: str | None = None
+    valor_estimado: float | None = None
+    observacoes: str | None = None
+    proximo_passo: str | None = None
+    data_retorno: str | None = None
+    motivo_perda: str | None = None
+    responsavel_id: int | None = None
+
+
+class VisitaComercialUpdate(BaseModel):
+    origem: str | None = None
+    nome_local: str | None = None
+    status: str | None = None
+    empresa_id: int | None = None
+    endereco: str | None = None
+    bairro: str | None = None
+    cidade: str | None = None
+    contato_nome: str | None = None
+    contato_cargo: str | None = None
+    contato_telefone: str | None = None
+    contato_email: str | None = None
+    data_prevista: str | None = None
+    data_visita: str | None = None
+    tipo_servico: str | None = None
+    qtd_postos: int | None = None
+    horarios: str | None = None
+    valor_estimado: float | None = None
+    observacoes: str | None = None
+    proximo_passo: str | None = None
+    data_retorno: str | None = None
+    motivo_perda: str | None = None
+    responsavel_id: int | None = None
+
+
+class VisitaComercialConverter(BaseModel):
+    empresa_id: int
+    nome: str
+    supervisor_id: int | None = None
+
+
 class ClienteContratoUpdate(BaseModel):
     valor_mensal: float | None = None
     data_inicio: str | None = None

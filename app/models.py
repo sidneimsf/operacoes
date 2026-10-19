@@ -667,6 +667,74 @@ class VisitaSupervisao(Base):
         return f"<VisitaSupervisao cliente={self.cliente_id} data={self.data_visita}>"
 
 
+class VisitaComercial(Base):
+    """
+    Visita a um local que AINDA NAO e cliente - seja por prospeccao do
+    proprio supervisor, seja um orcamento aprovado que o escritorio
+    pediu pra alguem ir levantar no local. Passa por um funil de status
+    (solicitada -> visitada -> proposta enviada -> fechada/perdida) e,
+    quando fecha, pode ser convertida num Cliente (cliente_id).
+    """
+    __tablename__ = "visitas_comerciais"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    origem: Mapped[str] = mapped_column(String(30), nullable=False)  # "prospeccao" ou "orcamento_aprovado"
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="solicitada")
+    empresa_id: Mapped[int | None] = mapped_column(ForeignKey("empresas.id"), nullable=True)
+    nome_local: Mapped[str] = mapped_column(String(200), nullable=False)
+    endereco: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    bairro: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cidade: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contato_nome: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    contato_cargo: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contato_telefone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    contato_email: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    data_prevista: Mapped[date | None] = mapped_column(Date, nullable=True)  # quando o escritorio quer que a visita aconteca
+    data_visita: Mapped[date | None] = mapped_column(Date, nullable=True)
+    tipo_servico: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    qtd_postos: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    horarios: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    valor_estimado: Mapped[float | None] = mapped_column(Float, nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    proximo_passo: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    data_retorno: Mapped[date | None] = mapped_column(Date, nullable=True)
+    motivo_perda: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    responsavel_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc, onupdate=agora_utc)
+
+    empresa: Mapped["Empresa | None"] = relationship()
+    responsavel: Mapped["Usuario"] = relationship(foreign_keys=[responsavel_id])
+    criado_por: Mapped["Usuario"] = relationship(foreign_keys=[criado_por_id])
+    cliente: Mapped["Cliente | None"] = relationship()
+    anexos: Mapped[list["VisitaComercialAnexo"]] = relationship(
+        back_populates="visita", order_by="VisitaComercialAnexo.criado_em", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<VisitaComercial {self.nome_local} ({self.status})>"
+
+
+class VisitaComercialAnexo(Base):
+    """Foto do local ou documento (planta, orcamento em PDF) de uma visita comercial."""
+    __tablename__ = "visitas_comerciais_anexos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    visita_comercial_id: Mapped[int] = mapped_column(ForeignKey("visitas_comerciais.id"), nullable=False)
+    arquivo_path: Mapped[str] = mapped_column(String(300), nullable=False)
+    arquivo_nome_original: Mapped[str] = mapped_column(String(200), nullable=False)
+    enviado_por_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    visita: Mapped["VisitaComercial"] = relationship(back_populates="anexos")
+    enviado_por: Mapped["Usuario"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<VisitaComercialAnexo visita={self.visita_comercial_id} nome={self.arquivo_nome_original}>"
+
+
 class ClienteContrato(Base):
     """
     Dados comerciais do contrato de um cliente (CRM): quanto ele paga,
