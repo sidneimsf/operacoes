@@ -5117,6 +5117,10 @@ CHAVES_TIPO_SERVICO_COMERCIAL = {t["chave"] for t in TIPOS_SERVICO_COMERCIAL}
 PASTA_UPLOADS_VISITAS_COMERCIAIS = Path("uploads/visitas_comerciais")
 PASTA_UPLOADS_VISITAS_COMERCIAIS.mkdir(parents=True, exist_ok=True)
 
+# quem recebe um Aviso quando um supervisor cadastra visita comercial (busca pelo
+# inicio do nome, mesmo criterio de migrar_permissoes.py)
+NOMES_AVISO_VISITA_COMERCIAL = ["Caroline"]
+
 PASTA_UPLOADS_AUDIOS_VISITAS = PASTA_UPLOADS_VISITAS_COMERCIAIS / "audios"
 EXTENSOES_AUDIO_PERMITIDAS = {".webm", ".ogg", ".mp4", ".m4a", ".mp3", ".wav", ".aac"}
 TAMANHO_MAXIMO_AUDIO = 30 * 1024 * 1024  # 30 MB (~10 min gravando no celular sobra)
@@ -5308,6 +5312,30 @@ def _validar_status_visita_comercial(visita: VisitaComercial, status_enviado: bo
         visita.motivo_perda = None
 
 
+def _avisar_nova_visita_comercial(db: Session, visita: VisitaComercial, supervisor: Usuario) -> None:
+    """Deixa um Aviso no mural de quem acompanha o comercial (NOMES_AVISO_VISITA_COMERCIAL)
+    sempre que um supervisor cadastra uma visita. Quem nao for encontrado (ou
+    estiver inativo) e so ignorado - o cadastro da visita nunca falha por isso."""
+    local = " · ".join(p for p in (visita.bairro, visita.cidade) if p)
+    data = f", visitado em {visita.data_visita.strftime('%d/%m/%Y')}" if visita.data_visita else ""
+    mensagem = (
+        f"Nova visita comercial cadastrada por {supervisor.nome}: {visita.nome_local}"
+        f"{f' ({local})' if local else ''}{data}. Veja os detalhes no menu Visita Comercial."
+    )[:1000]
+    for nome in NOMES_AVISO_VISITA_COMERCIAL:
+        destinatario = (
+            db.query(Usuario)
+            .filter(Usuario.nome.ilike(f"{nome}%"), Usuario.ativo.is_(True))
+            .order_by(Usuario.id)
+            .first()
+        )
+        if destinatario is None:
+            print(f"[visita comercial] usuario '{nome}' nao encontrado pra receber o aviso")
+            continue
+        if destinatario.id != supervisor.id:
+            db.add(Aviso(mensagem=mensagem, criado_por_id=supervisor.id, destinatario_id=destinatario.id))
+
+
 @app.get("/visitas-comerciais-opcoes")
 def opcoes_visita_comercial(usuario: Usuario = Depends(usuario_atual)):
     return {
@@ -5381,6 +5409,8 @@ def criar_visita_comercial(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cadastre a visita primeiro e depois use \"Converter em cliente\" para fechar")
 
     db.add(visita)
+    if usuario.papel == "supervisor":
+        _avisar_nova_visita_comercial(db, visita, usuario)
     db.commit()
     db.refresh(visita)
     return serializar_visita_comercial(visita)
