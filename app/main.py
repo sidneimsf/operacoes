@@ -5117,9 +5117,9 @@ CHAVES_TIPO_SERVICO_COMERCIAL = {t["chave"] for t in TIPOS_SERVICO_COMERCIAL}
 PASTA_UPLOADS_VISITAS_COMERCIAIS = Path("uploads/visitas_comerciais")
 PASTA_UPLOADS_VISITAS_COMERCIAIS.mkdir(parents=True, exist_ok=True)
 
-# quem recebe um Aviso quando um supervisor cadastra visita comercial (busca pelo
-# inicio do nome, mesmo criterio de migrar_permissoes.py)
-NOMES_AVISO_VISITA_COMERCIAL = ["Caroline"]
+# quem recebe um Aviso quando um supervisor cadastra visita comercial - pelo
+# inicio do e-mail de login (a Caroline usa a conta gerencia@cordsul...)
+EMAILS_AVISO_VISITA_COMERCIAL = ["gerencia@cordsul"]
 
 PASTA_UPLOADS_AUDIOS_VISITAS = PASTA_UPLOADS_VISITAS_COMERCIAIS / "audios"
 EXTENSOES_AUDIO_PERMITIDAS = {".webm", ".ogg", ".mp4", ".m4a", ".mp3", ".wav", ".aac"}
@@ -5313,7 +5313,7 @@ def _validar_status_visita_comercial(visita: VisitaComercial, status_enviado: bo
 
 
 def _avisar_nova_visita_comercial(db: Session, visita: VisitaComercial, supervisor: Usuario) -> None:
-    """Deixa um Aviso no mural de quem acompanha o comercial (NOMES_AVISO_VISITA_COMERCIAL)
+    """Deixa um Aviso no mural de quem acompanha o comercial (EMAILS_AVISO_VISITA_COMERCIAL)
     sempre que um supervisor cadastra uma visita. Quem nao for encontrado (ou
     estiver inativo) e so ignorado - o cadastro da visita nunca falha por isso."""
     local = " · ".join(p for p in (visita.bairro, visita.cidade) if p)
@@ -5322,15 +5322,15 @@ def _avisar_nova_visita_comercial(db: Session, visita: VisitaComercial, supervis
         f"Nova visita comercial cadastrada por {supervisor.nome}: {visita.nome_local}"
         f"{f' ({local})' if local else ''}{data}. Veja os detalhes no menu Visita Comercial."
     )[:1000]
-    for nome in NOMES_AVISO_VISITA_COMERCIAL:
+    for email in EMAILS_AVISO_VISITA_COMERCIAL:
         destinatario = (
             db.query(Usuario)
-            .filter(Usuario.nome.ilike(f"{nome}%"), Usuario.ativo.is_(True))
+            .filter(Usuario.email.ilike(f"{email}%"), Usuario.ativo.is_(True))
             .order_by(Usuario.id)
             .first()
         )
         if destinatario is None:
-            print(f"[visita comercial] usuario '{nome}' nao encontrado pra receber o aviso")
+            print(f"[visita comercial] usuario '{email}' nao encontrado pra receber o aviso", flush=True)
             continue
         if destinatario.id != supervisor.id:
             db.add(Aviso(mensagem=mensagem, criado_por_id=supervisor.id, destinatario_id=destinatario.id))
