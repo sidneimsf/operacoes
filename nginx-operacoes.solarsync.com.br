@@ -1,9 +1,13 @@
+# Copia de referencia do nginx de producao. O arquivo vivo fica em
+# /etc/nginx/sites-available/operacoes.cordsul.com.br e tem os blocos do certbot (HTTPS):
+# edite o vivo no lugar, nunca copie este por cima. O operacoes.solarsync.com.br
+# so redireciona (301) para operacoes.cordsul.com.br.
+
 # Limite de tentativas de login por IP (generoso: varias pessoas podem sair pelo mesmo IP do escritorio)
 limit_req_zone $binary_remote_addr zone=operacoes_login:10m rate=10r/m;
 
 server {
-    listen 80;
-    server_name operacoes.solarsync.com.br;
+    server_name operacoes.cordsul.com.br;
 
     location = /auth/login {
         limit_req zone=operacoes_login burst=5 nodelay;
@@ -22,4 +26,6 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+
+    # listen 443 ssl + ssl_certificate* -> gerenciados pelo certbot na VPS
 }
