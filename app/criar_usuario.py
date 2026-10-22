@@ -31,6 +31,9 @@ def main():
     if senha != senha_confirmacao:
         print("As senhas nao coincidem. Nada foi criado.")
         return
+    if len(senha) < 8:
+        print("A senha deve ter pelo menos 8 caracteres. Nada foi criado.")
+        return
 
     db = SessionLocal()
     try:

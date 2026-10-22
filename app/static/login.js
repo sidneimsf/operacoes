@@ -49,6 +49,11 @@ form.addEventListener('submit', async (evento) => {
       return;
     }
 
+    if (resposta.status === 429) {
+      mostrarErro('Muitas tentativas de login. Aguarde um minuto e tente novamente.');
+      return;
+    }
+
     if (!resposta.ok) {
       mostrarErro('Não foi possível entrar. Tente novamente em instantes.');
       return;

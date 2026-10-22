@@ -109,7 +109,7 @@ function montarModalAcesso() {
           </div>
           <div class="field">
             <label for="acesso-nova-senha">Nova senha (deixe em branco pra não alterar)</label>
-            <input type="text" id="acesso-nova-senha" placeholder="Digite uma nova senha, se quiser trocar">
+            <input type="text" id="acesso-nova-senha" minlength="8" placeholder="Pelo menos 8 caracteres, se quiser trocar">
           </div>
           <div class="error-message" id="acesso-modal-erro"></div>
           <div class="error-message" id="acesso-modal-sucesso" style="background: rgba(76,175,125,0.12); color: var(--success); border-color: rgba(76,175,125,0.3);"></div>

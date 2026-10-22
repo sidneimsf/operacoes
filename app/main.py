@@ -260,6 +260,15 @@ PASTA_UPLOADS_CUSTOS.mkdir(parents=True, exist_ok=True)
 
 EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".pdf"}
 TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024  # 10 MB
+SENHA_TAMANHO_MINIMO = 8
+
+
+def _ler_arquivo_limitado(arquivo: UploadFile, limite: int, mensagem_erro: str) -> bytes:
+    """Le no maximo limite+1 bytes do upload, sem carregar um arquivo gigante inteiro na memoria."""
+    conteudo = arquivo.file.read(limite + 1)
+    if len(conteudo) > limite:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=mensagem_erro)
+    return conteudo
 
 
 def _salvar_arquivo_upload(arquivo: UploadFile, subpasta: int, pasta_base: Path = PASTA_UPLOADS_CUSTOS) -> tuple[str, str]:
@@ -267,9 +276,7 @@ def _salvar_arquivo_upload(arquivo: UploadFile, subpasta: int, pasta_base: Path 
     extensao = Path(arquivo.filename).suffix.lower()
     if extensao not in EXTENSOES_PERMITIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF")
-    conteudo = arquivo.file.read()
-    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+    conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_ARQUIVO, "Arquivo maior que 10MB")
 
     pasta_usuario = pasta_base / str(subpasta)
     pasta_usuario.mkdir(parents=True, exist_ok=True)
@@ -1331,9 +1338,7 @@ def criar_evento_colaborador(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF"
             )
-        conteudo = arquivo.file.read()
-        if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+        conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_ARQUIVO, "Arquivo maior que 10MB")
 
         pasta_colaborador = PASTA_UPLOADS / str(colaborador_id)
         pasta_colaborador.mkdir(parents=True, exist_ok=True)
@@ -1454,9 +1459,7 @@ def anexar_arquivo_evento(
     extensao = Path(arquivo.filename).suffix.lower()
     if extensao not in EXTENSOES_PERMITIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF")
-    conteudo = arquivo.file.read()
-    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+    conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_ARQUIVO, "Arquivo maior que 10MB")
 
     if evento.arquivo_path and os.path.exists(evento.arquivo_path):
         os.remove(evento.arquivo_path)
@@ -1827,8 +1830,8 @@ def criar_usuario_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe nome e e-mail")
     if dados.papel not in ("escritorio", "supervisor"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Papel deve ser escritorio ou supervisor")
-    if len(dados.senha) < 4:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A senha deve ter pelo menos 4 caracteres")
+    if len(dados.senha) < SENHA_TAMANHO_MINIMO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A senha deve ter pelo menos {SENHA_TAMANHO_MINIMO} caracteres")
     if db.query(Usuario).filter_by(email=email).first() is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Já existe um usuário com esse e-mail")
 
@@ -2251,9 +2254,7 @@ def anexar_arquivo_acao_corretiva(
     extensao = Path(arquivo.filename).suffix.lower()
     if extensao not in EXTENSOES_PERMITIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo deve ser JPEG, PNG ou PDF")
-    conteudo = arquivo.file.read()
-    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+    conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_ARQUIVO, "Arquivo maior que 10MB")
 
     if chamado.acao_corretiva_arquivo_path and os.path.exists(chamado.acao_corretiva_arquivo_path):
         os.remove(chamado.acao_corretiva_arquivo_path)
@@ -2845,8 +2846,8 @@ def redefinir_acesso_usuario(
         alvo.email = novo_email
 
     if dados.nova_senha:
-        if len(dados.nova_senha) < 4:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A senha deve ter pelo menos 4 caracteres")
+        if len(dados.nova_senha) < SENHA_TAMANHO_MINIMO:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A senha deve ter pelo menos {SENHA_TAMANHO_MINIMO} caracteres")
         alvo.senha_hash = hash_senha(dados.nova_senha)
 
     db.commit()
@@ -4248,9 +4249,7 @@ def enviar_arquivo_cronograma(
     extensao = Path(arquivo.filename).suffix.lower()
     if extensao not in EXTENSOES_CRONOGRAMA_PERMITIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O arquivo deve ser PDF ou Excel (.xls/.xlsx)")
-    conteudo = arquivo.file.read()
-    if len(conteudo) > TAMANHO_MAXIMO_ARQUIVO:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Arquivo maior que 10MB")
+    conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_ARQUIVO, "Arquivo maior que 10MB")
 
     cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
     if cronograma is None:
@@ -5538,11 +5537,9 @@ def enviar_audio_visita_comercial(
     extensao = Path(audio.filename or "").suffix.lower()
     if extensao not in EXTENSOES_AUDIO_PERMITIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Formato de áudio não suportado")
-    conteudo = audio.file.read()
+    conteudo = _ler_arquivo_limitado(audio, TAMANHO_MAXIMO_AUDIO, "Áudio maior que 30MB, grave um áudio mais curto")
     if not conteudo:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O áudio chegou vazio, grave de novo")
-    if len(conteudo) > TAMANHO_MAXIMO_AUDIO:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Áudio maior que 30MB, grave um áudio mais curto")
 
     pasta = PASTA_UPLOADS_AUDIOS_VISITAS / str(visita.id)
     pasta.mkdir(parents=True, exist_ok=True)

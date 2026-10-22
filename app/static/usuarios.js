@@ -57,7 +57,7 @@ function montarModalNovoUsuario() {
           </div>
           <div class="field">
             <label for="usuario-form-senha">Senha</label>
-            <input type="text" id="usuario-form-senha" required placeholder="Pelo menos 4 caracteres">
+            <input type="text" id="usuario-form-senha" required minlength="8" placeholder="Pelo menos 8 caracteres">
           </div>
           <div class="field">
             <label for="usuario-form-papel">Papel</label>
