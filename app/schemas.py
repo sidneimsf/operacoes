@@ -50,6 +50,8 @@ class ClienteCreate(BaseModel):
     endereco: str | None = None
     bairro: str | None = None
     cidade: str | None = None
+    uf: str | None = None
+    cep: str | None = None
     responsavel_nome: str | None = None
     responsavel_telefone: str | None = None
     senha_acesso: str | None = None
@@ -66,6 +68,8 @@ class ClienteUpdate(BaseModel):
     endereco: str | None = None
     bairro: str | None = None
     cidade: str | None = None
+    uf: str | None = None
+    cep: str | None = None
     responsavel_nome: str | None = None
     responsavel_telefone: str | None = None
     senha_acesso: str | None = None

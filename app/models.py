@@ -172,6 +172,8 @@ class Cliente(Base):
     endereco: Mapped[str | None] = mapped_column(String(300), nullable=True)
     bairro: Mapped[str | None] = mapped_column(String(100), nullable=True)
     cidade: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    uf: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    cep: Mapped[str | None] = mapped_column(String(10), nullable=True)
     responsavel_nome: Mapped[str | None] = mapped_column(String(150), nullable=True)
     responsavel_telefone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     senha_acesso: Mapped[str | None] = mapped_column(String(200), nullable=True)

@@ -3619,3 +3619,91 @@ button {
 }
 
 .mapa-sem-posicao-ajuda { font-size: 13px; color: var(--text-muted); }
+
+/* ---------- Importar enderecos (Clientes) ---------- */
+
+.clientes-acoes {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.clientes-acoes .btn-primary {
+  width: auto;
+  margin-top: 0;
+}
+
+.clientes-acoes [hidden] { display: none; }
+
+.modal.modal-largo {
+  max-width: 920px;
+}
+
+.importar-ajuda {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+}
+
+.importar-resumo {
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 14px;
+  margin: 16px 0 10px;
+}
+
+.importar-tabela {
+  max-height: 50vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+}
+
+.importar-tabela table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.importar-tabela th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  text-align: left;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.importar-tabela td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.importar-tabela tr.importar-parecido td {
+  background: #fff6d6;
+}
+
+.importar-detalhe {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.importar-mudancas s {
+  color: var(--text-muted);
+}
+
+.importar-lista {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.importar-lista > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 4px 0;
+}

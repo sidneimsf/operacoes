@@ -73,7 +73,10 @@ from models import (
     Veiculo,
 )
 from folha_ponto import gerar_folha_ponto_pdf
-from geocodificacao import localizar_endereco
+from geocodificar_clientes import iniciar_em_segundo_plano as iniciar_localizacao_clientes
+from geocodificar_clientes import localizar_cliente
+from geocodificar_clientes import situacao as situacao_localizacao_clientes
+from importar_enderecos import casar_com_clientes, ler_planilha, mudancas_da_linha
 from resumo_dia import hoje_brasilia, montar_resumo_dia
 from resumo_dia_pdf import gerar_resumo_dia_pdf
 from schemas import (
@@ -820,6 +823,8 @@ def serializar_cliente(c: Cliente) -> dict:
         "endereco": c.endereco,
         "bairro": c.bairro,
         "cidade": c.cidade,
+        "uf": c.uf,
+        "cep": c.cep,
         "responsavel_nome": c.responsavel_nome,
         "responsavel_telefone": c.responsavel_telefone,
         "senha_acesso": c.senha_acesso,
@@ -834,16 +839,6 @@ def serializar_cliente(c: Cliente) -> dict:
         "longitude": c.longitude,
         "geo_precisao": c.geo_precisao,
     }
-
-
-def _localizar_cliente(cliente: Cliente) -> None:
-    """Atualiza o pino do cliente no Mapa de Clientes a partir do endereco cadastrado.
-    Se nao achar, o cliente fica sem pino (ajustavel a mao no mapa)."""
-    resultado = localizar_endereco(cliente.endereco, cliente.bairro, cliente.cidade or cliente.municipio)
-    if resultado is None:
-        cliente.latitude = cliente.longitude = cliente.geo_precisao = None
-    else:
-        cliente.latitude, cliente.longitude, cliente.geo_precisao = resultado
 
 
 @app.get("/clientes-dados")
@@ -869,6 +864,7 @@ def listar_clientes(
             "endereco": c.endereco,
             "bairro": c.bairro,
             "cidade": c.cidade or c.municipio,
+            "uf": c.uf,
             "supervisor_id": c.supervisor_id,
             "latitude": c.latitude,
             "longitude": c.longitude,
@@ -876,6 +872,92 @@ def listar_clientes(
         }
         for c in clientes
     ]
+
+
+@app.post("/clientes-dados/importar-enderecos")
+def importar_enderecos_clientes(
+    arquivo: UploadFile = File(...),
+    aplicar: bool = Form(False),
+    linhas_aceitas: str | None = Form(None),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
+):
+    """
+    Completa endereco/bairro/cidade/UF/CEP dos clientes a partir da
+    planilha de dados cadastrais. Sem 'aplicar' so devolve a conferencia
+    (quem casou com quem e o que muda); com 'aplicar', grava so as linhas
+    em 'linhas_aceitas' (ids separados por virgula) e relocaliza esses
+    clientes no mapa em segundo plano. A planilha nao e guardada.
+    """
+    if Path(arquivo.filename or "").suffix.lower() != ".xlsx":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Envie a planilha no formato Excel (.xlsx)")
+    conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_ARQUIVO, "Arquivo maior que 10MB")
+    try:
+        linhas = ler_planilha(conteudo)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Não foi possível ler a planilha. Confira se é um arquivo Excel válido.")
+    if not linhas:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nenhum cliente encontrado na planilha. Ela precisa ter uma coluna \"Cliente\" no cabeçalho.",
+        )
+
+    empresas = db.query(Empresa).all()
+    clientes = db.query(Cliente).filter(Cliente.ativo.is_(True)).all()
+    casadas, nao_encontradas = casar_com_clientes(linhas, empresas, clientes)
+
+    if not aplicar:
+        ids_casados = {c["cliente"].id for c in casadas}
+        return {
+            "total_linhas": len(linhas),
+            "casadas": [
+                {
+                    "linha_id": c["linha_id"],
+                    "planilha_nome": c["nome"],
+                    "empresa": c["empresa"],
+                    "cliente_id": c["cliente"].id,
+                    "cliente_nome": c["cliente"].nome,
+                    "metodo": c["metodo"],
+                    "semelhanca": c["semelhanca"],
+                    "mudancas": mudancas_da_linha(c),
+                }
+                for c in casadas
+            ],
+            "nao_encontradas": [
+                {"linha_id": n["linha_id"], "planilha_nome": n["nome"], "empresa": n["empresa"], "motivo": n["motivo"]}
+                for n in nao_encontradas
+            ],
+            "clientes_fora_da_planilha": sorted(c.nome for c in clientes if c.id not in ids_casados),
+        }
+
+    aceitas = {item.strip() for item in (linhas_aceitas or "").split(",") if item.strip()}
+    atualizados = 0
+    for c in casadas:
+        if c["linha_id"] not in aceitas:
+            continue
+        cliente = c["cliente"]
+        mudancas = mudancas_da_linha(c)
+        for campo, (_, novo) in mudancas.items():
+            setattr(cliente, campo, novo)
+        # endereco mudou: o pino antigo perde a validade (menos o ajustado a mao)
+        if mudancas.keys() - {"cnpj"} and cliente.geo_precisao != "manual":
+            cliente.latitude = cliente.longitude = cliente.geo_precisao = None
+        if mudancas:
+            atualizados += 1
+    db.commit()
+
+    pendentes = (
+        db.query(Cliente).filter(Cliente.ativo.is_(True), Cliente.latitude.is_(None)).count()
+    )
+    if pendentes:
+        iniciar_localizacao_clientes()
+    return {"atualizados": atualizados, "localizando": pendentes}
+
+
+@app.get("/clientes-dados/localizacao-status")
+def status_localizacao_clientes(usuario: Usuario = Depends(usuario_atual)):
+    """Andamento da localizacao em segundo plano (depois de importar a planilha)."""
+    return situacao_localizacao_clientes()
 
 
 @app.post("/clientes-dados", status_code=status.HTTP_201_CREATED)
@@ -903,6 +985,8 @@ def criar_cliente(
         endereco=dados.endereco.strip() if dados.endereco else None,
         bairro=dados.bairro.strip() if dados.bairro else None,
         cidade=dados.cidade.strip() if dados.cidade else None,
+        uf=dados.uf.strip().upper()[:2] if dados.uf else None,
+        cep=dados.cep.strip() if dados.cep else None,
         responsavel_nome=dados.responsavel_nome.strip() if dados.responsavel_nome else None,
         responsavel_telefone=dados.responsavel_telefone.strip() if dados.responsavel_telefone else None,
         senha_acesso=dados.senha_acesso.strip() if dados.senha_acesso else None,
@@ -910,7 +994,7 @@ def criar_cliente(
         observacoes=dados.observacoes.strip() if dados.observacoes else None,
         supervisor_id=dados.supervisor_id,
     )
-    _localizar_cliente(cliente)
+    localizar_cliente(cliente)
     db.add(cliente)
     db.commit()
     db.refresh(cliente)
@@ -937,7 +1021,7 @@ def editar_cliente(
     cliente = _cliente_da_carteira_ou_404(db, usuario, cliente_id)
 
     campos = dados.model_dump(exclude_unset=True)
-    endereco_antes = (cliente.endereco, cliente.bairro, cliente.cidade, cliente.municipio)
+    endereco_antes = (cliente.endereco, cliente.bairro, cliente.cidade, cliente.municipio, cliente.uf, cliente.cep)
 
     if "empresa_id" in campos:
         if db.get(Empresa, campos["empresa_id"]) is None:
@@ -958,6 +1042,10 @@ def editar_cliente(
         cliente.bairro = campos["bairro"].strip() if campos["bairro"] else None
     if "cidade" in campos:
         cliente.cidade = campos["cidade"].strip() if campos["cidade"] else None
+    if "uf" in campos:
+        cliente.uf = campos["uf"].strip().upper()[:2] if campos["uf"] else None
+    if "cep" in campos:
+        cliente.cep = campos["cep"].strip() if campos["cep"] else None
     if "responsavel_nome" in campos:
         cliente.responsavel_nome = campos["responsavel_nome"].strip() if campos["responsavel_nome"] else None
     if "responsavel_telefone" in campos:
@@ -972,8 +1060,8 @@ def editar_cliente(
         if campos["supervisor_id"] is not None and db.get(Usuario, campos["supervisor_id"]) is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
         cliente.supervisor_id = campos["supervisor_id"]
-    if (cliente.endereco, cliente.bairro, cliente.cidade, cliente.municipio) != endereco_antes:
-        _localizar_cliente(cliente)
+    if (cliente.endereco, cliente.bairro, cliente.cidade, cliente.municipio, cliente.uf, cliente.cep) != endereco_antes:
+        localizar_cliente(cliente)
     if campos.get("latitude") is not None and campos.get("longitude") is not None:
         if not (-90 <= campos["latitude"] <= 90 and -180 <= campos["longitude"] <= 180):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Posição no mapa inválida")

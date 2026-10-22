@@ -13,3 +13,6 @@ venv/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Planilhas com dados reais de clientes - nunca versionar
+app/docs/

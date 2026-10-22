@@ -401,6 +401,14 @@ function montarModalEditarCliente() {
             <input type="text" id="editar-cliente-cidade">
           </div>
           <div class="field">
+            <label for="editar-cliente-uf">UF</label>
+            <input type="text" id="editar-cliente-uf" maxlength="2" placeholder="SC">
+          </div>
+          <div class="field">
+            <label for="editar-cliente-cep">CEP</label>
+            <input type="text" id="editar-cliente-cep" placeholder="00000-000">
+          </div>
+          <div class="field">
             <label for="editar-cliente-responsavel-nome">Responsável no local</label>
             <input type="text" id="editar-cliente-responsavel-nome">
           </div>
@@ -455,6 +463,8 @@ async function abrirModalEditarCliente() {
   document.getElementById('editar-cliente-endereco').value = clienteAtual.endereco || '';
   document.getElementById('editar-cliente-bairro').value = clienteAtual.bairro || '';
   document.getElementById('editar-cliente-cidade').value = clienteAtual.cidade || '';
+  document.getElementById('editar-cliente-uf').value = clienteAtual.uf || '';
+  document.getElementById('editar-cliente-cep').value = clienteAtual.cep || '';
   document.getElementById('editar-cliente-responsavel-nome').value = clienteAtual.responsavel_nome || '';
   document.getElementById('editar-cliente-responsavel-telefone').value = clienteAtual.responsavel_telefone || '';
   document.getElementById('editar-cliente-senha-acesso').value = clienteAtual.senha_acesso || '';
@@ -481,6 +491,8 @@ async function salvarEdicaoCliente(evento) {
     endereco: document.getElementById('editar-cliente-endereco').value || null,
     bairro: document.getElementById('editar-cliente-bairro').value || null,
     cidade: document.getElementById('editar-cliente-cidade').value || null,
+    uf: document.getElementById('editar-cliente-uf').value || null,
+    cep: document.getElementById('editar-cliente-cep').value || null,
     responsavel_nome: document.getElementById('editar-cliente-responsavel-nome').value || null,
     responsavel_telefone: document.getElementById('editar-cliente-responsavel-telefone').value || null,
     senha_acesso: document.getElementById('editar-cliente-senha-acesso').value || null,
@@ -541,7 +553,7 @@ function renderizarHeaderCliente() {
   const c = clienteAtual;
   document.getElementById('topbar-title').textContent = c.nome;
 
-  const enderecoCompleto = [c.endereco, c.bairro, c.cidade].filter(Boolean).join(', ');
+  const enderecoCompleto = [c.endereco, c.bairro, c.cidade, c.uf, c.cep].filter(Boolean).join(', ');
 
   const itens = [];
   if (enderecoCompleto) {
