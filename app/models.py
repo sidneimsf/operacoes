@@ -180,6 +180,11 @@ class Cliente(Base):
     supervisor_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+    # posicao no Mapa de Clientes. geo_precisao: endereco (achou o endereco),
+    # bairro (so achou o bairro - pino aproximado) ou manual (alguem ajustou no mapa)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    geo_precisao: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     empresa: Mapped["Empresa"] = relationship(back_populates="clientes")
     supervisor: Mapped["Usuario | None"] = relationship()

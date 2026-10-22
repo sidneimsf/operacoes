@@ -4,6 +4,7 @@ let empresas = [];
 let clientes = [];
 let empresaSelecionada = null;
 let termoBusca = '';
+let bairroSelecionado = '';
 let supervisoresCache = [];
 
 function renderizarChips() {
@@ -34,6 +35,30 @@ function renderizarChips() {
   });
 }
 
+// Agrupa grafias diferentes do mesmo bairro ("Centro", "CENTRO", "Centro ") numa opcao so
+function chaveBairro(bairro) {
+  return (bairro || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function renderizarFiltroBairro() {
+  const select = document.getElementById('filtro-bairro');
+  const bairros = new Map();
+  clientes.forEach((c) => {
+    const chave = chaveBairro(c.bairro);
+    if (!chave) return;
+    if (!bairros.has(chave)) bairros.set(chave, { nome: c.bairro.trim(), total: 0 });
+    bairros.get(chave).total += 1;
+  });
+  const ordenados = [...bairros.entries()].sort((a, b) => a[1].nome.localeCompare(b[1].nome, 'pt-BR'));
+  const semBairro = clientes.filter((c) => !chaveBairro(c.bairro)).length;
+
+  select.innerHTML = '<option value="">Todos os bairros</option>'
+    + ordenados.map(([chave, b]) => `<option value="${chave}">${b.nome} · ${b.total}</option>`).join('')
+    + (semBairro ? `<option value="__sem__">Sem bairro cadastrado · ${semBairro}</option>` : '');
+  select.value = bairroSelecionado;
+  if (select.value !== bairroSelecionado) bairroSelecionado = '';
+}
+
 function renderizarClientes() {
   const container = document.getElementById('lista-clientes');
   let listaFiltrada = empresaSelecionada === null
@@ -43,6 +68,12 @@ function renderizarClientes() {
   if (termoBusca.trim()) {
     const termo = termoBusca.trim().toLowerCase();
     listaFiltrada = listaFiltrada.filter((c) => c.nome.toLowerCase().includes(termo));
+  }
+
+  if (bairroSelecionado === '__sem__') {
+    listaFiltrada = listaFiltrada.filter((c) => !chaveBairro(c.bairro));
+  } else if (bairroSelecionado) {
+    listaFiltrada = listaFiltrada.filter((c) => chaveBairro(c.bairro) === bairroSelecionado);
   }
 
   if (listaFiltrada.length === 0) {
@@ -56,7 +87,7 @@ function renderizarClientes() {
     linha.className = 'cliente-row';
     linha.href = `/cliente-detalhe?id=${cliente.id}`;
     linha.innerHTML = `
-      <span>${cliente.nome}</span>
+      <span>${cliente.nome}${cliente.bairro ? ` <span class="cliente-bairro">· ${cliente.bairro}</span>` : ''}</span>
       <span class="cnpj">${cliente.cnpj ?? '—'}</span>
     `;
     container.appendChild(linha);
@@ -199,6 +230,7 @@ async function iniciar() {
     if (clientes === null) return;
 
     renderizarChips();
+    renderizarFiltroBairro();
     renderizarClientes();
   } catch (erro) {
     document.getElementById('lista-clientes').innerHTML =
@@ -214,6 +246,11 @@ if (auth.papel !== 'escritorio') {
 
 document.getElementById('busca-cliente').addEventListener('input', (evento) => {
   termoBusca = evento.target.value;
+  renderizarClientes();
+});
+
+document.getElementById('filtro-bairro').addEventListener('change', (evento) => {
+  bairroSelecionado = evento.target.value;
   renderizarClientes();
 });
 

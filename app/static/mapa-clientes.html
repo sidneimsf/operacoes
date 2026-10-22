@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa de Clientes · operações</title>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#17354f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Operações">
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+      <div class="filter-row">
+        <div class="field mapa-busca">
+          <label for="mapa-busca">Buscar cliente</label>
+          <input type="text" id="mapa-busca" placeholder="Digite o nome do cliente..." autocomplete="off">
+          <div class="mapa-busca-resultados" id="mapa-busca-resultados" hidden></div>
+        </div>
+        <div class="field">
+          <label for="mapa-filtro-empresa">Empresa</label>
+          <select id="mapa-filtro-empresa"><option value="">Todas</option></select>
+        </div>
+        <div class="field">
+          <label for="mapa-filtro-bairro">Bairro</label>
+          <select id="mapa-filtro-bairro"><option value="">Todos os bairros</option></select>
+        </div>
+      </div>
+
+      <div class="mapa-legenda" id="mapa-legenda"></div>
+      <div class="mapa-wrap">
+        <div class="mapa-clientes" id="mapa-clientes"></div>
+        <div class="mapa-aviso" id="mapa-aviso" hidden></div>
+      </div>
+
+      <details class="mapa-sem-posicao" id="mapa-sem-posicao" hidden>
+        <summary id="mapa-sem-posicao-titulo"></summary>
+        <p class="mapa-sem-posicao-ajuda">Estes clientes não foram encontrados pelo endereço cadastrado. Clique em <strong>Posicionar</strong> e depois no ponto certo do mapa.</p>
+        <div id="mapa-sem-posicao-lista"></div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/shell.js"></script>
+<script src="/static/mapa-clientes.js"></script>
+</body>
+</html>

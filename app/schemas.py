@@ -73,6 +73,9 @@ class ClienteUpdate(BaseModel):
     observacoes: str | None = None
     supervisor_id: int | None = None
     ativo: bool | None = None
+    # ajuste manual do pino no Mapa de Clientes (os dois juntos)
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 class ColaboradorCreate(BaseModel):

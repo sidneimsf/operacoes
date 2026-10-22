@@ -39,6 +39,8 @@ app/
   resumo_dia.py    # daily operations digest (CRM tab "Resumo do dia"): crosses the day's records per client, compares with the same weekday of the last 4 weeks; dates are Brasilia (UTC-3)
   resumo_dia_pdf.py # reportlab PDF of that digest
   email_alertas.py # SMTP sending helper shared by the alertas_* jobs
+  geocodificacao.py # address -> lat/lng via Nominatim (OpenStreetMap, free, 1 req/s) for the Mapa de Clientes; geocodificar_clientes.py backfills in batch
+  static/vendor/leaflet/ # Leaflet 1.9.4 (map library), vendored - no CDN
   folha_ponto.py   # timesheet PDF generation
   static/          # one .html + .js per screen, shared shell.js, single style.css
 ```
@@ -50,6 +52,8 @@ Every authenticated route depends on `usuario_atual` (decodes the JWT, loads the
 1. **`exigir_papel(*papeis)`** — hard role gate. Only two roles exist: `supervisor` and `escritorio`.
 2. **`exigir_modulo(modulo)`** — the module-permission system (`MODULOS_PERMISSAO` in `main.py`). Each module (veiculos, asos, usuarios, criar_cliente, criar_colaborador, relatorios, estoque, mapa_servico, excluir_registros, crm) has a default (`padrao_escritorio_apenas` → escritorio-only, otherwise anyone logged in) that a `UsuarioPermissao` row can override per-user. Check with `tem_permissao(db, usuario, modulo)`; override always wins over the default.
 3. **`exigir_super_admin`** — gates `/admin/permissoes*` (managing the overrides themselves); checks `Usuario.super_admin`.
+
+**Carteira do supervisor**: a `supervisor` only sees their own clientes (`Cliente.supervisor_id`) and the colaboradores of that carteira (direct `Colaborador.supervisor_id`, `cliente_id` in the carteira, or an active `HorarioServico` there); `escritorio` sees everything. Enforced in the `/clientes-dados*` and `/colaboradores-dados*` routes via `_filtrar_clientes_da_carteira` / `_filtrar_colaboradores_da_carteira` (lists) and `_cliente_da_carteira_ou_404` / `_colaborador_da_carteira_ou_404` (single records) — use them in any new route that returns clientes or colaboradores.
 
 The frontend mirrors module gating in `shell.js`'s `NAV_ITEMS` (`moduloPermissao` / `apenasSuperAdmin` keys hide nav items), but the backend check is what actually matters — never rely on the frontend hide alone when adding a protected route.
 

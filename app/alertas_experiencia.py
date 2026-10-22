@@ -47,6 +47,7 @@ def buscar_experiencia_painel(db: Session) -> list[dict]:
 
         resultado.append(
             {
+                "colaborador_id": c.id,
                 "colaborador_nome": c.nome,
                 "empresa_nome": c.empresa.nome,
                 "checkpoint": checkpoint,

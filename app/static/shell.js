@@ -21,12 +21,14 @@ const Shell = (() => {
     estoque: '<path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
     'mapa-servico': '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 7h6a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4H8"/>',
     crm: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8Z"/><path d="M3.5 12h4l2-3 3 6 2-3h6"/>',
+    'mapa-clientes': '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>',
     empresas: '<path d="M3 21h18M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16M9 8h1M13 8h1M9 12h1M13 12h1M9 16h1M13 16h1M14 21v-6h4a1 1 0 0 1 1 1v5"/>',
   };
 
   const NAV_ITEMS = [
     { key: 'dashboard', label: 'Painel', href: '/dashboard' },
     { key: 'clientes', label: 'Clientes', href: '/clientes' },
+    { key: 'mapa-clientes', label: 'Mapa de Clientes', href: '/mapa-clientes', submenu: true },
     { key: 'colaboradores', label: 'Colaboradores', href: '/colaboradores' },
     { key: 'ocorrencias', label: 'Ocorrências', href: '/ocorrencias' },
     { key: 'avisos', label: 'Avisos', href: '/avisos' },
@@ -159,7 +161,7 @@ const Shell = (() => {
 
     const linksHtml = itensVisiveis
       .map((item) => `
-        <a class="nav-item${item.key === paginaAtiva ? ' active' : ''}" href="${item.href}">
+        <a class="nav-item${item.submenu ? ' nav-subitem' : ''}${item.key === paginaAtiva ? ' active' : ''}" href="${item.href}">
           ${icone(item.key)}
           <span>${item.label}</span>
         </a>

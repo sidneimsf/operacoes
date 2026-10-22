@@ -3438,3 +3438,184 @@ button {
 
 .vc-mais-detalhes { margin: 18px 0 8px; border-top: 1px solid var(--border); padding-top: 12px; }
 .vc-mais-detalhes > summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--accent); padding: 4px 0; }
+
+/* ---------- Submenu na barra lateral ---------- */
+
+.nav-item.nav-subitem {
+  padding: 7px 12px 7px 30px;
+  font-size: 13px;
+}
+
+.nav-item.nav-subitem svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (max-width: 780px) {
+  .nav-item.nav-subitem {
+    padding: 10px 12px;
+  }
+}
+
+.cliente-row .cliente-bairro {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ---------- Mapa de Clientes ---------- */
+
+.mapa-clientes {
+  height: calc(100vh - 290px);
+  min-height: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  z-index: 0;
+}
+
+.mapa-clientes.posicionando {
+  cursor: crosshair;
+}
+
+.mapa-clientes.posicionando .leaflet-grab {
+  cursor: crosshair;
+}
+
+.mapa-busca {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.mapa-busca-resultados {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(23, 53, 79, 0.15);
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.mapa-busca-resultados[hidden] { display: none; }
+
+.mapa-busca-resultados button {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.mapa-busca-resultados button:last-child { border-bottom: none; }
+.mapa-busca-resultados button:hover { background: var(--surface-2); }
+.mapa-busca-resultados small { color: var(--text-muted); white-space: nowrap; }
+.mapa-busca-vazio { padding: 10px 14px; font-size: 14px; color: var(--text-muted); }
+
+.mapa-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.mapa-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.mapa-legenda i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.mapa-legenda i.aproximado { border: 2px dashed var(--text-muted); width: 9px; height: 9px; }
+
+.mapa-wrap {
+  position: relative;
+}
+
+/* flutua sobre o mapa, pra nao empurrar o mapa (e o pino) quando aparece */
+.mapa-aviso {
+  position: absolute;
+  top: 10px;
+  left: 56px;
+  right: 10px;
+  z-index: 1000;
+  box-shadow: 0 6px 18px rgba(23, 53, 79, 0.18);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+.mapa-aviso[hidden] { display: none; }
+
+.mapa-pino-wrap { background: none; border: none; }
+
+.mapa-pino {
+  display: block;
+  width: 22px;
+  height: 22px;
+  background: var(--cor-pino);
+  border: 2px solid #ffffff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.mapa-pino.aproximado {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
+.mapa-popup { font-size: 13px; line-height: 1.45; min-width: 200px; }
+.mapa-popup strong { font-size: 14px; }
+.mapa-popup-empresa { color: var(--text-muted); font-size: 12px; margin-bottom: 4px; }
+.mapa-popup-nota { color: var(--accent); font-size: 12px; margin-top: 4px; }
+
+.mapa-popup-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.mapa-popup-acoes a,
+.mapa-popup-acoes button {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12.5px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.mapa-sem-posicao {
+  margin-top: 18px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.mapa-sem-posicao > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--accent);
+  padding: 4px 0;
+}
+
+.mapa-sem-posicao-ajuda { font-size: 13px; color: var(--text-muted); }

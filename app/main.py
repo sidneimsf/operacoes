@@ -73,6 +73,7 @@ from models import (
     Veiculo,
 )
 from folha_ponto import gerar_folha_ponto_pdf
+from geocodificacao import localizar_endereco
 from resumo_dia import hoje_brasilia, montar_resumo_dia
 from resumo_dia_pdf import gerar_resumo_dia_pdf
 from schemas import (
@@ -449,6 +450,58 @@ def exigir_super_admin(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
     return usuario
 
 
+# ---------------------------------------------------------------------------
+# Carteira do supervisor: supervisor so enxerga os proprios clientes e os
+# colaboradores que trabalham neles; escritorio enxerga tudo
+# ---------------------------------------------------------------------------
+
+def _ve_so_carteira(usuario: Usuario) -> bool:
+    return usuario.papel == "supervisor"
+
+
+def _filtrar_clientes_da_carteira(query, usuario: Usuario):
+    if _ve_so_carteira(usuario):
+        query = query.filter(Cliente.supervisor_id == usuario.id)
+    return query
+
+
+def _filtrar_colaboradores_da_carteira(query, usuario: Usuario):
+    """
+    Colaborador entra na carteira do supervisor se ele e o supervisor
+    direto do colaborador, se o colaborador esta vinculado a um cliente
+    da carteira, ou se tem horario ativo no Mapa de Servico em um desses
+    clientes. O POSTO VAGO e compartilhado e sempre aparece.
+    """
+    if not _ve_so_carteira(usuario):
+        return query
+    clientes_da_carteira = select(Cliente.id).where(Cliente.supervisor_id == usuario.id)
+    com_horario_na_carteira = select(HorarioServico.colaborador_id).where(
+        HorarioServico.data_fim.is_(None), HorarioServico.cliente_id.in_(clientes_da_carteira)
+    )
+    return query.filter(
+        (Colaborador.supervisor_id == usuario.id)
+        | Colaborador.cliente_id.in_(clientes_da_carteira)
+        | Colaborador.id.in_(com_horario_na_carteira)
+        | Colaborador.eh_posto_vago.is_(True)
+    )
+
+
+def _cliente_da_carteira_ou_404(db: Session, usuario: Usuario, cliente_id: int) -> Cliente:
+    query = db.query(Cliente).filter(Cliente.id == cliente_id)
+    cliente = _filtrar_clientes_da_carteira(query, usuario).first()
+    if cliente is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    return cliente
+
+
+def _colaborador_da_carteira_ou_404(db: Session, usuario: Usuario, colaborador_id: int) -> Colaborador:
+    query = db.query(Colaborador).filter(Colaborador.id == colaborador_id)
+    colaborador = _filtrar_colaboradores_da_carteira(query, usuario).first()
+    if colaborador is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    return colaborador
+
+
 def serializar_chamado(c: Chamado) -> dict:
     return {
         "id": c.id,
@@ -528,6 +581,11 @@ def pagina_dashboard():
 @app.get("/clientes", include_in_schema=False)
 def pagina_clientes():
     return FileResponse("static/clientes.html")
+
+
+@app.get("/mapa-clientes", include_in_schema=False)
+def pagina_mapa_clientes():
+    return FileResponse("static/mapa-clientes.html")
 
 
 @app.get("/colaboradores", include_in_schema=False)
@@ -729,7 +787,8 @@ def _calcular_anos_completos(data_inicio: date, referencia: date) -> int:
 def lembretes_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
     """Aniversariantes de nascimento do mes atual que ainda vao fazer aniversario (ou fazem hoje)."""
     hoje = date.today()
-    colaboradores = db.query(Colaborador).filter(Colaborador.status != "desligado", Colaborador.eh_posto_vago.is_(False)).all()
+    query = db.query(Colaborador).filter(Colaborador.status != "desligado", Colaborador.eh_posto_vago.is_(False))
+    colaboradores = _filtrar_colaboradores_da_carteira(query, usuario).all()
 
     aniversarios_nascimento = []
 
@@ -771,7 +830,20 @@ def serializar_cliente(c: Cliente) -> dict:
         "empresa_id": c.empresa_id,
         "empresa_nome": c.empresa.nome,
         "ativo": c.ativo,
+        "latitude": c.latitude,
+        "longitude": c.longitude,
+        "geo_precisao": c.geo_precisao,
     }
+
+
+def _localizar_cliente(cliente: Cliente) -> None:
+    """Atualiza o pino do cliente no Mapa de Clientes a partir do endereco cadastrado.
+    Se nao achar, o cliente fica sem pino (ajustavel a mao no mapa)."""
+    resultado = localizar_endereco(cliente.endereco, cliente.bairro, cliente.cidade or cliente.municipio)
+    if resultado is None:
+        cliente.latitude = cliente.longitude = cliente.geo_precisao = None
+    else:
+        cliente.latitude, cliente.longitude, cliente.geo_precisao = resultado
 
 
 @app.get("/clientes-dados")
@@ -781,14 +853,27 @@ def listar_clientes(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    query = db.query(Cliente)
+    query = _filtrar_clientes_da_carteira(db.query(Cliente), usuario)
     if empresa_id is not None:
         query = query.filter(Cliente.empresa_id == empresa_id)
     if not incluir_inativos:
         query = query.filter(Cliente.ativo.is_(True))
     clientes = query.order_by(Cliente.nome).all()
     return [
-        {"id": c.id, "nome": c.nome, "empresa_id": c.empresa_id, "cnpj": c.cnpj, "ativo": c.ativo}
+        {
+            "id": c.id,
+            "nome": c.nome,
+            "empresa_id": c.empresa_id,
+            "cnpj": c.cnpj,
+            "ativo": c.ativo,
+            "endereco": c.endereco,
+            "bairro": c.bairro,
+            "cidade": c.cidade or c.municipio,
+            "supervisor_id": c.supervisor_id,
+            "latitude": c.latitude,
+            "longitude": c.longitude,
+            "geo_precisao": c.geo_precisao,
+        }
         for c in clientes
     ]
 
@@ -825,6 +910,7 @@ def criar_cliente(
         observacoes=dados.observacoes.strip() if dados.observacoes else None,
         supervisor_id=dados.supervisor_id,
     )
+    _localizar_cliente(cliente)
     db.add(cliente)
     db.commit()
     db.refresh(cliente)
@@ -837,9 +923,7 @@ def detalhe_cliente(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    cliente = db.get(Cliente, cliente_id)
-    if cliente is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    cliente = _cliente_da_carteira_ou_404(db, usuario, cliente_id)
     return serializar_cliente(cliente)
 
 
@@ -850,11 +934,10 @@ def editar_cliente(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    cliente = db.get(Cliente, cliente_id)
-    if cliente is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    cliente = _cliente_da_carteira_ou_404(db, usuario, cliente_id)
 
     campos = dados.model_dump(exclude_unset=True)
+    endereco_antes = (cliente.endereco, cliente.bairro, cliente.cidade, cliente.municipio)
 
     if "empresa_id" in campos:
         if db.get(Empresa, campos["empresa_id"]) is None:
@@ -889,6 +972,14 @@ def editar_cliente(
         if campos["supervisor_id"] is not None and db.get(Usuario, campos["supervisor_id"]) is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Supervisor invalido")
         cliente.supervisor_id = campos["supervisor_id"]
+    if (cliente.endereco, cliente.bairro, cliente.cidade, cliente.municipio) != endereco_antes:
+        _localizar_cliente(cliente)
+    if campos.get("latitude") is not None and campos.get("longitude") is not None:
+        if not (-90 <= campos["latitude"] <= 90 and -180 <= campos["longitude"] <= 180):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Posição no mapa inválida")
+        cliente.latitude = campos["latitude"]
+        cliente.longitude = campos["longitude"]
+        cliente.geo_precisao = "manual"
     if "ativo" in campos:
         cliente.ativo = campos["ativo"]
         if campos["ativo"] is False:
@@ -945,7 +1036,7 @@ def listar_colaboradores(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    query = db.query(Colaborador)
+    query = _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario)
     if not incluir_posto_vago:
         query = query.filter(Colaborador.eh_posto_vago.is_(False))
     if empresa_id is not None:
@@ -1050,33 +1141,39 @@ def criar_colaborador(
 
 @app.get("/colaboradores-dados/resumo")
 def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depends(usuario_atual)):
-    """Indicadores executivos: total, ativos, afastados, admitidos no mes, e quebras por empresa/supervisor/cargo."""
-    total = db.query(Colaborador).filter(Colaborador.eh_posto_vago.is_(False)).count()
-    ativos = db.query(Colaborador).filter_by(status="ativo", eh_posto_vago=False).count()
-    afastados = db.query(Colaborador).filter_by(status="afastado", eh_posto_vago=False).count()
-    desligados = db.query(Colaborador).filter_by(status="desligado", eh_posto_vago=False).count()
+    """Indicadores executivos: total, ativos, afastados, admitidos no mes, e quebras por empresa/supervisor/cargo.
+    Para supervisor, todos os numeros consideram so os colaboradores da carteira dele."""
+    def base():
+        return _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario).filter(Colaborador.eh_posto_vago.is_(False))
+
+    total = base().count()
+    ativos = base().filter_by(status="ativo").count()
+    afastados = base().filter_by(status="afastado").count()
+    desligados = base().filter_by(status="desligado").count()
 
     hoje = date.today()
     inicio_mes = date(hoje.year, hoje.month, 1)
-    admitidos_mes = db.query(Colaborador).filter(Colaborador.data_admissao >= inicio_mes, Colaborador.eh_posto_vago.is_(False)).count()
+    admitidos_mes = base().filter(Colaborador.data_admissao >= inicio_mes).count()
 
     empresas = db.query(Empresa).order_by(Empresa.nome).all()
     por_empresa = [
-        {"empresa": e.nome, "total": db.query(Colaborador).filter_by(empresa_id=e.id, eh_posto_vago=False).count()}
+        {"empresa": e.nome, "total": base().filter_by(empresa_id=e.id).count()}
         for e in empresas
     ]
 
     supervisores = db.query(Usuario).filter_by(papel="supervisor", ativo=True).order_by(Usuario.nome).all()
     por_supervisor = [
-        {"supervisor": s.nome, "total": db.query(Colaborador).filter_by(supervisor_id=s.id, eh_posto_vago=False).count()}
+        {"supervisor": s.nome, "total": base().filter_by(supervisor_id=s.id).count()}
         for s in supervisores
     ]
-    sem_supervisor = db.query(Colaborador).filter(Colaborador.supervisor_id.is_(None), Colaborador.eh_posto_vago.is_(False)).count()
+    sem_supervisor = base().filter(Colaborador.supervisor_id.is_(None)).count()
     if sem_supervisor:
         por_supervisor.append({"supervisor": "Administrativo / sem supervisor", "total": sem_supervisor})
 
+    ids_carteira = base().with_entities(Colaborador.id).scalar_subquery()
     cargos_query = (
-        db.query(Colaborador.cargo, func.count(Colaborador.id))
+        base()
+        .with_entities(Colaborador.cargo, func.count(Colaborador.id))
         .group_by(Colaborador.cargo)
         .order_by(func.count(Colaborador.id).desc())
         .all()
@@ -1089,6 +1186,7 @@ def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depen
             ColaboradorEvento.tipo == "atestado",
             ColaboradorEvento.data_inicio <= hoje,
             (ColaboradorEvento.data_fim >= hoje) | (ColaboradorEvento.data_fim.is_(None)),
+            ColaboradorEvento.colaborador_id.in_(ids_carteira),
         )
         .all()
     )
@@ -1103,7 +1201,11 @@ def resumo_colaboradores(db: Session = Depends(get_db), usuario: Usuario = Depen
 
     eventos_falta_hoje = (
         db.query(ColaboradorEvento)
-        .filter(ColaboradorEvento.tipo == "falta", ColaboradorEvento.data_inicio == hoje)
+        .filter(
+            ColaboradorEvento.tipo == "falta",
+            ColaboradorEvento.data_inicio == hoje,
+            ColaboradorEvento.colaborador_id.in_(ids_carteira),
+        )
         .all()
     )
     lista_faltantes = [
@@ -1159,9 +1261,7 @@ def detalhe_colaborador(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    c = db.get(Colaborador, colaborador_id)
-    if c is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    c = _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
     return serializar_colaborador(c)
 
 
@@ -1172,9 +1272,7 @@ def editar_colaborador(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    colaborador = db.get(Colaborador, colaborador_id)
-    if colaborador is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    colaborador = _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
 
     campos = dados.model_dump(exclude_unset=True)
 
@@ -1269,6 +1367,7 @@ def listar_eventos_colaborador(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
+    _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
     eventos = (
         db.query(ColaboradorEvento)
         .filter(ColaboradorEvento.colaborador_id == colaborador_id)
@@ -1292,9 +1391,7 @@ def criar_evento_colaborador(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    colaborador = db.get(Colaborador, colaborador_id)
-    if colaborador is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    colaborador = _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
 
     if tipo not in CHAVES_TIPO_EVENTO_VALIDAS or tipo == "cobertura":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de evento invalido")
@@ -1390,6 +1487,7 @@ def baixar_arquivo_evento(
     evento = db.get(ColaboradorEvento, evento_id)
     if evento is None or not evento.arquivo_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Arquivo nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, evento.colaborador_id)
     return FileResponse(evento.arquivo_path, filename=evento.arquivo_nome_original or "documento")
 
 
@@ -1403,6 +1501,7 @@ def editar_evento_colaborador(
     evento = db.get(ColaboradorEvento, evento_id)
     if evento is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, evento.colaborador_id)
 
     campos = dados.model_dump(exclude_unset=True)
 
@@ -1455,6 +1554,7 @@ def anexar_arquivo_evento(
     evento = db.get(ColaboradorEvento, evento_id)
     if evento is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lancamento nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, evento.colaborador_id)
 
     extensao = Path(arquivo.filename).suffix.lower()
     if extensao not in EXTENSOES_PERMITIDAS:
@@ -1486,6 +1586,7 @@ def excluir_evento_colaborador(
     evento = db.get(ColaboradorEvento, evento_id)
     if evento is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Registro nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, evento.colaborador_id)
 
     if evento.arquivo_path and os.path.exists(evento.arquivo_path):
         os.remove(evento.arquivo_path)
@@ -1561,6 +1662,7 @@ def horarios_do_colaborador(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
+    _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
     registros = (
         db.query(HorarioServico)
         .filter(HorarioServico.colaborador_id == colaborador_id, HorarioServico.data_fim.is_(None))
@@ -1576,6 +1678,7 @@ def horarios_do_cliente(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
+    _cliente_da_carteira_ou_404(db, usuario, cliente_id)
     registros = (
         db.query(HorarioServico)
         .filter(HorarioServico.cliente_id == cliente_id, HorarioServico.data_fim.is_(None))
@@ -3510,6 +3613,9 @@ def listar_experiencias_criticas(
     from alertas_experiencia import buscar_experiencia_painel
 
     criticos = buscar_experiencia_painel(db)
+    if _ve_so_carteira(usuario):
+        ids_carteira = {c.id for c in _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario)}
+        criticos = [c for c in criticos if c["colaborador_id"] in ids_carteira]
     return [
         {
             "colaborador_nome": c["colaborador_nome"],
@@ -3748,8 +3854,7 @@ def listar_metlife_colaborador(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    if db.get(Colaborador, colaborador_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
     lancamentos = db.query(MetlifeLancamento).filter_by(colaborador_id=colaborador_id).all()
     return [serializar_metlife(m) for m in lancamentos]
 
@@ -3761,8 +3866,7 @@ def criar_metlife(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    if db.get(Colaborador, colaborador_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
 
     lancamento = MetlifeLancamento(
         colaborador_id=colaborador_id,
@@ -3788,6 +3892,7 @@ def editar_metlife(
     lancamento = db.get(MetlifeLancamento, lancamento_id)
     if lancamento is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lancamento nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, lancamento.colaborador_id)
 
     campos = dados.model_dump(exclude_unset=True)
     if "nome_dependente" in campos:
@@ -3817,6 +3922,7 @@ def excluir_metlife(
     lancamento = db.get(MetlifeLancamento, lancamento_id)
     if lancamento is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lancamento nao encontrado")
+    _colaborador_da_carteira_ou_404(db, usuario, lancamento.colaborador_id)
     db.delete(lancamento)
     db.commit()
 
@@ -4156,9 +4262,7 @@ def baixar_folha_ponto(
     if mes < 1 or mes > 12:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mes invalido")
 
-    colaborador = db.get(Colaborador, colaborador_id)
-    if colaborador is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Colaborador nao encontrado")
+    colaborador = _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
 
     pdf_bytes = gerar_folha_ponto_pdf(colaborador, ano, mes)
 
@@ -4200,8 +4304,7 @@ def obter_cronograma_cliente(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    if db.get(Cliente, cliente_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    _cliente_da_carteira_ou_404(db, usuario, cliente_id)
     cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
     if cronograma is None:
         return None
@@ -4215,8 +4318,7 @@ def salvar_cronograma_cliente(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
 ):
-    if db.get(Cliente, cliente_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    _cliente_da_carteira_ou_404(db, usuario, cliente_id)
 
     cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
     if cronograma is None:
@@ -4243,8 +4345,7 @@ def enviar_arquivo_cronograma(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
 ):
-    if db.get(Cliente, cliente_id) is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente nao encontrado")
+    _cliente_da_carteira_ou_404(db, usuario, cliente_id)
 
     extensao = Path(arquivo.filename).suffix.lower()
     if extensao not in EXTENSOES_CRONOGRAMA_PERMITIDAS:
@@ -4280,6 +4381,7 @@ def baixar_arquivo_cronograma(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
+    _cliente_da_carteira_ou_404(db, usuario, cliente_id)
     cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
     if cronograma is None or not cronograma.arquivo_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum arquivo anexado")
@@ -4292,6 +4394,7 @@ def remover_arquivo_cronograma(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(exigir_modulo("criar_cliente")),
 ):
+    _cliente_da_carteira_ou_404(db, usuario, cliente_id)
     cronograma = db.query(ClienteCronograma).filter_by(cliente_id=cliente_id).first()
     if cronograma is None or not cronograma.arquivo_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nenhum arquivo anexado")
