@@ -1,7 +1,7 @@
 """
 Audios das visitas comerciais: transcricao local (Whisper, sem API paga),
 extracao de campos a partir do texto transcrito e limpeza dos audios com
-mais de 30 dias. Usado pelos jobs do agendador em main.py.
+mais de 48 horas. Usado pelos jobs do agendador em main.py.
 
 A extracao e feita por padroes (regex), nao por IA: reconhece bem
 telefone, e-mail, valor, quantidade de postos, tipo de servico, horarios
@@ -20,7 +20,11 @@ from database import SessionLocal
 from models import VisitaComercial, VisitaComercialAudio
 
 WHISPER_MODELO = os.environ.get("WHISPER_MODELO", "small")
-DIAS_GUARDAR_AUDIO = 30
+HORAS_GUARDAR_AUDIO = 48
+# a gravacao no navegador para sozinha em 30s; a folga cobre o atraso do gravador.
+# Audio mais longo nem e transcrito - transcrever audio longo estourou a memoria da VPS
+LIMITE_AUDIO_SEGUNDOS = 30
+FOLGA_LIMITE_AUDIO_SEGUNDOS = 5
 # um audio "processando" ha mais tempo que isso ficou orfao (container reiniciou no meio)
 LIMITE_PROCESSANDO = timedelta(minutes=30)
 
@@ -41,9 +45,18 @@ def _carregar_modelo():
     return _modelo
 
 
+class AudioLongoDemais(Exception):
+    pass
+
+
 def transcrever_arquivo(caminho: str) -> tuple[str, float]:
-    """Devolve (texto, duracao_em_segundos)."""
-    segmentos, info = _carregar_modelo().transcribe(caminho, language="pt", vad_filter=True, beam_size=5)
+    """Devolve (texto, duracao_em_segundos). Recusa audio acima do limite antes de rodar o Whisper."""
+    from faster_whisper import decode_audio
+
+    amostras = decode_audio(caminho, sampling_rate=16000)
+    if len(amostras) / 16000 > LIMITE_AUDIO_SEGUNDOS + FOLGA_LIMITE_AUDIO_SEGUNDOS:
+        raise AudioLongoDemais()
+    segmentos, info = _carregar_modelo().transcribe(amostras, language="pt", vad_filter=True, beam_size=5)
     texto = " ".join(s.text.strip() for s in segmentos).strip()
     return texto, info.duration
 
@@ -376,6 +389,12 @@ def transcrever_proximo_audio() -> bool:
 
         try:
             texto, duracao = transcrever_arquivo(audio.arquivo_path)
+        except AudioLongoDemais:
+            db.rollback()
+            audio.status_transcricao = "erro"
+            audio.erro_transcricao = f"Áudio com mais de {LIMITE_AUDIO_SEGUNDOS} segundos não é transcrito. Grave um áudio mais curto."
+            db.commit()
+            return True
         except Exception as erro:
             db.rollback()
             audio.status_transcricao = "erro"
@@ -405,10 +424,10 @@ def transcrever_audios_pendentes() -> None:
 
 
 def apagar_audios_expirados() -> int:
-    """Apaga o arquivo dos audios com mais de 30 dias; a transcricao fica."""
+    """Apaga o arquivo dos audios com mais de 48 horas; a transcricao fica."""
     db = SessionLocal()
     try:
-        limite = datetime.now(timezone.utc) - timedelta(days=DIAS_GUARDAR_AUDIO)
+        limite = datetime.now(timezone.utc) - timedelta(hours=HORAS_GUARDAR_AUDIO)
         audios = (
             db.query(VisitaComercialAudio)
             .filter(VisitaComercialAudio.arquivo_path.is_not(None), VisitaComercialAudio.criado_em < limite)

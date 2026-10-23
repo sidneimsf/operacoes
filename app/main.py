@@ -213,7 +213,7 @@ def job_transcrever_audios():
 
 
 def job_apagar_audios_expirados():
-    """Roda de madrugada - apaga os audios com mais de 30 dias, mantendo a transcricao."""
+    """Roda de hora em hora - apaga os audios com mais de 48 horas, mantendo a transcricao."""
     try:
         print("[audios] audios expirados apagados:", apagar_audios_expirados())
     except Exception as erro:
@@ -253,7 +253,7 @@ agendador.add_job(job_verificar_experiencias, "cron", hour=8, minute=10)
 agendador.add_job(job_verificar_crm, "cron", day_of_week="mon", hour=8, minute=20)
 agendador.add_job(job_limpar_avisos_excluidos, "interval", minutes=10)
 agendador.add_job(job_transcrever_audios, "interval", seconds=30, max_instances=1, coalesce=True)
-agendador.add_job(job_apagar_audios_expirados, "cron", hour=3, minute=30)
+agendador.add_job(job_apagar_audios_expirados, "cron", minute=30)
 agendador.start()
 
 PASTA_UPLOADS = Path("uploads/colaboradores")
@@ -5313,7 +5313,7 @@ EMAILS_ALERTA_VISITA_COMERCIAL = ["gerencia@cordsul"]
 
 PASTA_UPLOADS_AUDIOS_VISITAS = PASTA_UPLOADS_VISITAS_COMERCIAIS / "audios"
 EXTENSOES_AUDIO_PERMITIDAS = {".webm", ".ogg", ".mp4", ".m4a", ".mp3", ".wav", ".aac"}
-TAMANHO_MAXIMO_AUDIO = 30 * 1024 * 1024  # 30 MB (~10 min gravando no celular sobra)
+TAMANHO_MAXIMO_AUDIO = 3 * 1024 * 1024  # 3 MB (30s gravando no celular fica bem abaixo)
 
 # campos de texto livre da visita comercial -> tamanho maximo da coluna
 CAMPOS_TEXTO_VISITA_COMERCIAL = {
@@ -5728,7 +5728,7 @@ def enviar_audio_visita_comercial(
     extensao = Path(audio.filename or "").suffix.lower()
     if extensao not in EXTENSOES_AUDIO_PERMITIDAS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Formato de áudio não suportado")
-    conteudo = _ler_arquivo_limitado(audio, TAMANHO_MAXIMO_AUDIO, "Áudio maior que 30MB, grave um áudio mais curto")
+    conteudo = _ler_arquivo_limitado(audio, TAMANHO_MAXIMO_AUDIO, "Áudio grande demais, grave no máximo 30 segundos")
     if not conteudo:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O áudio chegou vazio, grave de novo")
 
@@ -5766,7 +5766,7 @@ def ouvir_audio_visita_comercial(
 ):
     audio = _buscar_audio_visita(db, audio_id, usuario)
     if not audio.arquivo_path or not os.path.exists(audio.arquivo_path):
-        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Esse áudio já foi apagado (mais de 30 dias); a transcrição continua disponível")
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="Esse áudio já foi apagado (mais de 48 horas); a transcrição continua disponível")
     return FileResponse(audio.arquivo_path, media_type=audio.arquivo_mime or "application/octet-stream")
 
 

@@ -258,7 +258,7 @@ function renderizarVisitas(visitas) {
 // Gravador de audio
 // ---------------------------------------------------------------------------
 
-const LIMITE_GRAVACAO_SEGUNDOS = 10 * 60;
+const LIMITE_GRAVACAO_SEGUNDOS = 30;
 let gravador = null;
 let pedacosAudio = [];
 let audioGravado = null;
@@ -356,7 +356,7 @@ function renderizarGravador() {
   if (gravando()) {
     container.innerHTML = `
       <button type="button" class="vc-btn-gravar gravando" id="vc-btn-parar">■ Parar gravação</button>
-      <span class="vc-gravando"><span class="vc-ponto-gravando"></span><span id="vc-gravador-tempo">0:00</span></span>
+      <span class="vc-gravando"><span class="vc-ponto-gravando"></span><span id="vc-gravador-tempo">0:00</span> / ${formatarDuracao(LIMITE_GRAVACAO_SEGUNDOS)}</span>
     `;
     document.getElementById('vc-btn-parar').addEventListener('click', pararGravacao);
   } else if (audioGravado) {
@@ -369,7 +369,7 @@ function renderizarGravador() {
     `;
     document.getElementById('vc-btn-descartar').addEventListener('click', descartarAudioGravado);
   } else {
-    container.innerHTML = '<button type="button" class="vc-btn-gravar" id="vc-btn-gravar">🎙 Gravar áudio da visita</button>';
+    container.innerHTML = '<button type="button" class="vc-btn-gravar" id="vc-btn-gravar">🎙 Gravar áudio da visita (até 30s)</button>';
     document.getElementById('vc-btn-gravar').addEventListener('click', iniciarGravacao);
   }
 }
@@ -404,7 +404,7 @@ function renderizarAudios(audios) {
       const podeExcluir = ehEscritorio || a.enviado_por_id === auth.id;
       const player = a.audio_disponivel
         ? `<button type="button" class="btn-ghost vc-ouvir" data-audio-id="${a.id}">▶ Ouvir</button>`
-        : '<span class="meta">Áudio apagado após 30 dias</span>';
+        : '<span class="meta">Áudio apagado após 48 horas</span>';
       return `
         <div class="vc-audio" data-audio-id="${a.id}">
           <div class="vc-audio-topo">

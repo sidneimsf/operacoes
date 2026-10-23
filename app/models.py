@@ -828,7 +828,7 @@ class VisitaComercialAudio(Base):
     """
     Audio gravado pelo supervisor descrevendo a visita. Um job transcreve
     o audio na propria VPS (Whisper) e preenche os campos vazios da visita
-    com o que conseguir reconhecer. Depois de 30 dias o arquivo de audio e
+    com o que conseguir reconhecer. Depois de 48 horas o arquivo de audio e
     apagado (arquivo_path vira None) e so a transcricao fica guardada.
     """
     __tablename__ = "visitas_comerciais_audios"
