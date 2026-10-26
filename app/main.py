@@ -298,6 +298,16 @@ TIPOS_CUSTO_DIARIO = [
     {"chave": "outros", "label": "Outros"},
 ]
 CHAVES_TIPO_CUSTO_VALIDAS = {t["chave"] for t in TIPOS_CUSTO_DIARIO}
+# tamanho da coluna chave_pix (cabe o "PIX copia e cola" do QR Code)
+TAMANHO_MAX_CHAVE_PIX = 500
+
+
+def _validar_tamanho_chave_pix(chave_pix: str | None):
+    if chave_pix and len(chave_pix.strip()) > TAMANHO_MAX_CHAVE_PIX:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A chave PIX pode ter no máximo {TAMANHO_MAX_CHAVE_PIX} caracteres.",
+        )
 
 STATUS_DIARIA = [
     {"chave": "falta", "label": "Falta"},
@@ -3437,6 +3447,7 @@ def criar_custo_diario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de custo invalido")
     if valor <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O valor deve ser maior que zero")
+    _validar_tamanho_chave_pix(chave_pix)
 
     if colaborador_id is not None and db.get(Colaborador, colaborador_id) is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
@@ -3563,6 +3574,7 @@ def editar_custo_diario(
     if "nome_beneficiario" in campos:
         custo.nome_beneficiario = campos["nome_beneficiario"].strip() if campos["nome_beneficiario"] else None
     if "chave_pix" in campos:
+        _validar_tamanho_chave_pix(campos["chave_pix"])
         custo.chave_pix = campos["chave_pix"].strip() if campos["chave_pix"] else None
     if "reembolsado" in campos:
         custo.reembolsado = campos["reembolsado"]

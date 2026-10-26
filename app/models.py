@@ -353,7 +353,7 @@ class CustoDiario(Base):
     data: Mapped[date] = mapped_column(Date, nullable=False)
     descricao: Mapped[str | None] = mapped_column(String(500), nullable=True)
     nome_beneficiario: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    chave_pix: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    chave_pix: Mapped[str | None] = mapped_column(String(500), nullable=True)
     colaborador_id: Mapped[int | None] = mapped_column(ForeignKey("colaboradores.id"), nullable=True)
     status_diaria: Mapped[str | None] = mapped_column(String(30), nullable=True)
     cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
@@ -624,7 +624,7 @@ class Freelancer(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     nome: Mapped[str] = mapped_column(String(150), nullable=False)
-    chave_pix: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    chave_pix: Mapped[str | None] = mapped_column(String(500), nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
 
     def __repr__(self) -> str:

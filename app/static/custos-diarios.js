@@ -270,7 +270,7 @@ function montarModalNovoCusto() {
           </div>
           <div class="field" style="order: 8;">
             <label for="custo-chave-pix">Chave PIX pro reembolso</label>
-            <input type="text" id="custo-chave-pix" placeholder="CPF, telefone, e-mail ou chave aleatória">
+            <input type="text" id="custo-chave-pix" maxlength="500" placeholder="CPF, telefone, e-mail, chave aleatória ou PIX copia e cola">
           </div>
           <div class="field" style="order: 9;">
             <label for="custo-valor">Valor (R$)</label>
