@@ -43,6 +43,7 @@ from database import SessionLocal, get_db
 from models import (
     Aviso,
     AvisoExclusao,
+    AvisoOk,
     Chamado,
     Cliente,
     ClienteContato,
@@ -231,6 +232,7 @@ def job_limpar_avisos_excluidos():
         limite = datetime.now(timezone.utc) - PRAZO_DESFAZER_EXCLUSAO_AVISO
         ids_vencidos = select(Aviso.id).where(Aviso.excluido_em.is_not(None), Aviso.excluido_em <= limite)
         db.query(AvisoExclusao).filter(AvisoExclusao.aviso_id.in_(ids_vencidos)).delete(synchronize_session=False)
+        db.query(AvisoOk).filter(AvisoOk.aviso_id.in_(ids_vencidos)).delete(synchronize_session=False)
         total = (
             db.query(Aviso)
             .filter(Aviso.excluido_em.is_not(None), Aviso.excluido_em <= limite)
@@ -2081,6 +2083,10 @@ def serializar_aviso(a: Aviso, excluido_em: datetime | None = None) -> dict:
         "criado_em": a.criado_em.isoformat(),
         "excluido_em": excluido_em.isoformat() if excluido_em else None,
         "desfazer_ate": (excluido_em + PRAZO_DESFAZER_EXCLUSAO_AVISO).isoformat() if excluido_em else None,
+        "oks": [
+            {"usuario_id": ok.usuario_id, "usuario_nome": ok.usuario.nome, "ok_em": ok.ok_em.isoformat()}
+            for ok in a.oks
+        ],
     }
 
 
@@ -2241,6 +2247,44 @@ def restaurar_aviso(
             raise prazo_vencido
         db.delete(exclusao)
 
+    db.commit()
+    db.refresh(aviso)
+    return serializar_aviso(aviso)
+
+
+def _aviso_para_dar_ok(db: Session, aviso_id: int, usuario: Usuario) -> Aviso:
+    aviso = db.get(Aviso, aviso_id)
+    if aviso is None or aviso.excluido_em is not None or not aviso_visivel_para(aviso, usuario):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aviso não encontrado.")
+    if aviso.criado_por_id == usuario.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="O Ok é dado por quem recebeu o aviso, não por quem criou.")
+    return aviso
+
+
+@app.post("/avisos-dados/{aviso_id}/ok")
+def dar_ok_aviso(
+    aviso_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Quem recebeu o aviso confirma que ja viu/resolveu - o autor ve o Ok no mural."""
+    aviso = _aviso_para_dar_ok(db, aviso_id, usuario)
+    ja_deu_ok = db.query(AvisoOk).filter(AvisoOk.aviso_id == aviso.id, AvisoOk.usuario_id == usuario.id).first()
+    if ja_deu_ok is None:
+        db.add(AvisoOk(aviso_id=aviso.id, usuario_id=usuario.id))
+        db.commit()
+        db.refresh(aviso)
+    return serializar_aviso(aviso)
+
+
+@app.delete("/avisos-dados/{aviso_id}/ok")
+def desfazer_ok_aviso(
+    aviso_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    aviso = _aviso_para_dar_ok(db, aviso_id, usuario)
+    db.query(AvisoOk).filter(AvisoOk.aviso_id == aviso.id, AvisoOk.usuario_id == usuario.id).delete(synchronize_session=False)
     db.commit()
     db.refresh(aviso)
     return serializar_aviso(aviso)

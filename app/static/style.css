@@ -2350,6 +2350,32 @@ button {
   font-size: 12.5px;
 }
 
+.postit.postit-resolvido {
+  outline: 2px solid var(--success);
+  outline-offset: -1px;
+}
+
+.postit-ok-resumo {
+  font-size: 12px;
+  color: var(--success);
+  font-weight: 600;
+  margin: -6px 0 12px;
+}
+
+.postit-ok-acao {
+  margin: -6px 0 12px;
+}
+
+.postit-ok-acao .btn-ghost {
+  padding: 4px 14px;
+  font-size: 12.5px;
+}
+
+.postit-ok-acao .ok-dado {
+  color: var(--success);
+  border-color: var(--success);
+}
+
 .postit .vaga-preenchida {
   color: var(--danger);
   font-weight: 600;

@@ -86,6 +86,7 @@ class Aviso(Base):
 
     criado_por: Mapped["Usuario"] = relationship(foreign_keys=[criado_por_id])
     destinatario: Mapped["Usuario | None"] = relationship(foreign_keys=[destinatario_id])
+    oks: Mapped[list["AvisoOk"]] = relationship(order_by="AvisoOk.ok_em")
 
     def __repr__(self) -> str:
         return f"<Aviso de {self.criado_por_id}>"
@@ -104,6 +105,23 @@ class AvisoExclusao(Base):
     aviso_id: Mapped[int] = mapped_column(ForeignKey("avisos.id", ondelete="CASCADE"), nullable=False)
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
     excluido_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc, nullable=False)
+
+
+class AvisoOk(Base):
+    """
+    "Ok" dado por quem recebeu o aviso: avisa o autor que o assunto ja foi
+    visto/resolvido, pra ele poder tirar o aviso do mural. Num aviso para
+    todos, cada pessoa da o seu Ok.
+    """
+    __tablename__ = "avisos_ok"
+    __table_args__ = (UniqueConstraint("aviso_id", "usuario_id", name="uq_aviso_ok_usuario"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    aviso_id: Mapped[int] = mapped_column(ForeignKey("avisos.id", ondelete="CASCADE"), nullable=False)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False)
+    ok_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc, nullable=False)
+
+    usuario: Mapped["Usuario"] = relationship()
 
 
 class Usuario(Base):

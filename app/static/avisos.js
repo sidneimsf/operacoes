@@ -143,6 +143,7 @@ function agruparAvisos(avisos) {
     if (pertenceAoGrupoAtual) {
       grupoAtual.ids.push(a.id);
       if (a.destinatario_nome) grupoAtual.destinatarios.push(a.destinatario_nome);
+      grupoAtual.oks.push(...(a.oks || []));
       grupoAtual.ultimoCriadoEm = a.criado_em;
     } else {
       grupoAtual = {
@@ -153,6 +154,7 @@ function agruparAvisos(avisos) {
         criado_em: a.criado_em,
         ultimoCriadoEm: a.criado_em,
         destinatarios: a.destinatario_nome ? [a.destinatario_nome] : [],
+        oks: [...(a.oks || [])],
         desfazer_ate: a.desfazer_ate,
       };
       grupos.push(grupoAtual);
@@ -204,10 +206,11 @@ function renderizarMural(avisos) {
 
       const tituloExcluir = souAutor ? 'Excluir para todos' : 'Excluir do meu mural';
       return `
-      <div class="postit">
+      <div class="postit${souAutor && grupoTodoComOk(g) ? ' postit-resolvido' : ''}">
         <div class="pin"></div>
         <button class="postit-excluir" data-aviso-ids="${g.ids.join(',')}" aria-label="${tituloExcluir}" title="${tituloExcluir}">&times;</button>
         <div class="mensagem">${escaparHtml(g.mensagem)}</div>
+        ${souAutor ? montarResumoOks(g) : montarBotaoOk(g)}
         <div class="rodape">
           <span>${g.criado_por_nome} · ${formatarData(g.criado_em)}</span>
           ${textoDestinatarios ? `<span class="destinatario-tag">Para: ${escaparHtml(textoDestinatarios)}</span>` : ''}
@@ -216,6 +219,43 @@ function renderizarMural(avisos) {
     `;
     })
     .join('');
+}
+
+// Aviso pra pessoas especificas: resolvido quando todas deram Ok.
+// Aviso pra todos: basta o primeiro Ok (nao da pra saber quantos "todos" sao).
+function grupoTodoComOk(g) {
+  if (g.oks.length === 0) return false;
+  if (g.destinatarios.length === 0) return true;
+  return new Set(g.oks.map((ok) => ok.usuario_id)).size >= g.ids.length;
+}
+
+function montarResumoOks(g) {
+  if (g.oks.length === 0) return '';
+  const nomes = g.oks.map((ok) => `${escaparHtml(ok.usuario_nome)} (${formatarData(ok.ok_em)})`).join(', ');
+  const contagem = g.destinatarios.length > 1 ? `${g.oks.length} de ${g.ids.length} · ` : '';
+  const sufixo = grupoTodoComOk(g) ? ' — já pode excluir do mural' : '';
+  return `<div class="postit-ok-resumo">✓ Ok: ${contagem}${nomes}${sufixo}</div>`;
+}
+
+function montarBotaoOk(g) {
+  const jaDeiOk = g.oks.some((ok) => ok.usuario_id === auth.id);
+  return `
+    <div class="postit-ok-acao">
+      <button class="btn-ghost postit-btn-ok${jaDeiOk ? ' ok-dado' : ''}" data-aviso-ids="${g.ids.join(',')}" data-ok-dado="${jaDeiOk}"
+        title="${jaDeiOk ? 'Clique para desfazer o Ok' : 'Avisar quem criou que já foi visto/resolvido'}">
+        ${jaDeiOk ? '✓ Ok dado' : 'Ok'}
+      </button>
+    </div>
+  `;
+}
+
+async function alternarOkAviso(avisoIds, jaDeiOk) {
+  try {
+    await Promise.all(avisoIds.map((id) => Shell.chamarApi(`/avisos-dados/${id}/ok`, { method: jaDeiOk ? 'DELETE' : 'POST' })));
+  } catch (erro) {
+    alert(erro.detalhe || 'Não foi possível registrar o Ok agora.');
+  }
+  carregarAvisos();
 }
 
 async function excluirAviso(avisoIds) {
@@ -266,6 +306,11 @@ document.getElementById('mural').addEventListener('click', (evento) => {
   const botaoExcluir = evento.target.closest('.postit-excluir');
   if (botaoExcluir) {
     excluirAviso(botaoExcluir.dataset.avisoIds.split(',').map(Number));
+    return;
+  }
+  const botaoOk = evento.target.closest('.postit-btn-ok');
+  if (botaoOk) {
+    alternarOkAviso(botaoOk.dataset.avisoIds.split(',').map(Number), botaoOk.dataset.okDado === 'true');
     return;
   }
   const botaoDesfazer = evento.target.closest('.postit-btn-desfazer');
