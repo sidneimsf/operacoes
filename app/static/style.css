@@ -1059,6 +1059,42 @@ button {
   font-size: 12px;
 }
 
+/* custos diarios: colunas agrupadas para caber na tela sem rolagem lateral */
+.tabela-custos {
+  min-width: 0;
+}
+
+.tabela-custos th,
+.tabela-custos td {
+  padding-left: 6px;
+  padding-right: 6px;
+  vertical-align: top;
+}
+
+.tabela-custos .aso-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.tabela-custos .pix-resumo {
+  max-width: 180px;
+}
+
+.tabela-custos .nome-anexo-resumo {
+  display: block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.tabela-custos .celula-acoes-tabela {
+  min-width: 110px;
+}
+
 .table-list td a {
   color: var(--accent);
   text-decoration: none;
@@ -2662,6 +2698,10 @@ button {
   background: var(--accent);
   color: #ffffff;
   border-color: var(--accent);
+}
+
+.barra-acao-bloco[hidden] {
+  display: none;
 }
 
 .barra-acao-bloco {

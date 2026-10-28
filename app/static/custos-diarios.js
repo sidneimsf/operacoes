@@ -48,8 +48,8 @@ function renderizarLista(custos) {
         totalAnexos === 0
           ? '—'
           : (c.anexos || [])
-              .map((a) => `<a href="#" class="link-anexo" data-anexo-id="${a.id}" style="display:block;">📎 ${a.nome_original}</a>`)
-              .join('') + (c.tem_comprovante ? `<a href="#" class="link-comprovante" data-custo-id="${c.id}" style="display:block;">📎 ${c.comprovante_nome_original || 'ver'}</a>` : '');
+              .map((a) => `<a href="#" class="link-anexo nome-anexo-resumo" data-anexo-id="${a.id}" title="${a.nome_original}">📎 ${a.nome_original}</a>`)
+              .join('') + (c.tem_comprovante ? `<a href="#" class="link-comprovante nome-anexo-resumo" data-custo-id="${c.id}" title="${c.comprovante_nome_original || ''}">📎 ${c.comprovante_nome_original || 'ver'}</a>` : '');
       const botaoReembolso = ehEscritorio
         ? `<button class="btn-ghost btn-toggle-reembolso" data-custo-id="${c.id}" data-atual="${c.reembolsado}">${c.reembolsado ? 'Desfazer' : 'Marcar reembolsado'}</button>`
         : '';
@@ -63,15 +63,16 @@ function renderizarLista(custos) {
       return `
       <tr>
         ${ehEscritorio ? `<td><input type="checkbox" class="check-custo" data-custo-id="${c.id}" data-reembolsado="${c.reembolsado}"></td>` : ''}
-        <td>${formatarData(c.data)}<div class="meta" style="font-size: 11px;">${formatarHora(c.criado_em)}</div></td>
-        <td>${c.usuario_nome}</td>
-        <td>${labelTipoCusto(c.tipo)}</td>
-        <td>${formatarMoeda(c.valor)}</td>
+        <td>${formatarData(c.data)}<div class="meta" style="font-size: 11px;">${formatarHora(c.criado_em)} · ${c.usuario_nome}</div></td>
+        <td>
+          <strong style="white-space: nowrap;">${formatarMoeda(c.valor)}</strong>
+          <div class="meta" style="font-size: 12px;">${labelTipoCusto(c.tipo)}</div>
+          <span class="aso-badge ${c.reembolsado ? 'ok' : 'proximo'}">${c.reembolsado ? 'Reembolsado' : 'Pendente'}</span>
+        </td>
         <td>${c.nome_beneficiario || c.usuario_nome}${c.chave_pix ? `<span class="meta pix-resumo" title="${c.chave_pix.replace(/"/g, '&quot;')}">${c.chave_pix}</span>` : ''}</td>
         <td>${c.descricao || '—'}</td>
         <td>${c.cliente_nome || '—'}</td>
         <td>${linhaComprovante}</td>
-        <td><span class="aso-badge ${c.reembolsado ? 'ok' : 'proximo'}">${c.reembolsado ? 'Reembolsado' : 'Pendente'}</span></td>
         <td class="celula-acoes-tabela">${botaoReembolso} ${botoesEdicao}</td>
       </tr>
     `;
@@ -87,11 +88,11 @@ function renderizarLista(custos) {
         <button class="btn-ghost" id="btn-cancelar-selecao" style="padding: 6px 14px; font-size: 13px;">Cancelar</button>
       </div>
     ` : ''}
-    <div class="table-scroll-wrapper"><table class="table-list">
+    <div class="table-scroll-wrapper"><table class="table-list tabela-custos">
       <thead>
         <tr>
           ${ehEscritorio ? '<th><input type="checkbox" id="selecionar-todos-custos"></th>' : ''}
-          <th>Data</th><th>Quem lançou</th><th>Tipo</th><th>Valor</th><th>Reembolsar para</th><th>Descrição</th><th>Cliente</th><th>Comprovante</th><th>Status</th><th>Ações</th>
+          <th>Data / quem lançou</th><th>Valor / tipo / status</th><th>Reembolsar para</th><th>Descrição</th><th>Cliente</th><th>Comprovante</th><th>Ações</th>
         </tr>
       </thead>
       <tbody>${linhas}</tbody>
