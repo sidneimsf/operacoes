@@ -4601,8 +4601,8 @@ def exportar_cobertura_diarias_excel(
     usuario: Usuario = Depends(exigir_modulo("relatorios")),
 ):
     """Exporta os custos diarios em .xlsx, no mesmo formato/colunas ja
-    usado pela empresa: Empresa, Cobertura, Chave PIX, coluna D vazia
-    (proposital), Cliente, VALOR, DATA, Motivo, Faltou/posto de. Inclui
+    usado pela empresa: Empresa, Cobertura, Chave PIX, Cliente, coluna E
+    vazia (proposital), VALOR, DATA, Motivo, Faltou/posto de. Inclui
     todos os tipos de lancamento, nao so diarias."""
     hoje = date.today()
     inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
@@ -4621,7 +4621,7 @@ def exportar_cobertura_diarias_excel(
     ws = wb.active
     ws.title = "Planilha1"
 
-    cabecalhos = ["Empresa", "Cobertura/Reembolso para", "Chave PIX", None, "Cliente", "VALOR", "DATA", "Motivo", "Faltou/posto de"]
+    cabecalhos = ["Empresa", "Cobertura/Reembolso para", "Chave PIX", "Cliente", None, "VALOR", "DATA", "Motivo", "Faltou/posto de"]
     fonte_padrao = Font(name="Calibri", size=11)
     fonte_cabecalho = Font(name="Calibri", size=11, bold=True)
     alinhamento_centro = Alignment(horizontal="center", vertical="center")
@@ -4650,8 +4650,8 @@ def exportar_cobertura_diarias_excel(
             empresa_nome,
             nome_cobertura,
             c.chave_pix,
-            None,  # coluna D fica vazia, como no modelo da empresa
             cliente_nome,
+            None,  # coluna E fica vazia, como no modelo da empresa
             c.valor,
             c.data,
             motivo,
@@ -4665,7 +4665,7 @@ def exportar_cobertura_diarias_excel(
             elif col_idx == 7:  # DATA
                 celula.number_format = "mm-dd-yy"
 
-    larguras = [16, 28, 33.14, 13, 16, 9.14, 10.71, 21.43, 15.29]
+    larguras = [16, 28, 33.14, 16, 13, 9.14, 10.71, 21.43, 15.29]
     for col_idx, largura in enumerate(larguras, start=1):
         ws.column_dimensions[get_column_letter(col_idx)].width = largura
 
