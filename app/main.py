@@ -4601,9 +4601,9 @@ def exportar_cobertura_diarias_excel(
     usuario: Usuario = Depends(exigir_modulo("relatorios")),
 ):
     """Exporta os custos diarios em .xlsx, no mesmo formato/colunas ja
-    usado pela empresa: Cobertura, Chave PIX, Empresa, Cliente, VALOR,
-    DATA, Motivo, Faltou/posto de. Inclui todos os tipos de lancamento,
-    nao so diarias."""
+    usado pela empresa: Empresa, Cobertura, Chave PIX, coluna D vazia
+    (proposital), Cliente, VALOR, DATA, Motivo, Faltou/posto de. Inclui
+    todos os tipos de lancamento, nao so diarias."""
     hoje = date.today()
     inicio = date.fromisoformat(data_inicio) if data_inicio else date(hoje.year, hoje.month, 1)
     fim = date.fromisoformat(data_fim) if data_fim else hoje
@@ -4621,7 +4621,7 @@ def exportar_cobertura_diarias_excel(
     ws = wb.active
     ws.title = "Planilha1"
 
-    cabecalhos = ["Cobertura/Reembolso para", "Chave PIX", "Empresa", "Cliente", "VALOR", "DATA", "Motivo", "Faltou/posto de"]
+    cabecalhos = ["Empresa", "Cobertura/Reembolso para", "Chave PIX", None, "Cliente", "VALOR", "DATA", "Motivo", "Faltou/posto de"]
     fonte_padrao = Font(name="Calibri", size=11)
     fonte_cabecalho = Font(name="Calibri", size=11, bold=True)
     alinhamento_centro = Alignment(horizontal="center", vertical="center")
@@ -4647,9 +4647,10 @@ def exportar_cobertura_diarias_excel(
         cliente_nome = c.cliente.nome if c.cliente else "ESCRITORIO ADM"
 
         valores = [
+            empresa_nome,
             nome_cobertura,
             c.chave_pix,
-            empresa_nome,
+            None,  # coluna D fica vazia, como no modelo da empresa
             cliente_nome,
             c.valor,
             c.data,
@@ -4659,12 +4660,12 @@ def exportar_cobertura_diarias_excel(
         for col_idx, valor in enumerate(valores, start=1):
             celula = ws.cell(row=linha_idx, column=col_idx, value=valor)
             celula.font = fonte_padrao
-            if col_idx == 5:  # VALOR
+            if col_idx == 6:  # VALOR
                 celula.number_format = '[$-416]"R$"\\ #,##0.00'
-            elif col_idx == 6:  # DATA
+            elif col_idx == 7:  # DATA
                 celula.number_format = "mm-dd-yy"
 
-    larguras = [28, 33.14, 16, 16, 9.14, 10.71, 21.43, 15.29]
+    larguras = [16, 28, 33.14, 13, 16, 9.14, 10.71, 21.43, 15.29]
     for col_idx, largura in enumerate(larguras, start=1):
         ws.column_dimensions[get_column_letter(col_idx)].width = largura
 
