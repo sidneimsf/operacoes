@@ -1049,6 +1049,16 @@ button {
   overflow-wrap: break-word;
 }
 
+/* chave PIX (pode ser um copia e cola de 500 caracteres) nao estica a coluna */
+.table-list .pix-resumo {
+  display: block;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
 .table-list td a {
   color: var(--accent);
   text-decoration: none;

@@ -67,7 +67,7 @@ function renderizarLista(custos) {
         <td>${c.usuario_nome}</td>
         <td>${labelTipoCusto(c.tipo)}</td>
         <td>${formatarMoeda(c.valor)}</td>
-        <td>${c.nome_beneficiario || c.usuario_nome}${c.chave_pix ? ` <span class="meta">(${c.chave_pix})</span>` : ''}</td>
+        <td>${c.nome_beneficiario || c.usuario_nome}${c.chave_pix ? `<span class="meta pix-resumo" title="${c.chave_pix.replace(/"/g, '&quot;')}">${c.chave_pix}</span>` : ''}</td>
         <td>${c.descricao || '—'}</td>
         <td>${c.cliente_nome || '—'}</td>
         <td>${linhaComprovante}</td>
