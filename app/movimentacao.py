@@ -178,7 +178,7 @@ def gerar_excel(cabecalhos: list) -> bytes:
             celula_inss = f"=L{r}*{_percentual_formula(cab.aliquota_inss)}" if linha.retem_inss else "X"
             descontos = [f"I{r}"] * linha.retem_iss + [f"J{r}"] * linha.retem_inss
             celula_boleto = f"=L{r}" + "".join(f"-{c}" for c in descontos)
-            documentos = ("OK" if linha.documentos_ok else "X") if linha.exige_documentos else None
+            documentos = "X" if linha.exige_documentos and linha.documentos_ok else None  # na planilha, X = enviado
             valores = [
                 f"{linha.remessa}º",
                 linha.nome_cliente,
@@ -370,7 +370,7 @@ def ler_planilha(conteudo: bytes) -> list[dict]:
                     "boleto_ok": _ok(ws.cell(row=r, column=16).value),
                     "cliente_ok": _ok(ws.cell(row=r, column=17).value),
                     "exige_documentos": bool(documentos),
-                    "documentos_ok": documentos == "OK",
+                    "documentos_ok": bool(documentos),  # X (ou OK) = documentos ja enviados
                     "observacao": (_limpar(ws.cell(row=r, column=19).value) or "")[:1000] or None,
                 }
             )
