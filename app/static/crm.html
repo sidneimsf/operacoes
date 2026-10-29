@@ -25,11 +25,12 @@
     <div class="content">
 
       <div class="tabs-relatorio" style="margin-bottom: 20px;">
-        <button class="tab-relatorio ativa" data-aba="visao-geral">Visão geral</button>
-        <button class="tab-relatorio" data-aba="resumo">Resumo do dia</button>
-        <button class="tab-relatorio" data-aba="saude">Saúde da carteira</button>
-        <button class="tab-relatorio" data-aba="contratos">Contratos</button>
-        <button class="tab-relatorio" data-aba="satisfacao">Satisfação (NPS)</button>
+        <!-- por enquanto so o Resumo do dia fica visivel; as demais abas estao ocultas -->
+        <button class="tab-relatorio" data-aba="visao-geral" hidden>Visão geral</button>
+        <button class="tab-relatorio ativa" data-aba="resumo">Resumo do dia</button>
+        <button class="tab-relatorio" data-aba="saude" hidden>Saúde da carteira</button>
+        <button class="tab-relatorio" data-aba="contratos" hidden>Contratos</button>
+        <button class="tab-relatorio" data-aba="satisfacao" hidden>Satisfação (NPS)</button>
       </div>
 
       <div class="crm-toolbar" id="crm-toolbar">
@@ -40,8 +41,8 @@
         </div>
       </div>
 
-      <div id="aba-visao-geral"><div class="loading-state">Analisando a carteira...</div></div>
-      <div id="aba-resumo" hidden></div>
+      <div id="aba-visao-geral" hidden></div>
+      <div id="aba-resumo"></div>
       <div id="aba-saude" hidden></div>
       <div id="aba-contratos" hidden></div>
       <div id="aba-satisfacao" hidden></div>

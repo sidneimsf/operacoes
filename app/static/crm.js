@@ -4,7 +4,9 @@ const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 's
 const ROTULO_TENDENCIA = { piorando: '↘ piorando', melhorando: '↗ melhorando', estavel: '→ estável' };
 
 const ABAS = ['visao-geral', 'resumo', 'saude', 'contratos', 'satisfacao'];
-let abaAtual = 'visao-geral';
+// abas liberadas na tela; as outras ficam ocultas (botao com hidden no crm.html)
+const ABAS_VISIVEIS = ['resumo'];
+let abaAtual = 'resumo';
 let carteira = null;
 let satisfacao = null;
 let constantes = null;
@@ -936,4 +938,4 @@ document.getElementById('btn-atualizar').addEventListener('click', () => {
 });
 
 const abaInicial = window.location.hash.replace('#', '');
-trocarAba(ABAS.includes(abaInicial) ? abaInicial : 'visao-geral');
+trocarAba(ABAS_VISIVEIS.includes(abaInicial) ? abaInicial : 'resumo');
