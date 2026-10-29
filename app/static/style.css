@@ -3786,6 +3786,52 @@ button {
 
 /* ---------- Gerencia: movimentacao de cobranca ---------- */
 
+.mov-escolher-mes {
+  max-width: 620px;
+  margin: 30px auto;
+  padding: 30px;
+  gap: 6px;
+}
+
+.mov-escolher-mes[hidden] {
+  display: none;
+}
+
+.mov-escolher-mes h2 {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
+}
+
+.mov-escolher-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+}
+
+.mov-escolher-form input[type="month"] {
+  font-size: 17px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+}
+
+.mov-titulo-mes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mov-titulo-mes strong {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+}
+
 .mov-acoes-topo {
   display: flex;
   gap: 8px;
@@ -3793,13 +3839,14 @@ button {
   align-items: center;
 }
 
-.mov-campo-mes {
-  margin-bottom: 0;
-}
-
-.mov-campo-mes input {
-  padding: 7px 10px;
-  font-size: 14px;
+.mov-aviso {
+  background: rgba(31, 107, 65, 0.1);
+  border: 1px solid rgba(31, 107, 65, 0.3);
+  color: var(--success);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13.5px;
+  margin: 8px 0 4px;
 }
 
 #mov-abas {
@@ -3848,43 +3895,90 @@ button {
   border-color: rgba(193, 51, 39, 0.35);
 }
 
-.mov-aliquotas {
+/* impostos do mes: bloco em destaque, e o primeiro a preencher */
+.mov-impostos {
+  background: #fdf8ea;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 18px 20px;
   margin-bottom: 18px;
-  gap: 10px;
 }
 
-.mov-aliquotas-campos {
+.mov-impostos-pendente {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.mov-impostos-topo {
   display: flex;
+  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-start;
+  margin-bottom: 14px;
 }
 
-.mov-aliquotas-campos .field {
-  margin-bottom: 0;
-  width: 130px;
+.mov-impostos h3 {
+  margin: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px;
 }
 
-.mov-aliquotas-campos .field input {
-  padding: 8px 10px;
-  font-size: 14px;
-}
-
-.mov-aliquotas-status {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.mov-status-aberto {
+.mov-impostos-estado {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
   background: rgba(31, 107, 65, 0.12);
   color: var(--success);
+  white-space: nowrap;
 }
 
-.mov-status-fechado {
-  background: var(--surface-2);
-  color: var(--text-muted);
+.mov-impostos-pendente .mov-impostos-estado,
+.mov-impostos-estado.mov-impostos-alterado {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.mov-impostos-campos {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.mov-impostos-campos .field {
+  margin-bottom: 0;
+  width: 150px;
+}
+
+.mov-impostos-campos .field label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mov-impostos-campos .btn-primary {
+  margin-top: 24px;
+}
+
+.mov-campo-pct {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.mov-campo-pct input {
+  font-size: 20px;
+  font-weight: 600;
+  font-family: 'Space Grotesk', sans-serif;
+  padding: 8px 10px;
+  border: 2px solid var(--accent);
+}
+
+.mov-impostos-campos .mov-dica {
+  font-size: 11.5px;
 }
 
 .mov-pendencias {
@@ -3907,14 +4001,24 @@ button {
 }
 
 .mov-tabela {
-  min-width: 940px;
+  min-width: 980px;
 }
 
 .mov-tabela th,
 .mov-tabela td {
-  padding: 8px 6px;
-  vertical-align: top;
+  padding: 6px 4px;
+  vertical-align: middle;
   font-size: 13.5px;
+}
+
+.mov-tabela th {
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+.mov-tabela th.mov-col-destaque {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .mov-tabela .mov-num {
@@ -3924,6 +4028,10 @@ button {
 
 .mov-tabela .mov-centro {
   text-align: center;
+}
+
+.mov-tabela .mov-boleto {
+  font-weight: 600;
 }
 
 .mov-tabela tr.mov-grupo td {
@@ -3942,54 +4050,137 @@ button {
   color: var(--text-muted);
 }
 
+.mov-tabela tr.mov-linha-sem-valor td:first-child {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+
+.mov-nome {
+  font-weight: 500;
+}
+
 .mov-sub {
   font-size: 12px;
   color: var(--text-muted);
 }
 
-.mov-obs,
-.mov-composicao-resumo {
+.mov-obs {
   font-size: 12px;
   color: var(--text-muted);
-  max-width: 250px;
+  max-width: 210px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mov-composicao-resumo {
-  color: var(--accent);
-}
-
 .mov-inline {
-  background: var(--surface-2);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 4px 6px;
+  padding: 5px 6px;
   font-size: 13px;
   font-family: inherit;
   color: var(--text);
 }
 
-.mov-inline-nota {
-  width: 64px;
+.mov-inline:disabled {
+  background: var(--surface-2);
+}
+
+/* os dois campos que a gerencia preenche todo mes */
+.mov-inline-valor {
+  width: 96px;
+  text-align: right;
+  font-weight: 600;
+  border: 2px solid var(--accent);
 }
 
 .mov-inline-venc {
   width: 52px;
+  text-align: center;
+  border: 2px solid var(--accent);
+}
+
+.mov-inline-vazio {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+.mov-inline-tipo {
+  width: 104px;
+  font-size: 12px;
+}
+
+.mov-inline-nota {
+  width: 60px;
 }
 
 .mov-inline-salvo {
-  border-color: var(--success);
+  border-color: var(--success) !important;
+  background: rgba(31, 107, 65, 0.08);
 }
 
 .mov-inline-erro {
-  border-color: var(--danger);
+  border-color: var(--danger) !important;
+}
+
+.mov-tabela input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.mov-valor-composto {
+  white-space: nowrap;
+  color: var(--accent);
 }
 
 .mov-btn-mini {
   padding: 4px 10px;
   font-size: 12px;
+}
+
+.mov-nova-linha td {
+  background: #fdf8ea;
+  border-top: 2px dashed var(--accent);
+}
+
+.mov-novo-nome {
+  width: 100%;
+  min-width: 200px;
+}
+
+.mov-nova-linha a {
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.mov-nova-linha-erro td {
+  border: none;
+  padding: 0;
+}
+
+.mov-nova-linha-erro .error-message {
+  margin: 6px 0 0;
+}
+
+.mov-fechamento {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.mov-status-aberto {
+  background: rgba(31, 107, 65, 0.12);
+  color: var(--success);
+}
+
+.mov-status-fechado {
+  background: var(--surface-2);
+  color: var(--text-muted);
 }
 
 .mov-modal-largo {
@@ -4069,5 +4260,8 @@ button {
   }
   .mov-filtros .mov-botoes {
     margin-left: 0;
+  }
+  .mov-impostos-campos .field {
+    width: calc(50% - 8px);
   }
 }

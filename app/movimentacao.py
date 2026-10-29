@@ -366,6 +366,7 @@ def ler_planilha(conteudo: bytes) -> list[dict]:
                     "composicao": _composicao_da_celula(celula_nota, ws_valores.cell(row=r, column=12).value),
                     "numero_nota": numero_nota,
                     "vencimento": (_vencimento(ws.cell(row=r, column=15).value) or "")[:20] or None,
+                    "nota_ok": numero_nota is not None,
                     "boleto_ok": _ok(ws.cell(row=r, column=16).value),
                     "cliente_ok": _ok(ws.cell(row=r, column=17).value),
                     "exige_documentos": bool(documentos),

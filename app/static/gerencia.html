@@ -24,22 +24,38 @@
     </div>
     <div class="content">
 
-      <div class="avisos-header">
-        <span class="section-title" style="margin: 0;">Movimentação de cobrança</span>
-        <div class="mov-acoes-topo">
-          <div class="field mov-campo-mes">
-            <input type="month" id="mov-mes" aria-label="Mês de referência">
-          </div>
-          <button class="btn-ghost" id="mov-btn-importar">Importar planilha</button>
-          <button class="btn-ghost" id="mov-btn-excel">Baixar Excel</button>
-          <button class="btn-ghost" id="mov-btn-pdf">Baixar PDF</button>
-        </div>
+      <!-- passo 1: escolher o mes -->
+      <div class="dash-card mov-escolher-mes" id="mov-passo-mes" hidden>
+        <h2>Qual mês você quer fazer a movimentação?</h2>
+        <p class="mov-dica">Ao abrir o mês, todos os clientes das 4 empresas já vêm preenchidos (cliente, CNPJ, município e códigos do serviço), copiados do último mês lançado. Você só confere o valor da nota e o vencimento.</p>
+        <form class="mov-escolher-form" id="mov-escolher-form">
+          <input type="month" id="mov-mes" required aria-label="Mês da movimentação">
+          <button type="submit" class="btn-primary mov-btn-auto" id="mov-abrir-mes">Abrir movimentação</button>
+        </form>
+        <div class="error-message" id="mov-passo-erro"></div>
       </div>
 
-      <div class="tabs-relatorio" id="mov-abas"></div>
+      <!-- passo 2: movimentacao do mes -->
+      <div id="mov-area" hidden>
+        <div class="avisos-header">
+          <div class="mov-titulo-mes">
+            <span class="section-title" style="margin: 0;">Movimentação de cobrança</span>
+            <strong id="mov-titulo-mes"></strong>
+            <button class="btn-ghost mov-btn-mini" id="mov-trocar-mes">Trocar mês</button>
+          </div>
+          <div class="mov-acoes-topo">
+            <button class="btn-ghost" id="mov-btn-importar">Importar planilha</button>
+            <button class="btn-ghost" id="mov-btn-excel">Baixar Excel</button>
+            <button class="btn-ghost" id="mov-btn-pdf">Baixar PDF</button>
+          </div>
+        </div>
+        <div class="mov-aviso" id="mov-aviso" hidden></div>
 
-      <div id="mov-conteudo">
-        <div class="loading-state">Carregando...</div>
+        <div class="tabs-relatorio" id="mov-abas"></div>
+
+        <div id="mov-conteudo">
+          <div class="loading-state">Carregando...</div>
+        </div>
       </div>
 
     </div>

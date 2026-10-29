@@ -6607,6 +6607,7 @@ def serializar_movimentacao_linha(linha: MovimentacaoLinha, cab: MovimentacaoMes
         "composicao": linha.composicao or [],
         "numero_nota": linha.numero_nota,
         "vencimento": linha.vencimento,
+        "nota_ok": linha.nota_ok,
         "boleto_ok": linha.boleto_ok,
         "cliente_ok": linha.cliente_ok,
         "exige_documentos": linha.exige_documentos,
@@ -6626,6 +6627,8 @@ def serializar_movimentacao_mes(cab: MovimentacaoMes) -> dict:
     totais.update(
         quantidade=len(linhas),
         sem_nota=sum(1 for l in linhas if l["numero_nota"] is None),
+        sem_valor=sum(1 for l in linhas if not l["valor_nota"]),
+        nota_pendente=sum(1 for l in linhas if not l["nota_ok"]),
         boleto_pendente=sum(1 for l in linhas if not l["boleto_ok"]),
         envio_pendente=sum(1 for l in linhas if not l["cliente_ok"]),
         documentos_pendentes=sum(1 for l in linhas if l["exige_documentos"] and not l["documentos_ok"]),
@@ -6723,10 +6726,34 @@ def _aplicar_dados_movimentacao_linha(db: Session, linha: MovimentacaoLinha, dad
         if campos["numero_nota"] is not None and campos["numero_nota"] <= 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Número da nota inválido")
         linha.numero_nota = campos["numero_nota"]
+        if linha.numero_nota is not None and "nota_ok" not in campos:
+            linha.nota_ok = True  # digitou o numero = nota emitida
 
-    for campo in ("retem_iss", "retem_inss", "boleto_ok", "cliente_ok", "exige_documentos", "documentos_ok"):
+    for campo in ("retem_iss", "retem_inss", "nota_ok", "boleto_ok", "cliente_ok", "exige_documentos", "documentos_ok"):
         if campos.get(campo) is not None:
             setattr(linha, campo, campos[campo])
+
+
+def _preencher_do_cadastro(db: Session, novo: MovimentacaoMes) -> None:
+    """Primeiro mes de uma empresa sem historico: um cliente por linha a
+    partir do cadastro (ativos), servico limpeza e valor em branco."""
+    tipo = movimentacao.TIPOS_SERVICO[0]
+    clientes = db.query(Cliente).filter_by(empresa_id=novo.empresa_id, ativo=True).order_by(Cliente.nome).all()
+    for ordem, cliente in enumerate(clientes, start=1):
+        novo.linhas.append(
+            MovimentacaoLinha(
+                cliente_id=cliente.id,
+                ordem=ordem,
+                remessa=1,
+                nome_cliente=cliente.nome[:200],
+                cnpj=cliente.cnpj,
+                municipio=((cliente.municipio or cliente.cidade or "").upper()[:100] or None),
+                tipo_servico=tipo["chave"],
+                retem_iss=tipo["retem_iss"],
+                retem_inss=tipo["retem_inss"],
+                composicao=[{"descricao": "Valor mensal", "valor": 0, "fixo": True}],
+            )
+        )
 
 
 def _copiar_movimentacao(anterior: MovimentacaoMes, novo: MovimentacaoMes) -> None:
@@ -6790,7 +6817,8 @@ def movimentacao_do_mes(ano: int, mes: int, db: Session = Depends(get_db), usuar
 
 @app.post("/gerencia-dados/movimentacao/gerar", status_code=status.HTTP_201_CREATED)
 def movimentacao_gerar(dados: MovimentacaoGerar, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
-    """Cria o mes copiando o ultimo mes lancado de cada empresa (ou vazio)."""
+    """Cria o mes de cada empresa copiando o ultimo mes lancado; sem historico,
+    puxa os clientes do cadastro. vazio=true cria sem nenhum cliente."""
     _validar_mes_ano(dados.ano, dados.mes)
     consulta = db.query(Empresa).order_by(Empresa.id)
     if dados.empresa_id is not None:
@@ -6813,6 +6841,8 @@ def movimentacao_gerar(dados: MovimentacaoGerar, db: Session = Depends(get_db), 
         anterior = None if dados.vazio else _movimentacao_anterior(db, empresa.id, dados.ano, dados.mes)
         if anterior:
             _copiar_movimentacao(anterior, novo)
+        elif not dados.vazio:
+            _preencher_do_cadastro(db, novo)
         db.add(novo)
         criados += 1
     db.commit()
@@ -6863,6 +6893,10 @@ def movimentacao_adicionar_linha(mes_id: int, dados: MovimentacaoLinhaDados, db:
     if not dados.composicao:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe pelo menos o valor mensal")
     _aplicar_dados_movimentacao_linha(db, linha, dados, cab.empresa_id)
+    if linha.cliente_id is not None:
+        cliente = db.get(Cliente, linha.cliente_id)
+        linha.cnpj = linha.cnpj or cliente.cnpj
+        linha.municipio = linha.municipio or ((cliente.municipio or cliente.cidade or "").upper()[:100] or None)
     db.add(linha)
     db.commit()
     db.refresh(linha)

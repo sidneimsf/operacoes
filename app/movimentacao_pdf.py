@@ -41,8 +41,8 @@ ESTILOS = {
     "total_txt": ParagraphStyle("total_txt", fontName="Helvetica-Bold", fontSize=7.5, leading=9.5, textColor=AZUL),
 }
 
-CABECALHO = ["Rem.", "Cliente", "Serviço", "Valor nota", "ISS", "INSS", "Boleto", "Nº NF", "Venc.", "Boleto", "Enviado", "Docs"]
-LARGURAS = [1.0, 9.6, 2.0, 2.3, 1.8, 1.8, 2.3, 1.3, 1.2, 1.3, 1.4, 1.2]
+CABECALHO = ["Rem.", "Cliente", "Serviço", "Valor nota", "ISS", "INSS", "Boleto", "Nº NF", "Venc.", "Nota", "Boleto", "Enviado", "Docs"]
+LARGURAS = [1.0, 9.0, 2.0, 2.3, 1.8, 1.8, 2.3, 1.3, 1.2, 1.2, 1.3, 1.4, 1.2]
 
 
 def _p(texto, estilo="celula") -> Paragraph:
@@ -93,6 +93,7 @@ def _tabela_empresa(cab) -> Table:
             _p(formatar_moeda(calc["valor_boleto"]), "celula_num"),
             _p(linha.numero_nota),
             _p(linha.vencimento),
+            _status(linha.nota_ok),
             _status(linha.boleto_ok),
             _status(linha.cliente_ok),
             _status(linha.documentos_ok) if linha.exige_documentos else _p("—"),
@@ -103,7 +104,7 @@ def _tabela_empresa(cab) -> Table:
         _p(formatar_moeda(totais["valor_iss"]), "total"),
         _p(formatar_moeda(totais["valor_inss"]), "total"),
         _p(formatar_moeda(totais["valor_boleto"]), "total"),
-        "", "", "", "", "",
+        "", "", "", "", "", "",
     ])
     estilo.append(("LINEABOVE", (0, -1), (-1, -1), 0.8, AZUL))
     tabela = Table(dados, colWidths=[l * escala for l in LARGURAS], repeatRows=1)

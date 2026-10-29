@@ -931,6 +931,7 @@ class MovimentacaoLinha(Base):
     composicao: Mapped[list] = mapped_column(JSON, nullable=False, default=list)  # [{"descricao", "valor", "fixo"}]
     numero_nota: Mapped[int | None] = mapped_column(Integer, nullable=True)
     vencimento: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    nota_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)  # nota fiscal emitida
     boleto_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     cliente_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     exige_documentos: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

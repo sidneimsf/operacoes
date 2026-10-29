@@ -449,6 +449,7 @@ class MovimentacaoLinhaDados(BaseModel):
     composicao: list[ItemComposicao] | None = None
     numero_nota: int | None = None
     vencimento: str | None = None
+    nota_ok: bool | None = None
     boleto_ok: bool | None = None
     cliente_ok: bool | None = None
     exige_documentos: bool | None = None
