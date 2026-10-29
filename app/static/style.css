@@ -3783,3 +3783,291 @@ button {
   color: var(--accent);
   padding: 4px 0;
 }
+
+/* ---------- Gerencia: movimentacao de cobranca ---------- */
+
+.mov-acoes-topo {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mov-campo-mes {
+  margin-bottom: 0;
+}
+
+.mov-campo-mes input {
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+#mov-abas {
+  overflow-y: hidden;
+}
+
+.mov-aba-qtd {
+  font-size: 11px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-left: 4px;
+}
+
+.mov-aba-vazia {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mov-vazio p {
+  margin: 0 0 10px;
+}
+
+.mov-dica {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.mov-botoes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mov-btn-auto {
+  width: auto;
+  margin-top: 0;
+  padding: 9px 16px;
+  font-size: 14px;
+}
+
+.mov-btn-perigo {
+  color: var(--danger);
+  border-color: rgba(193, 51, 39, 0.35);
+}
+
+.mov-aliquotas {
+  margin-bottom: 18px;
+  gap: 10px;
+}
+
+.mov-aliquotas-campos {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.mov-aliquotas-campos .field {
+  margin-bottom: 0;
+  width: 130px;
+}
+
+.mov-aliquotas-campos .field input {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.mov-aliquotas-status {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mov-status-aberto {
+  background: rgba(31, 107, 65, 0.12);
+  color: var(--success);
+}
+
+.mov-status-fechado {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.mov-pendencias {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin: 14px 0 16px;
+}
+
+.mov-pendencias strong {
+  color: var(--danger);
+}
+
+.mov-tudo-ok {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.mov-filtros .mov-botoes {
+  margin-left: auto;
+}
+
+.mov-tabela {
+  min-width: 940px;
+}
+
+.mov-tabela th,
+.mov-tabela td {
+  padding: 8px 6px;
+  vertical-align: top;
+  font-size: 13.5px;
+}
+
+.mov-tabela .mov-num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mov-tabela .mov-centro {
+  text-align: center;
+}
+
+.mov-tabela tr.mov-grupo td {
+  background: var(--surface-2);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 6px 8px;
+}
+
+.mov-tabela tr.mov-subtotal td {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.mov-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mov-obs,
+.mov-composicao-resumo {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mov-composicao-resumo {
+  color: var(--accent);
+}
+
+.mov-inline {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.mov-inline-nota {
+  width: 64px;
+}
+
+.mov-inline-venc {
+  width: 52px;
+}
+
+.mov-inline-salvo {
+  border-color: var(--success);
+}
+
+.mov-inline-erro {
+  border-color: var(--danger);
+}
+
+.mov-btn-mini {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.mov-modal-largo {
+  max-width: 720px;
+}
+
+.mov-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.mov-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--text);
+  margin-bottom: 18px;
+}
+
+.mov-item-composicao {
+  display: grid;
+  grid-template-columns: 1fr 130px auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mov-item-composicao input[type="text"] {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.mov-item-composicao input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+}
+
+.mov-item-fixo {
+  margin-bottom: 0;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.mov-previa {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 13.5px;
+  margin-bottom: 18px;
+}
+
+.mov-rodape-modal {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mov-rodape-modal .btn-primary {
+  width: auto;
+  padding: 11px 26px;
+  margin-left: auto;
+}
+
+@media (max-width: 780px) {
+  .mov-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .mov-item-composicao {
+    grid-template-columns: 1fr 100px;
+  }
+  .mov-filtros .mov-botoes {
+    margin-left: 0;
+  }
+}

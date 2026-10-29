@@ -68,6 +68,8 @@ from models import (
     HorarioServico,
     ManutencaoVeiculo,
     MetlifeLancamento,
+    MovimentacaoLinha,
+    MovimentacaoMes,
     PesquisaSatisfacao,
     Usuario,
     UsuarioPermissao,
@@ -80,6 +82,8 @@ from geocodificar_clientes import situacao as situacao_localizacao_clientes
 from importar_enderecos import casar_com_clientes, ler_planilha, mudancas_da_linha
 from resumo_dia import hoje_brasilia, montar_resumo_dia
 from resumo_dia_pdf import gerar_resumo_dia_pdf
+import movimentacao
+from movimentacao_pdf import gerar_movimentacao_pdf
 from schemas import (
     AvisoCreate,
     ChamadoCreate,
@@ -115,6 +119,10 @@ from schemas import (
     ManutencaoVeiculoUpdate,
     MetlifeLancamentoCreate,
     MetlifeLancamentoUpdate,
+    MovimentacaoGerar,
+    MovimentacaoLinhaDados,
+    MovimentacaoMesUpdate,
+    MovimentacaoNumerar,
     PermissaoUpdate,
     PesquisaSatisfacaoCreate,
     TokenResponse,
@@ -465,6 +473,25 @@ def exigir_super_admin(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
     return usuario
 
 
+# menu Gerencia: fixo por e-mail de login (nao e configuravel em Permissoes) -
+# so a Caroline (conta gerencia@cordsul...) e o Sidnei
+EMAILS_GERENCIA = ["gerencia@cordsul", "sidneimsf@gmail.com"]
+
+
+def eh_gerencia(usuario: Usuario) -> bool:
+    email = (usuario.email or "").lower()
+    return any(email.startswith(prefixo) for prefixo in EMAILS_GERENCIA)
+
+
+def exigir_gerencia(usuario: Usuario = Depends(usuario_atual)) -> Usuario:
+    if not eh_gerencia(usuario):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas a gerência pode acessar esta área",
+        )
+    return usuario
+
+
 # ---------------------------------------------------------------------------
 # Carteira do supervisor: supervisor so enxerga os proprios clientes e os
 # colaboradores que trabalham neles; escritorio enxerga tudo
@@ -701,6 +728,11 @@ def pagina_crm():
 @app.get("/crm-cliente", include_in_schema=False)
 def pagina_crm_cliente():
     return FileResponse("static/crm-cliente.html")
+
+
+@app.get("/gerencia", include_in_schema=False)
+def pagina_gerencia():
+    return FileResponse("static/gerencia.html")
 
 
 @app.get("/ponto", include_in_schema=False)
@@ -2979,7 +3011,9 @@ def minhas_permissoes(db: Session = Depends(get_db), usuario: Usuario = Depends(
     """Devolve, pro usuario logado, se ele tem acesso a cada modulo restrito -
     usado pelo frontend pra decidir quais itens de menu mostrar de verdade,
     respeitando os overrides configurados em Permissoes (nao so o papel)."""
-    return {m["chave"]: tem_permissao(db, usuario, m["chave"]) for m in MODULOS_PERMISSAO}
+    permissoes = {m["chave"]: tem_permissao(db, usuario, m["chave"]) for m in MODULOS_PERMISSAO}
+    permissoes["gerencia"] = eh_gerencia(usuario)
+    return permissoes
 
 
 # ---------------------------------------------------------------------------
@@ -6541,3 +6575,419 @@ def crm_resumo_dia_pdf(data: str | None = None, db: Session = Depends(get_db), u
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="resumo-operacao-{resumo["data"]}.pdf"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Gerencia - movimentacao de cobranca mensal (antes era a planilha
+# "MOVIMENTACAO <MES> <ANO>.xlsx", uma aba por empresa)
+# ---------------------------------------------------------------------------
+
+TAMANHO_MAXIMO_PLANILHA_MOVIMENTACAO = 5 * 1024 * 1024  # 5 MB
+CAMPOS_TEXTO_MOVIMENTACAO = {"nome_cliente": 200, "cnpj": 20, "municipio": 100, "vencimento": 20, "observacao": 1000, "observacao_mes": 1000}
+
+
+def _validar_mes_ano(ano: int, mes: int) -> None:
+    if not 1 <= mes <= 12 or not 2020 <= ano <= 2100:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mês ou ano inválido")
+
+
+def serializar_movimentacao_linha(linha: MovimentacaoLinha, cab: MovimentacaoMes) -> dict:
+    return {
+        "id": linha.id,
+        "cliente_id": linha.cliente_id,
+        "ordem": linha.ordem,
+        "remessa": linha.remessa,
+        "nome_cliente": linha.nome_cliente,
+        "cnpj": linha.cnpj,
+        "municipio": linha.municipio,
+        "tipo_servico": linha.tipo_servico,
+        "descricao_servico": movimentacao.descricao_servico(linha.tipo_servico, cab.ano, cab.mes),
+        "retem_iss": linha.retem_iss,
+        "retem_inss": linha.retem_inss,
+        "composicao": linha.composicao or [],
+        "numero_nota": linha.numero_nota,
+        "vencimento": linha.vencimento,
+        "boleto_ok": linha.boleto_ok,
+        "cliente_ok": linha.cliente_ok,
+        "exige_documentos": linha.exige_documentos,
+        "documentos_ok": linha.documentos_ok,
+        "observacao": linha.observacao,
+        "observacao_mes": linha.observacao_mes,
+        **movimentacao.calcular_linha(linha, cab),
+    }
+
+
+def serializar_movimentacao_mes(cab: MovimentacaoMes) -> dict:
+    linhas = [
+        serializar_movimentacao_linha(l, cab)
+        for l in sorted(cab.linhas, key=lambda l: (l.remessa, l.ordem, l.id))
+    ]
+    totais = {chave: round(sum(l[chave] for l in linhas), 2) for chave in ("valor_nota", "valor_iss", "valor_inss", "valor_boleto")}
+    totais.update(
+        quantidade=len(linhas),
+        sem_nota=sum(1 for l in linhas if l["numero_nota"] is None),
+        boleto_pendente=sum(1 for l in linhas if not l["boleto_ok"]),
+        envio_pendente=sum(1 for l in linhas if not l["cliente_ok"]),
+        documentos_pendentes=sum(1 for l in linhas if l["exige_documentos"] and not l["documentos_ok"]),
+    )
+    return {
+        "id": cab.id,
+        "empresa_id": cab.empresa_id,
+        "empresa_nome": cab.empresa.nome,
+        "ano": cab.ano,
+        "mes": cab.mes,
+        "aliquota_iss": cab.aliquota_iss,
+        "aliquota_inss": cab.aliquota_inss,
+        "simples_limpeza": cab.simples_limpeza,
+        "simples_apoio": cab.simples_apoio,
+        "fechado": cab.fechado,
+        "linhas": linhas,
+        "totais": totais,
+    }
+
+
+def _movimentacao_mes_ou_404(db: Session, mes_id: int, para_editar: bool = True) -> MovimentacaoMes:
+    cab = db.get(MovimentacaoMes, mes_id)
+    if cab is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Movimentação não encontrada")
+    if para_editar and cab.fechado:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Este mês está fechado. Reabra o mês para fazer alterações.")
+    return cab
+
+
+def _movimentacao_linha_ou_404(db: Session, linha_id: int) -> MovimentacaoLinha:
+    linha = db.get(MovimentacaoLinha, linha_id)
+    if linha is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cliente não encontrado na movimentação")
+    _movimentacao_mes_ou_404(db, linha.mes_id)
+    return linha
+
+
+def _movimentacao_anterior(db: Session, empresa_id: int, ano: int, mes: int) -> MovimentacaoMes | None:
+    return (
+        db.query(MovimentacaoMes)
+        .filter(MovimentacaoMes.empresa_id == empresa_id, MovimentacaoMes.ano * 12 + MovimentacaoMes.mes < ano * 12 + mes)
+        .order_by(MovimentacaoMes.ano.desc(), MovimentacaoMes.mes.desc())
+        .first()
+    )
+
+
+def _proximo_numero_nota(db: Session, empresa_id: int) -> int | None:
+    maior = (
+        db.query(func.max(MovimentacaoLinha.numero_nota))
+        .join(MovimentacaoMes, MovimentacaoLinha.mes_id == MovimentacaoMes.id)
+        .filter(MovimentacaoMes.empresa_id == empresa_id)
+        .scalar()
+    )
+    return maior + 1 if maior is not None else None
+
+
+def _aplicar_dados_movimentacao_linha(db: Session, linha: MovimentacaoLinha, dados: MovimentacaoLinhaDados, empresa_id: int) -> None:
+    campos = dados.model_dump(exclude_unset=True)
+
+    if "cliente_id" in campos:
+        if campos["cliente_id"] is not None:
+            cliente = db.get(Cliente, campos["cliente_id"])
+            if cliente is None or cliente.empresa_id != empresa_id:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse cliente não pertence a esta empresa")
+        linha.cliente_id = campos["cliente_id"]
+
+    for campo, limite in CAMPOS_TEXTO_MOVIMENTACAO.items():
+        if campo in campos:
+            valor = (campos[campo] or "").strip()[:limite] or None
+            if campo == "nome_cliente" and valor is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do cliente")
+            setattr(linha, campo, valor)
+
+    if "remessa" in campos:
+        remessa = campos["remessa"]
+        if remessa is None or not 1 <= remessa <= movimentacao.MAXIMO_REMESSA:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"A remessa precisa ser de 1 a {movimentacao.MAXIMO_REMESSA}")
+        linha.remessa = remessa
+
+    if "tipo_servico" in campos:
+        if campos["tipo_servico"] not in movimentacao.TIPOS_SERVICO_POR_CHAVE:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de serviço inválido")
+        linha.tipo_servico = campos["tipo_servico"]
+
+    if "composicao" in campos:
+        itens = campos["composicao"] or []
+        if not itens:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe pelo menos o valor mensal")
+        linha.composicao = [
+            {"descricao": (i.get("descricao") or "").strip()[:100], "valor": round(float(i["valor"]), 2), "fixo": bool(i.get("fixo"))}
+            for i in itens
+        ]
+
+    if "numero_nota" in campos:
+        if campos["numero_nota"] is not None and campos["numero_nota"] <= 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Número da nota inválido")
+        linha.numero_nota = campos["numero_nota"]
+
+    for campo in ("retem_iss", "retem_inss", "boleto_ok", "cliente_ok", "exige_documentos", "documentos_ok"):
+        if campos.get(campo) is not None:
+            setattr(linha, campo, campos[campo])
+
+
+def _copiar_movimentacao(anterior: MovimentacaoMes, novo: MovimentacaoMes) -> None:
+    """Mes novo a partir do anterior: mesmas aliquotas e clientes, so com os
+    itens fixos da composicao; nota, status e observacao do mes zerados."""
+    novo.aliquota_iss = anterior.aliquota_iss
+    novo.aliquota_inss = anterior.aliquota_inss
+    novo.simples_limpeza = anterior.simples_limpeza
+    novo.simples_apoio = anterior.simples_apoio
+    for l in sorted(anterior.linhas, key=lambda l: (l.remessa, l.ordem, l.id)):
+        itens = l.composicao or []
+        fixos = [dict(i) for i in itens if i.get("fixo")] or [dict(i) for i in itens[:1]]
+        novo.linhas.append(
+            MovimentacaoLinha(
+                cliente_id=l.cliente_id,
+                ordem=l.ordem,
+                remessa=l.remessa,
+                nome_cliente=l.nome_cliente,
+                cnpj=l.cnpj,
+                municipio=l.municipio,
+                tipo_servico=l.tipo_servico,
+                retem_iss=l.retem_iss,
+                retem_inss=l.retem_inss,
+                composicao=fixos,
+                vencimento=l.vencimento,
+                exige_documentos=l.exige_documentos,
+                observacao=l.observacao,
+            )
+        )
+
+
+@app.get("/gerencia-dados/movimentacao")
+def movimentacao_do_mes(ano: int, mes: int, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    """Movimentacao de todas as empresas num mes, com os clientes de cada uma pra preencher."""
+    _validar_mes_ano(ano, mes)
+    cabecalhos = {c.empresa_id: c for c in db.query(MovimentacaoMes).filter_by(ano=ano, mes=mes).all()}
+    empresas = []
+    for empresa in db.query(Empresa).order_by(Empresa.id).all():
+        cab = cabecalhos.get(empresa.id)
+        anterior = None if cab else _movimentacao_anterior(db, empresa.id, ano, mes)
+        clientes = db.query(Cliente).filter_by(empresa_id=empresa.id, ativo=True).order_by(Cliente.nome).all()
+        empresas.append(
+            {
+                "id": empresa.id,
+                "nome": empresa.nome,
+                "movimentacao": serializar_movimentacao_mes(cab) if cab else None,
+                "anterior": {"ano": anterior.ano, "mes": anterior.mes} if anterior else None,
+                "proximo_numero_nota": _proximo_numero_nota(db, empresa.id),
+                "clientes": [{"id": c.id, "nome": c.nome, "cnpj": c.cnpj, "municipio": c.municipio or c.cidade} for c in clientes],
+            }
+        )
+    return {
+        "ano": ano,
+        "mes": mes,
+        "nome_mes": movimentacao.nome_mes(mes),
+        "tipos_servico": movimentacao.TIPOS_SERVICO,
+        "maximo_remessa": movimentacao.MAXIMO_REMESSA,
+        "empresas": empresas,
+    }
+
+
+@app.post("/gerencia-dados/movimentacao/gerar", status_code=status.HTTP_201_CREATED)
+def movimentacao_gerar(dados: MovimentacaoGerar, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    """Cria o mes copiando o ultimo mes lancado de cada empresa (ou vazio)."""
+    _validar_mes_ano(dados.ano, dados.mes)
+    consulta = db.query(Empresa).order_by(Empresa.id)
+    if dados.empresa_id is not None:
+        consulta = consulta.filter(Empresa.id == dados.empresa_id)
+    empresas = consulta.all()
+    if not empresas:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Empresa não encontrada")
+
+    criados = 0
+    for empresa in empresas:
+        existe = db.query(MovimentacaoMes).filter_by(empresa_id=empresa.id, ano=dados.ano, mes=dados.mes).first()
+        if existe:
+            if dados.empresa_id is not None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{empresa.nome} já tem movimentação neste mês")
+            continue
+        novo = MovimentacaoMes(
+            empresa_id=empresa.id, ano=dados.ano, mes=dados.mes,
+            aliquota_inss=movimentacao.ALIQUOTA_INSS_PADRAO, criado_por_id=usuario.id,
+        )
+        anterior = None if dados.vazio else _movimentacao_anterior(db, empresa.id, dados.ano, dados.mes)
+        if anterior:
+            _copiar_movimentacao(anterior, novo)
+        db.add(novo)
+        criados += 1
+    db.commit()
+    return {"criados": criados}
+
+
+@app.patch("/gerencia-dados/movimentacao/meses/{mes_id}")
+def movimentacao_atualizar_mes(mes_id: int, dados: MovimentacaoMesUpdate, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    campos = dados.model_dump(exclude_unset=True)
+    cab = _movimentacao_mes_ou_404(db, mes_id, para_editar=not set(campos) <= {"fechado"})
+    for campo in ("aliquota_iss", "aliquota_inss", "simples_limpeza", "simples_apoio"):
+        if campo not in campos:
+            continue
+        valor = campos[campo]
+        if valor is None and campo in ("aliquota_iss", "aliquota_inss"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe as alíquotas de ISS e INSS")
+        if valor is not None and not 0 <= valor <= 100:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="As alíquotas precisam estar entre 0 e 100%")
+        setattr(cab, campo, valor)
+    if campos.get("fechado") is not None:
+        cab.fechado = campos["fechado"]
+    db.commit()
+    db.refresh(cab)
+    return serializar_movimentacao_mes(cab)
+
+
+@app.delete("/gerencia-dados/movimentacao/meses/{mes_id}", status_code=status.HTTP_204_NO_CONTENT)
+def movimentacao_excluir_mes(mes_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    cab = _movimentacao_mes_ou_404(db, mes_id)
+    db.delete(cab)
+    db.commit()
+
+
+@app.post("/gerencia-dados/movimentacao/meses/{mes_id}/linhas", status_code=status.HTTP_201_CREATED)
+def movimentacao_adicionar_linha(mes_id: int, dados: MovimentacaoLinhaDados, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    cab = _movimentacao_mes_ou_404(db, mes_id)
+    tipo = movimentacao.TIPOS_SERVICO_POR_CHAVE.get(dados.tipo_servico or "limpeza", movimentacao.TIPOS_SERVICO[0])
+    linha = MovimentacaoLinha(
+        mes_id=cab.id,
+        ordem=max((l.ordem for l in cab.linhas), default=0) + 1,
+        remessa=1,
+        tipo_servico=tipo["chave"],
+        retem_iss=tipo["retem_iss"],
+        retem_inss=tipo["retem_inss"],
+    )
+    if not dados.nome_cliente:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o nome do cliente")
+    if not dados.composicao:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe pelo menos o valor mensal")
+    _aplicar_dados_movimentacao_linha(db, linha, dados, cab.empresa_id)
+    db.add(linha)
+    db.commit()
+    db.refresh(linha)
+    return serializar_movimentacao_linha(linha, cab)
+
+
+@app.patch("/gerencia-dados/movimentacao/linhas/{linha_id}")
+def movimentacao_atualizar_linha(linha_id: int, dados: MovimentacaoLinhaDados, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    linha = _movimentacao_linha_ou_404(db, linha_id)
+    _aplicar_dados_movimentacao_linha(db, linha, dados, linha.cabecalho.empresa_id)
+    db.commit()
+    db.refresh(linha)
+    return serializar_movimentacao_linha(linha, linha.cabecalho)
+
+
+@app.delete("/gerencia-dados/movimentacao/linhas/{linha_id}", status_code=status.HTTP_204_NO_CONTENT)
+def movimentacao_excluir_linha(linha_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    linha = _movimentacao_linha_ou_404(db, linha_id)
+    db.delete(linha)
+    db.commit()
+
+
+@app.post("/gerencia-dados/movimentacao/meses/{mes_id}/numerar")
+def movimentacao_numerar_notas(mes_id: int, dados: MovimentacaoNumerar, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    """Preenche o numero da nota, em sequencia, nos clientes que ainda nao tem (na ordem da lista)."""
+    cab = _movimentacao_mes_ou_404(db, mes_id)
+    if dados.numero_inicial <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Informe o número da primeira nota")
+    numero = dados.numero_inicial
+    for linha in sorted(cab.linhas, key=lambda l: (l.remessa, l.ordem, l.id)):
+        if linha.numero_nota is not None or (dados.remessa is not None and linha.remessa != dados.remessa):
+            continue
+        linha.numero_nota = numero
+        numero += 1
+    db.commit()
+    db.refresh(cab)
+    return serializar_movimentacao_mes(cab)
+
+
+def _movimentacoes_para_exportar(db: Session, ano: int, mes: int, empresa_id: int | None) -> list[MovimentacaoMes]:
+    _validar_mes_ano(ano, mes)
+    consulta = db.query(MovimentacaoMes).filter_by(ano=ano, mes=mes)
+    if empresa_id is not None:
+        consulta = consulta.filter_by(empresa_id=empresa_id)
+    cabecalhos = consulta.order_by(MovimentacaoMes.empresa_id).all()
+    if not cabecalhos:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Não há movimentação lançada para este mês")
+    return cabecalhos
+
+
+@app.get("/gerencia-dados/movimentacao/excel")
+def movimentacao_excel(ano: int, mes: int, empresa_id: int | None = None, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    conteudo = movimentacao.gerar_excel(_movimentacoes_para_exportar(db, ano, mes, empresa_id))
+    return Response(
+        content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="movimentacao-{ano}-{mes:02d}.xlsx"'},
+    )
+
+
+@app.get("/gerencia-dados/movimentacao/pdf")
+def movimentacao_pdf(ano: int, mes: int, empresa_id: int | None = None, db: Session = Depends(get_db), usuario: Usuario = Depends(exigir_gerencia)):
+    cabecalhos = _movimentacoes_para_exportar(db, ano, mes, empresa_id)
+    gerado_em = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
+    return Response(
+        content=gerar_movimentacao_pdf(cabecalhos, ano, mes, gerado_em),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="movimentacao-{ano}-{mes:02d}.pdf"'},
+    )
+
+
+@app.post("/gerencia-dados/movimentacao/importar")
+def movimentacao_importar(
+    ano: int = Form(...),
+    mes: int = Form(...),
+    substituir: bool = Form(False),
+    arquivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_gerencia),
+):
+    """Importa a planilha antiga (uma aba por empresa, com o nome da empresa na aba)."""
+    _validar_mes_ano(ano, mes)
+    conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_PLANILHA_MOVIMENTACAO, "Planilha maior que 5MB")
+    try:
+        abas = movimentacao.ler_planilha(conteudo)
+    except ValueError as erro:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(erro))
+
+    def chave(nome):
+        return movimentacao.normalizar(nome).replace(" ", "")
+
+    empresas = {chave(e.nome): e for e in db.query(Empresa).all()}
+    encontradas, ignoradas = [], []
+    for aba in abas:
+        empresa = empresas.get(chave(aba["aba"]))
+        if empresa is None:
+            ignoradas.append(aba["aba"])
+        else:
+            encontradas.append((empresa, aba))
+    if not encontradas:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nenhuma aba da planilha tem o nome de uma das empresas (CORDSUL, KRETZER, STAR SUL, FLC)")
+
+    for empresa, _ in encontradas:
+        existente = db.query(MovimentacaoMes).filter_by(empresa_id=empresa.id, ano=ano, mes=mes).first()
+        if existente is None:
+            continue
+        if existente.fechado:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"O mês de {empresa.nome} está fechado. Reabra antes de importar.")
+        if not substituir:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{empresa.nome} já tem movimentação neste mês. Marque \"substituir\" para trocar pelo conteúdo da planilha.")
+        db.delete(existente)
+    db.flush()
+
+    importadas = []
+    for empresa, aba in encontradas:
+        por_nome = {movimentacao.normalizar(c.nome): c.id for c in db.query(Cliente).filter_by(empresa_id=empresa.id).all()}
+        cab = MovimentacaoMes(
+            empresa_id=empresa.id, ano=ano, mes=mes, criado_por_id=usuario.id,
+            aliquota_iss=aba["aliquota_iss"], aliquota_inss=aba["aliquota_inss"],
+            simples_limpeza=aba["simples_limpeza"], simples_apoio=aba["simples_apoio"],
+        )
+        for ordem, dados_linha in enumerate(aba["linhas"], start=1):
+            cliente_id = por_nome.get(movimentacao.normalizar(dados_linha["nome_cliente"]))
+            cab.linhas.append(MovimentacaoLinha(ordem=ordem, cliente_id=cliente_id, **dados_linha))
+        db.add(cab)
+        importadas.append({"empresa": empresa.nome, "linhas": len(aba["linhas"])})
+    db.commit()
+    return {"importadas": importadas, "ignoradas": ignoradas}

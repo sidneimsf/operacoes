@@ -873,3 +873,74 @@ class VisitaComercialAudio(Base):
 
     def __repr__(self) -> str:
         return f"<VisitaComercialAudio visita={self.visita_comercial_id} status={self.status_transcricao}>"
+
+
+class MovimentacaoMes(Base):
+    """
+    Movimentacao de cobranca de uma empresa num mes (menu Gerencia) - o
+    cabecalho da antiga aba da planilha: as aliquotas do mes, que valem
+    para todas as linhas. Mudou o imposto, muda aqui e tudo recalcula.
+    """
+    __tablename__ = "movimentacao_meses"
+    __table_args__ = (
+        UniqueConstraint("empresa_id", "ano", "mes", name="uq_movimentacao_empresa_mes"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresas.id"), nullable=False)
+    ano: Mapped[int] = mapped_column(Integer, nullable=False)
+    mes: Mapped[int] = mapped_column(Integer, nullable=False)
+    aliquota_iss: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    aliquota_inss: Mapped[float] = mapped_column(Float, nullable=False, default=11)
+    simples_limpeza: Mapped[float | None] = mapped_column(Float, nullable=True)
+    simples_apoio: Mapped[float | None] = mapped_column(Float, nullable=True)
+    fechado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    criado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    empresa: Mapped["Empresa"] = relationship()
+    linhas: Mapped[list["MovimentacaoLinha"]] = relationship(
+        back_populates="cabecalho", order_by="MovimentacaoLinha.ordem", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<MovimentacaoMes empresa={self.empresa_id} {self.mes:02d}/{self.ano}>"
+
+
+class MovimentacaoLinha(Base):
+    """
+    Um cliente cobrado no mes. O valor da nota e a soma da composicao
+    (valor mensal + adicionais/descontos); ISS, INSS e boleto sao sempre
+    calculados (movimentacao.calcular_linha), nunca guardados. Itens da
+    composicao marcados como fixos, a observacao fixa e a remessa passam
+    para o mes seguinte quando ele e gerado.
+    """
+    __tablename__ = "movimentacao_linhas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    mes_id: Mapped[int] = mapped_column(ForeignKey("movimentacao_meses.id"), nullable=False)
+    cliente_id: Mapped[int | None] = mapped_column(ForeignKey("clientes.id"), nullable=True)
+    ordem: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    remessa: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    nome_cliente: Mapped[str] = mapped_column(String(200), nullable=False)
+    cnpj: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    municipio: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    tipo_servico: Mapped[str] = mapped_column(String(20), nullable=False, default="limpeza")
+    retem_iss: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    retem_inss: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    composicao: Mapped[list] = mapped_column(JSON, nullable=False, default=list)  # [{"descricao", "valor", "fixo"}]
+    numero_nota: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    vencimento: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    boleto_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    cliente_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    exige_documentos: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    documentos_ok: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    observacao: Mapped[str | None] = mapped_column(String(1000), nullable=True)  # fixa, passa pro mes seguinte
+    observacao_mes: Mapped[str | None] = mapped_column(String(1000), nullable=True)  # so deste mes
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    cabecalho: Mapped["MovimentacaoMes"] = relationship(back_populates="linhas")
+    cliente: Mapped["Cliente | None"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<MovimentacaoLinha mes={self.mes_id} {self.nome_cliente}>"

@@ -414,3 +414,49 @@ class PesquisaSatisfacaoCreate(BaseModel):
     nota: int
     respondido_por: str | None = None
     comentario: str | None = None
+
+
+class MovimentacaoGerar(BaseModel):
+    ano: int
+    mes: int
+    empresa_id: int | None = None  # sem empresa: gera para todas que ainda nao tem o mes
+    vazio: bool = False  # true: cria sem copiar o mes anterior
+
+
+class MovimentacaoMesUpdate(BaseModel):
+    aliquota_iss: float | None = None
+    aliquota_inss: float | None = None
+    simples_limpeza: float | None = None
+    simples_apoio: float | None = None
+    fechado: bool | None = None
+
+
+class ItemComposicao(BaseModel):
+    descricao: str | None = None
+    valor: float
+    fixo: bool = False
+
+
+class MovimentacaoLinhaDados(BaseModel):
+    cliente_id: int | None = None
+    remessa: int | None = None
+    nome_cliente: str | None = None
+    cnpj: str | None = None
+    municipio: str | None = None
+    tipo_servico: str | None = None
+    retem_iss: bool | None = None
+    retem_inss: bool | None = None
+    composicao: list[ItemComposicao] | None = None
+    numero_nota: int | None = None
+    vencimento: str | None = None
+    boleto_ok: bool | None = None
+    cliente_ok: bool | None = None
+    exige_documentos: bool | None = None
+    documentos_ok: bool | None = None
+    observacao: str | None = None
+    observacao_mes: str | None = None
+
+
+class MovimentacaoNumerar(BaseModel):
+    numero_inicial: int
+    remessa: int | None = None

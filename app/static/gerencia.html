@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerência · operações</title>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#17354f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Operações">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="avisos-header">
+        <span class="section-title" style="margin: 0;">Movimentação de cobrança</span>
+        <div class="mov-acoes-topo">
+          <div class="field mov-campo-mes">
+            <input type="month" id="mov-mes" aria-label="Mês de referência">
+          </div>
+          <button class="btn-ghost" id="mov-btn-importar">Importar planilha</button>
+          <button class="btn-ghost" id="mov-btn-excel">Baixar Excel</button>
+          <button class="btn-ghost" id="mov-btn-pdf">Baixar PDF</button>
+        </div>
+      </div>
+
+      <div class="tabs-relatorio" id="mov-abas"></div>
+
+      <div id="mov-conteudo">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- editar / adicionar cliente na movimentacao -->
+<div class="modal-overlay" id="mov-modal-linha" hidden>
+  <div class="modal mov-modal-largo">
+    <div class="modal-header">
+      <h3 id="mov-linha-titulo">Cliente</h3>
+      <button class="modal-close" data-fechar="mov-modal-linha" aria-label="Fechar">&times;</button>
+    </div>
+    <form id="mov-linha-form">
+      <div class="error-message" id="mov-linha-erro"></div>
+
+      <div class="field">
+        <label for="mov-linha-cliente">Cliente</label>
+        <input type="text" id="mov-linha-cliente" list="mov-lista-clientes" required autocomplete="off" placeholder="Digite ou escolha um cliente cadastrado">
+        <datalist id="mov-lista-clientes"></datalist>
+        <div class="mov-dica">Escolhendo um cliente cadastrado, CNPJ e município são preenchidos sozinhos.</div>
+      </div>
+      <div class="mov-grid-3">
+        <div class="field">
+          <label for="mov-linha-cnpj">CNPJ</label>
+          <input type="text" id="mov-linha-cnpj" maxlength="20">
+        </div>
+        <div class="field">
+          <label for="mov-linha-municipio">Município</label>
+          <input type="text" id="mov-linha-municipio" maxlength="100">
+        </div>
+        <div class="field">
+          <label for="mov-linha-remessa">Remessa</label>
+          <select id="mov-linha-remessa"></select>
+        </div>
+      </div>
+      <div class="mov-grid-3">
+        <div class="field">
+          <label for="mov-linha-tipo">Serviço</label>
+          <select id="mov-linha-tipo"></select>
+        </div>
+        <label class="mov-check"><input type="checkbox" id="mov-linha-retem-iss"> Retém ISS</label>
+        <label class="mov-check"><input type="checkbox" id="mov-linha-retem-inss"> Retém INSS</label>
+      </div>
+
+      <div class="field">
+        <label>Valor da nota</label>
+        <div id="mov-composicao"></div>
+        <button type="button" class="btn-ghost" id="mov-btn-add-item">+ Adicional ou desconto</button>
+        <div class="mov-dica">Use valor negativo para desconto (ex: -188,17). Itens marcados como "todo mês" passam para o mês seguinte.</div>
+      </div>
+      <div class="mov-previa" id="mov-previa"></div>
+
+      <div class="mov-grid-3">
+        <div class="field">
+          <label for="mov-linha-nota">Nº da nota</label>
+          <input type="number" id="mov-linha-nota" min="1" step="1">
+        </div>
+        <div class="field">
+          <label for="mov-linha-vencimento">Vencimento (dia)</label>
+          <input type="text" id="mov-linha-vencimento" maxlength="20" placeholder="ex: 10">
+        </div>
+        <label class="mov-check"><input type="checkbox" id="mov-linha-exige-docs"> Enviar documentos (guias, CNDs...)</label>
+      </div>
+      <div class="field">
+        <label for="mov-linha-obs">Observação fixa (repete todo mês)</label>
+        <textarea id="mov-linha-obs" rows="2" maxlength="1000" placeholder="ex: enviar para financeiro@cliente.com.br"></textarea>
+      </div>
+      <div class="field">
+        <label for="mov-linha-obs-mes">Observação só deste mês</label>
+        <textarea id="mov-linha-obs-mes" rows="2" maxlength="1000"></textarea>
+      </div>
+
+      <div class="mov-rodape-modal">
+        <button type="button" class="btn-ghost mov-btn-perigo" id="mov-linha-excluir" hidden>Remover do mês</button>
+        <button type="submit" class="btn-primary" id="mov-linha-salvar">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- numerar notas em sequencia -->
+<div class="modal-overlay" id="mov-modal-numerar" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Numerar notas</h3>
+      <button class="modal-close" data-fechar="mov-modal-numerar" aria-label="Fechar">&times;</button>
+    </div>
+    <form id="mov-numerar-form">
+      <div class="error-message" id="mov-numerar-erro"></div>
+      <p class="mov-dica">Preenche o nº da nota em sequência, na ordem da lista, só nos clientes que ainda estão sem número.</p>
+      <div class="field">
+        <label for="mov-numerar-remessa">Remessa</label>
+        <select id="mov-numerar-remessa"></select>
+      </div>
+      <div class="field">
+        <label for="mov-numerar-inicio">Número da primeira nota</label>
+        <input type="number" id="mov-numerar-inicio" min="1" step="1" required>
+      </div>
+      <button type="submit" class="btn-primary">Numerar</button>
+    </form>
+  </div>
+</div>
+
+<!-- importar planilha antiga -->
+<div class="modal-overlay" id="mov-modal-importar" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Importar planilha</h3>
+      <button class="modal-close" data-fechar="mov-modal-importar" aria-label="Fechar">&times;</button>
+    </div>
+    <form id="mov-importar-form">
+      <div class="error-message" id="mov-importar-erro"></div>
+      <p class="mov-dica">Planilha de movimentação (.xlsx) no modelo antigo: uma aba por empresa, com o nome da empresa na aba (CORDSUL, KRETZER, STAR SUL, FLC). Os dados entram no mês <strong id="mov-importar-mes"></strong>.</p>
+      <div class="field">
+        <label for="mov-importar-arquivo">Arquivo</label>
+        <input type="file" id="mov-importar-arquivo" accept=".xlsx" required>
+      </div>
+      <label class="mov-check"><input type="checkbox" id="mov-importar-substituir"> Substituir o que já foi lançado neste mês</label>
+      <button type="submit" class="btn-primary" id="mov-importar-enviar">Importar</button>
+    </form>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/gerencia.js"></script>
+</body>
+</html>

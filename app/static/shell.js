@@ -22,6 +22,7 @@ const Shell = (() => {
     'mapa-servico': '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 7h6a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4H8"/>',
     crm: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8Z"/><path d="M3.5 12h4l2-3 3 6 2-3h6"/>',
     'mapa-clientes': '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>',
+    gerencia: '<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11M13 13h4M13 17h4"/>',
     empresas: '<path d="M3 21h18M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16M9 8h1M13 8h1M9 12h1M13 12h1M9 16h1M13 16h1M14 21v-6h4a1 1 0 0 1 1 1v5"/>',
   };
 
@@ -45,6 +46,8 @@ const Shell = (() => {
     { key: 'mapa-servico', label: 'Mapa de Serviço', href: '/mapa-servico', moduloPermissao: 'mapa_servico' },
     { key: 'usuarios', label: 'Usuários', href: '/usuarios', moduloPermissao: 'usuarios' },
     { key: 'permissoes', label: 'Permissões', href: '/permissoes', apenasSuperAdmin: true },
+    // fixo por e-mail no backend (eh_gerencia); so aparece depois que /minhas-permissoes confirma
+    { key: 'gerencia', label: 'Gerência', href: '/gerencia', moduloPermissao: 'gerencia', ocultoPorPadrao: true },
   ];
 
   function autenticacao() {
@@ -155,6 +158,7 @@ const Shell = (() => {
 
     const itensVisiveis = NAV_ITEMS.filter((item) => {
       if (item.apenasSuperAdmin) return !!auth.super_admin;
+      if (item.ocultoPorPadrao) return false;
       if (item.moduloPermissao) return auth.papel === 'escritorio';
       return true;
     });
