@@ -4265,3 +4265,87 @@ button {
     width: calc(50% - 8px);
   }
 }
+
+/* ---------- Tema escuro (botao de tema na topbar, ver shell.js) ---------- */
+
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  --bg: #0f1a2b;
+  --surface: #172436;
+  --surface-2: #1e2d43;
+  --border: #2e405a;
+  --text: #e6edf6;
+  --text-muted: #a3b3c8;
+  --accent: #b08a28;
+  --accent-dark: #8e6f1e;
+  --danger: #ef7468;
+  --danger-bg: #3b2023;
+  --success: #62c491;
+  --crm-info: #86aee8;
+  --crm-atencao: #e2ab3f;
+}
+
+:root[data-tema="escuro"] .evento-tipo-badge.atestado,
+:root[data-tema="escuro"] .risco-badge.atencao,
+:root[data-tema="escuro"] .vc-status.solicitada,
+:root[data-tema="escuro"] .status-select.status-select-novo {
+  color: #dcb54e;
+}
+
+:root[data-tema="escuro"] .evento-tipo-badge.documento,
+:root[data-tema="escuro"] .evento-tipo-badge.editado,
+:root[data-tema="escuro"] .status-badge.em_andamento,
+:root[data-tema="escuro"] .status-select.status-select-em_andamento,
+:root[data-tema="escuro"] .vc-status.visitada {
+  color: #86aee8;
+}
+
+:root[data-tema="escuro"] .evento-tipo-badge.ferias { color: #d49be8; }
+:root[data-tema="escuro"] .vc-status.proposta_enviada { color: #b39cf0; }
+
+:root[data-tema="escuro"] .importar-tabela tr.importar-parecido td,
+:root[data-tema="escuro"] .mov-impostos,
+:root[data-tema="escuro"] .mov-nova-linha td {
+  background: #2c2617;
+}
+
+/* a logomarca tem fundo branco: mantem um cartao claro atras dela */
+:root[data-tema="escuro"] .sidebar-logo {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.btn-tema {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 34px;
+  padding: 0;
+}
+
+.btn-tema svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* impressao/PDF sempre no tema claro */
+@media print {
+  :root[data-tema="escuro"] {
+    color-scheme: light;
+    --bg: #ffffff;
+    --surface: #f7f7f7;
+    --surface-2: #eeeeee;
+    --border: #cccccc;
+    --text: #111111;
+    --text-muted: #444444;
+    --accent: #a9861f;
+    --accent-dark: #8a6f1a;
+    --danger: #9e1b2a;
+    --danger-bg: #f5e0dd;
+    --success: #2e7a53;
+    --crm-info: #2f5b9e;
+    --crm-atencao: #a8760a;
+  }
+}

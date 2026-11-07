@@ -152,6 +152,43 @@ const Shell = (() => {
     }
   }
 
+  // Tema claro/escuro: a escolha fica salva no navegador de cada pessoa
+  const CHAVE_TEMA = 'operacoes_tema';
+  const ICONE_LUA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>';
+  const ICONE_SOL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+
+  function temaAtual() {
+    return document.documentElement.getAttribute('data-tema') === 'escuro' ? 'escuro' : 'claro';
+  }
+
+  function aplicarTema(tema) {
+    if (tema === 'escuro') {
+      document.documentElement.setAttribute('data-tema', 'escuro');
+    } else {
+      document.documentElement.removeAttribute('data-tema');
+    }
+  }
+
+  function atualizarBotaoTema() {
+    const botao = document.getElementById('btn-tema');
+    if (!botao) return;
+    const escuro = temaAtual() === 'escuro';
+    botao.innerHTML = escuro ? ICONE_SOL : ICONE_LUA;
+    const rotulo = escuro ? 'Mudar para o tema claro' : 'Mudar para o tema escuro';
+    botao.title = rotulo;
+    botao.setAttribute('aria-label', rotulo);
+  }
+
+  function alternarTema() {
+    const novo = temaAtual() === 'escuro' ? 'claro' : 'escuro';
+    aplicarTema(novo);
+    try { localStorage.setItem(CHAVE_TEMA, novo); } catch (e) { /* sem storage: vale so nesta pagina */ }
+    atualizarBotaoTema();
+  }
+
+  // aplica o tema salvo assim que o shell.js carrega, antes de desenhar a tela
+  try { aplicarTema(localStorage.getItem(CHAVE_TEMA)); } catch (e) { /* ignora */ }
+
   function montar(paginaAtiva, tituloTopbar) {
     const auth = autenticacao();
     if (!auth) return null;
@@ -200,11 +237,14 @@ const Shell = (() => {
       <div class="user-info">
         <span id="user-nome">${auth.nome}</span>
         <span class="papel-badge">${auth.papel}</span>
+        <button class="btn-ghost btn-tema" id="btn-tema" type="button"></button>
         <button class="btn-ghost" id="btn-sair">Sair</button>
       </div>
     `;
     document.getElementById('topbar').insertAdjacentHTML('beforeend', userInfoHtml);
     document.getElementById('btn-sair').addEventListener('click', sair);
+    atualizarBotaoTema();
+    document.getElementById('btn-tema').addEventListener('click', alternarTema);
 
     montarModalChamado();
     document.getElementById('btn-abrir-chamado').addEventListener('click', abrirModalChamado);
