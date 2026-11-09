@@ -6752,6 +6752,9 @@ def _resumo_do_dia(db: Session, data: str | None) -> dict:
         labels_tipo_chamado={t["chave"]: t["label"] for t in TIPOS_CHAMADO},
         labels_status_diaria={s["chave"]: s["label"] for s in STATUS_DIARIA},
         labels_tipo_custo={t["chave"]: t["label"] for t in TIPOS_CUSTO_DIARIO},
+        labels_origem_visita_comercial={o["chave"]: o["label"] for o in ORIGENS_VISITA_COMERCIAL},
+        labels_status_visita_comercial={st["chave"]: st["label"] for st in STATUS_VISITA_COMERCIAL},
+        labels_servico_visita_comercial={t["chave"]: t["label"] for t in TIPOS_SERVICO_COMERCIAL},
     )
 
 

@@ -1,7 +1,8 @@
 """
 Resumo analitico de um dia de operacao (aba "Resumo do dia" do CRM e PDF).
 
-Junta tudo que aconteceu no dia - chamados, visitas, faltas, horas de
+Junta tudo que aconteceu no dia - chamados, visitas (de supervisao e
+comerciais), faltas, horas de
 falta, atestados, diarias de cobertura, custos, entradas/saidas de
 colaboradores nos postos, postos vagos, estoque e pesquisas - compara com
 a media dos mesmos dias da semana nas 4 semanas anteriores e cruza por
@@ -36,6 +37,7 @@ from models import (
     TarefaAgendada,
     Usuario,
     VagaAberta,
+    VisitaComercial,
     VisitaSupervisao,
 )
 
@@ -119,7 +121,13 @@ def montar_resumo_dia(
     labels_tipo_chamado: dict[str, str],
     labels_status_diaria: dict[str, str],
     labels_tipo_custo: dict[str, str],
+    labels_origem_visita_comercial: dict[str, str] | None = None,
+    labels_status_visita_comercial: dict[str, str] | None = None,
+    labels_servico_visita_comercial: dict[str, str] | None = None,
 ) -> dict:
+    labels_origem_visita_comercial = labels_origem_visita_comercial or {}
+    labels_status_visita_comercial = labels_status_visita_comercial or {}
+    labels_servico_visita_comercial = labels_servico_visita_comercial or {}
     inicio_utc = _para_utc(dia)
     fim_utc = _para_utc(dia + timedelta(days=1))
     amanha = dia + timedelta(days=1)
@@ -196,6 +204,25 @@ def montar_resumo_dia(
     )
     visitas_dia = [v for v in visitas_periodo if v.data_visita == dia]
     visitas_base = {d: sum(1 for v in visitas_periodo if v.data_visita == d) for d in dias_base}
+
+    # Visitas comerciais (prospeccao / levantamento de orcamento em locais que
+    # ainda nao sao clientes): as feitas no dia e as que ficaram para amanha
+    comerciais_dia = (
+        db.query(VisitaComercial).filter(VisitaComercial.data_visita == dia).order_by(VisitaComercial.nome_local).all()
+    )
+    comerciais_amanha = (
+        db.query(VisitaComercial)
+        .filter(VisitaComercial.status == "solicitada", VisitaComercial.data_visita.is_(None),
+                VisitaComercial.data_prevista == amanha)
+        .order_by(VisitaComercial.nome_local)
+        .all()
+    )
+    comerciais_atrasadas = (
+        db.query(VisitaComercial)
+        .filter(VisitaComercial.status == "solicitada", VisitaComercial.data_visita.is_(None),
+                VisitaComercial.data_prevista <= dia)
+        .count()
+    )
 
     # ------------------------------------------------------------------
     # Faltas, horas de falta, atestados, ferias e advertencias
@@ -413,6 +440,7 @@ def montar_resumo_dia(
             "id": s.id,
             "nome": s.nome,
             "visitas": sum(1 for v in visitas_dia if v.supervisor_id == s.id),
+            "visitas_comerciais": sum(1 for v in comerciais_dia if v.responsavel_id == s.id),
             "chamados_abertos": sum(1 for c in abertos_dia if c.aberto_por_id == s.id),
             "chamados_finalizados": sum(1 for c in finalizados_dia if c.finalizado_por_id == s.id),
             "diarias_lancadas": sum(1 for c in diarias_dia if c.usuario_id == s.id),
@@ -439,6 +467,7 @@ def montar_resumo_dia(
         "diarias": {"valor": len(diarias_dia), "custo": custo_diarias_dia, **_comparar(len(diarias_dia), media(diarias_base), rotulo_media)},
         "custo_total": {"valor": custo_total_dia, **_comparar(custo_total_dia, media(custo_total_base), rotulo_media)},
         "visitas": {"valor": len(visitas_dia), **_comparar(len(visitas_dia), media(visitas_base), rotulo_media)},
+        "visitas_comerciais": {"valor": len(comerciais_dia), "amanha": len(comerciais_amanha), "atrasadas": comerciais_atrasadas},
         "turnos_vagos": {"valor": len(vagos_dia), "amanha": len(vagos_amanha)},
         "tempo_medio_resolucao_horas": round(sum(horas_resolucao) / len(horas_resolucao), 1) if horas_resolucao else None,
     }
@@ -468,7 +497,7 @@ def montar_resumo_dia(
     if custo_total_dia:
         partes_manchete.append(f"{formatar_moeda(custo_total_dia)} em custos")
     manchete = ", ".join(partes_manchete) + "."
-    teve_movimento = any([abertos_dia, finalizados_dia, visitas_dia, faltas_dia, horas_falta_dia, custos_dia,
+    teve_movimento = any([abertos_dia, finalizados_dia, visitas_dia, comerciais_dia, faltas_dia, horas_falta_dia, custos_dia,
                           movimentos_mapa, movimentos_estoque, pesquisas_dia])
     if not teve_movimento:
         manchete = "Nenhuma movimentação registrada no sistema neste dia."
@@ -528,13 +557,32 @@ def montar_resumo_dia(
         insights.append({"nivel": "atencao" if comp["direcao"] == "acima" else "info", "texto": texto})
 
     if dia.weekday() < 5 and supervisores:
-        sem_visita = [s["nome"] for s in por_supervisor if s["visitas"] == 0]
-        texto = f"{_plural(len(visitas_dia), 'visita de supervisão registrada', 'visitas de supervisão registradas')}."
+        # visita comercial tambem e trabalho de rua: quem fez so comercial nao entra como "sem visita"
+        sem_visita = [s["nome"] for s in por_supervisor if s["visitas"] == 0 and s["visitas_comerciais"] == 0]
+        texto = f"{_plural(len(visitas_dia), 'visita de supervisão registrada', 'visitas de supervisão registradas')}"
+        if comerciais_dia:
+            texto += f" e {_plural(len(comerciais_dia), 'visita comercial', 'visitas comerciais')}"
+        texto += "."
+        clientes_visitados = sorted({v.cliente.nome for v in visitas_dia})
+        if clientes_visitados:
+            texto += f" Clientes visitados: {', '.join(clientes_visitados[:6])}{'...' if len(clientes_visitados) > 6 else ''}."
         if sem_visita and len(sem_visita) < len(supervisores):
             texto += f" Sem visita registrada: {', '.join(sem_visita)}."
         elif sem_visita:
             texto += " Nenhum supervisor registrou visita — confirme se foram lançadas no sistema."
         insights.append({"nivel": "atencao" if sem_visita else "positivo", "texto": texto})
+
+    if comerciais_dia or comerciais_amanha or comerciais_atrasadas:
+        partes = []
+        if comerciais_dia:
+            locais = ", ".join(v.nome_local for v in comerciais_dia[:4]) + ("..." if len(comerciais_dia) > 4 else "")
+            partes.append(f"{_plural(len(comerciais_dia), 'visita comercial feita', 'visitas comerciais feitas')} ({locais})")
+        if comerciais_amanha:
+            partes.append(f"{_plural(len(comerciais_amanha), 'agendada', 'agendadas')} para amanhã")
+        if comerciais_atrasadas:
+            partes.append(f"{_plural(comerciais_atrasadas, 'solicitação com data vencida', 'solicitações com data vencida')} ainda sem visita")
+        insights.append({"nivel": "atencao" if comerciais_atrasadas else "positivo" if comerciais_dia else "info",
+                         "texto": "Comercial: " + "; ".join(partes) + "."})
 
     if entradas_posto or saidas_posto or admitidos or desligados:
         partes = []
@@ -592,6 +640,12 @@ def montar_resumo_dia(
     for r in pontos_atencao:
         if r["nivel"] == "alerta" and not r["visitado"]:
             pendencias.append({"urgencia": "media", "cliente_id": r["cliente_id"], "texto": f"Contato ou visita em {r['cliente_nome']} — {r['itens'][0]['texto']}"})
+    for v in comerciais_amanha:
+        pendencias.append({"urgencia": "media", "cliente_id": None,
+                           "texto": f"Visita comercial em {v.nome_local} ({v.responsavel.nome})"})
+    if comerciais_atrasadas:
+        pendencias.append({"urgencia": "baixa", "cliente_id": None,
+                           "texto": f"{_plural(comerciais_atrasadas, 'visita comercial solicitada', 'visitas comerciais solicitadas')} com data vencida e ainda sem visita"})
     for t in tarefas_amanha:
         pendencias.append({"urgencia": "media", "cliente_id": None, "texto": f"Tarefa agendada: {t.titulo}"})
     for contrato in db.query(ClienteContrato).all():
@@ -633,9 +687,18 @@ def montar_resumo_dia(
                f"{labels_tipo_chamado.get(c.tipo, c.tipo)}" + (f" (por {c.finalizado_por.nome})" if c.finalizado_por else ""),
                "positivo", c.cliente_id)
     for v in visitas_dia:
-        marcar(v.criado_em, "visita", f"Visita — {v.cliente.nome}",
+        marcar(v.criado_em, "visita", f"Visita de supervisão — {v.cliente.nome}",
                f"{v.supervisor.nome}" + (f" falou com {v.pessoa_com_quem_falou}" if v.pessoa_com_quem_falou else "")
                + (f": {v.observacoes[:140]}" if v.observacoes else ""), "positivo", v.cliente_id)
+    for v in comerciais_dia:
+        # a visita comercial so tem a data, nao a hora: entra sem hora, no topo
+        linha_do_tempo.append({
+            "hora": "—", "ordem": "0", "tipo": "visita", "cliente_id": v.cliente_id,
+            "titulo": f"Visita comercial — {v.nome_local}",
+            "detalhe": f"{v.responsavel.nome} · {labels_status_visita_comercial.get(v.status, v.status)}"
+                       + (f": {v.observacoes[:140]}" if v.observacoes else ""),
+            "sentimento": "positivo",
+        })
     for c in custos_dia:
         if c.status_diaria:
             titulo = f"Diária de cobertura — {c.cliente.nome if c.cliente else 'sem cliente'}"
@@ -676,6 +739,43 @@ def montar_resumo_dia(
         "pontos_atencao": pontos_atencao[:12],
         "pendencias_amanha": pendencias,
         "por_supervisor": por_supervisor,
+        "visitas": {
+            "supervisao": [
+                {
+                    "id": v.id,
+                    "cliente_id": v.cliente_id,
+                    "cliente_nome": v.cliente.nome,
+                    "supervisor_nome": v.supervisor.nome,
+                    "pessoa_com_quem_falou": v.pessoa_com_quem_falou,
+                    "observacoes": v.observacoes,
+                    "acoes": v.acoes,
+                }
+                for v in sorted(visitas_dia, key=lambda v: (v.supervisor.nome, v.cliente.nome))
+            ],
+            "comerciais": [
+                {
+                    "id": v.id,
+                    "nome_local": v.nome_local,
+                    "local": " - ".join(x for x in (v.bairro, v.cidade) if x) or None,
+                    "origem": labels_origem_visita_comercial.get(v.origem, v.origem),
+                    "status": v.status,
+                    "status_label": labels_status_visita_comercial.get(v.status, v.status),
+                    "tipo_servico": labels_servico_visita_comercial.get(v.tipo_servico, v.tipo_servico) if v.tipo_servico else None,
+                    "qtd_postos": v.qtd_postos,
+                    "valor_estimado": v.valor_estimado,
+                    "responsavel_nome": v.responsavel.nome,
+                    "contato": " · ".join(x for x in (v.contato_nome, v.contato_cargo) if x) or None,
+                    "observacoes": v.observacoes,
+                    "proximo_passo": v.proximo_passo,
+                }
+                for v in comerciais_dia
+            ],
+            "comerciais_amanha": [
+                {"id": v.id, "nome_local": v.nome_local, "responsavel_nome": v.responsavel.nome,
+                 "origem": labels_origem_visita_comercial.get(v.origem, v.origem)}
+                for v in comerciais_amanha
+            ],
+        },
         "chamados_abertos": [serializar_chamado_dia(c) for c in sorted(abertos_dia, key=lambda c: c.criado_em)],
         "chamados_urgentes_em_aberto": [serializar_chamado_dia(c) for c in backlog_urgente[:10]],
         "ausencias": [

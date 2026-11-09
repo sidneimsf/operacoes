@@ -706,7 +706,7 @@ function renderizarResumoDia() {
       ${kpiResumo('faltas', i.faltas.valor, (horas ? `+ ${formatarHorasFalta(horas)} de falta parcial<br>` : '') + deltaHtml(i.faltas), 'resumo-ausencias', i.faltas.valor ? 'kpi-atencao' : '')}
       ${kpiResumo('atestados · férias', `${i.atestados.valor}<span style="font-size:15px;color:var(--text-muted);"> · ${i.ferias.valor}</span>`, 'colaboradores afastados no dia', 'resumo-ausencias')}
       ${kpiResumo('custos do dia', formatarMoeda(i.custo_total.valor), `${i.diarias.valor} diária(s): ${formatarMoeda(i.diarias.custo)}<br>${deltaHtml(i.custo_total, true)}`, 'resumo-custos')}
-      ${kpiResumo('visitas de supervisão', i.visitas.valor, deltaHtml(i.visitas), 'resumo-supervisores')}
+      ${kpiResumo('visitas de supervisão', i.visitas.valor, `+ ${i.visitas_comerciais.valor} comercial(is)<br>${deltaHtml(i.visitas)}`, 'resumo-visitas')}
       ${kpiResumo('turnos vagos', i.turnos_vagos.valor, `amanhã: ${i.turnos_vagos.amanha}`, 'resumo-pendencias', i.turnos_vagos.amanha ? 'kpi-atencao' : '')}
     </div>
   `;
@@ -777,10 +777,40 @@ function renderizarResumoDia() {
         </div>`).join('')}` : ''}
   `;
 
+  const vs = r.visitas;
+  const textoVisita = (rotulo, texto) => (texto ? `<div style="margin-bottom:4px;"><b>${rotulo}:</b> ${escaparHtml(texto)}</div>` : '');
+  const visitasSupervisao = vs.supervisao.length
+    ? tabela(['Cliente', 'Supervisor', 'Falou com', 'Observações e ações'], vs.supervisao.map((v) => `
+        <tr><td><a href="${linkFicha(v.cliente_id)}">${escaparHtml(v.cliente_nome)}</a></td>
+        <td>${escaparHtml(v.supervisor_nome)}</td>
+        <td>${escaparHtml(v.pessoa_com_quem_falou || '—')}</td>
+        <td style="min-width:260px;font-size:13px;">${textoVisita('Obs.', v.observacoes) + textoVisita('Ações', v.acoes) || '—'}</td></tr>`).join(''), true)
+    : '<div class="empty-state" style="padding-top:0;">Nenhuma visita de supervisão registrada neste dia.</div>';
+  const visitasComerciais = vs.comerciais.length
+    ? tabela(['Local', 'Responsável', 'Situação', 'Observações'], vs.comerciais.map((v) => {
+        const servico = [v.tipo_servico, v.qtd_postos ? `${v.qtd_postos} posto(s)` : null, v.valor_estimado ? formatarMoeda(v.valor_estimado) : null].filter(Boolean).join(' · ');
+        return `
+        <tr><td><a href="/visita-comercial">${escaparHtml(v.nome_local)}</a>${v.local ? `<div style="font-size:12px;color:var(--text-muted);">${escaparHtml(v.local)}</div>` : ''}</td>
+        <td>${escaparHtml(v.responsavel_nome)}</td>
+        <td>${escaparHtml(v.origem)} · <b>${escaparHtml(v.status_label)}</b>${servico ? `<div style="font-size:12px;color:var(--text-muted);">${escaparHtml(servico)}</div>` : ''}</td>
+        <td style="min-width:240px;font-size:13px;">${(v.observacoes ? `<div style="margin-bottom:4px;">${escaparHtml(v.observacoes)}</div>` : '') + textoVisita('Próximo passo', v.proximo_passo) || '—'}</td></tr>`;
+      }).join(''), true)
+    : '<div class="empty-state" style="padding-top:0;">Nenhuma visita comercial feita neste dia.</div>';
+  const comerciaisAmanha = vs.comerciais_amanha.length
+    ? `<div style="font-size:12.5px;color:var(--text-muted);margin-top:10px;">Visitas comerciais agendadas para amanhã: ${vs.comerciais_amanha.map((v) => `<b>${escaparHtml(v.nome_local)}</b> (${escaparHtml(v.responsavel_nome)})`).join(', ')}</div>`
+    : '';
+  const visitas = `
+    ${visitasSupervisao}
+    <div class="section-title" style="margin:18px 0 8px;">Visitas comerciais</div>
+    ${visitasComerciais}
+    ${comerciaisAmanha}
+  `;
+
   const supervisores = r.por_supervisor.length
-    ? tabela(['Supervisor', 'Visitas', 'Abriu', 'Finalizou', 'Diárias', 'Custos', 'Clientes c/ ocorrência'], r.por_supervisor.map((s) => `
+    ? tabela(['Supervisor', 'Visitas', 'Comerciais', 'Abriu', 'Finalizou', 'Diárias', 'Custos', 'Clientes c/ ocorrência'], r.por_supervisor.map((s) => `
         <tr><td>${escaparHtml(s.nome)}</td>
-        <td>${s.visitas ? s.visitas : '<span style="color:var(--crm-atencao);">0</span>'}</td>
+        <td>${s.visitas ? s.visitas : (s.visitas_comerciais ? '0' : '<span style="color:var(--crm-atencao);">0</span>')}</td>
+        <td>${s.visitas_comerciais}</td>
         <td>${s.chamados_abertos}</td><td>${s.chamados_finalizados}</td><td>${s.diarias_lancadas}</td>
         <td>${formatarMoeda(s.custos_lancados)}</td>
         <td>${s.clientes_com_ocorrencia ? `<b style="color:var(--crm-risco);">${s.clientes_com_ocorrencia}</b>` : '0'}</td></tr>`).join(''), true)
@@ -806,6 +836,7 @@ function renderizarResumoDia() {
       <div id="resumo-ausencias">${cartao('Ausências', 'colaboradores', ausencias, String(r.ausencias.length))}</div>
       <div id="resumo-custos">${cartao('Custos do dia', 'custos-diarios', custos, formatarMoeda(c.total))}</div>
     </div>
+    <div id="resumo-visitas">${cartao('Visitas do dia', 'supervisao', visitas, String(vs.supervisao.length + vs.comerciais.length))}</div>
     <div id="resumo-chamados">${cartao('Chamados do dia', 'ocorrencias', chamados, String(r.chamados_abertos.length))}</div>
     <div id="resumo-supervisores">${cartao('Atividade por supervisor', 'supervisao',
       supervisores + `<div style="font-size:12.5px;color:var(--text-muted);margin-top:10px;">${rodapeEquipe}</div>`)}</div>

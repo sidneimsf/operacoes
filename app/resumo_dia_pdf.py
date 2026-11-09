@@ -165,7 +165,8 @@ def gerar_resumo_dia_pdf(r: dict) -> bytes:
         _kpi(str(ind["chamados_finalizados"]["valor"]), "chamados finalizados",
              f'backlog: {ind["backlog"]["valor"]} ({ind["backlog"]["urgentes"]} urgentes)'),
         _kpi(str(ind["reclamacoes"]["valor"]), "reclamações", _comparacao(ind["reclamacoes"])),
-        _kpi(str(ind["visitas"]["valor"]), "visitas de supervisão", _comparacao(ind["visitas"])),
+        _kpi(str(ind["visitas"]["valor"]), "visitas de supervisão",
+             f'+ {ind["visitas_comerciais"]["valor"]} comercial(is)<br/>' + _comparacao(ind["visitas"])),
         _kpi(str(ind["faltas"]["valor"]), "faltas", (f"+ {_horas(horas)} de falta parcial" if horas else _comparacao(ind["faltas"]))),
         _kpi(str(ind["atestados"]["valor"]), "atestados ativos", f'{ind["ferias"]["valor"]} em férias'),
         _kpi(formatar_moeda(ind["custo_total"]["valor"]), "custos do dia", _comparacao(ind["custo_total"], moeda=True)),
@@ -235,6 +236,39 @@ def gerar_resumo_dia_pdf(r: dict) -> bytes:
         bloco += [Spacer(1, 3), _p(f"Total aguardando reembolso (todos os dias): {formatar_moeda(custos['pendentes_reembolso'])}", "pequeno")]
         elementos.append(KeepTogether(bloco))
 
+    # visitas do dia
+    visitas = r["visitas"]
+    if visitas["supervisao"]:
+        linhas = []
+        for v in visitas["supervisao"]:
+            relato = []
+            if v["observacoes"]:
+                relato.append(f"<b>Obs.:</b> {escape(v['observacoes'])}")
+            if v["acoes"]:
+                relato.append(f"<b>Ações:</b> {escape(v['acoes'])}")
+            linhas.append([v["cliente_nome"], v["supervisor_nome"], v["pessoa_com_quem_falou"] or "—",
+                           Paragraph("<br/>".join(relato) or "—", ESTILOS["celula"])])
+        elementos.append(_p("Visitas de supervisão", "secao"))
+        elementos.append(_tabela(["Cliente", "Supervisor", "Falou com", "Observações e ações"], linhas,
+                                 [3.8 * cm, 3 * cm, 2.8 * cm, LARGURA_UTIL - 9.6 * cm]))
+    if visitas["comerciais"]:
+        linhas = []
+        for v in visitas["comerciais"]:
+            local = f"<b>{escape(v['nome_local'])}</b>" + (f"<br/><font size='7' color='#5b6b82'>{escape(v['local'])}</font>" if v["local"] else "")
+            servico = " · ".join(x for x in (v["tipo_servico"], f"{v['qtd_postos']} posto(s)" if v["qtd_postos"] else None,
+                                             formatar_moeda(v["valor_estimado"]) if v["valor_estimado"] else None) if x)
+            relato = []
+            if v["observacoes"]:
+                relato.append(escape(v["observacoes"]))
+            if v["proximo_passo"]:
+                relato.append(f"<b>Próximo passo:</b> {escape(v['proximo_passo'])}")
+            linhas.append([Paragraph(local, ESTILOS["celula"]), v["responsavel_nome"],
+                           f"{v['origem']} · {v['status_label']}" + (f" · {servico}" if servico else ""),
+                           Paragraph("<br/>".join(relato) or "—", ESTILOS["celula"])])
+        elementos.append(_p("Visitas comerciais", "secao"))
+        elementos.append(_tabela(["Local", "Responsável", "Situação", "Observações"], linhas,
+                                 [3.8 * cm, 3 * cm, 3.6 * cm, LARGURA_UTIL - 10.4 * cm]))
+
     # chamados abertos
     if r["chamados_abertos"]:
         linhas = [[c["hora"], c["cliente_nome"], c["tipo_label"] + (" · URGENTE" if c["prioridade"] != "normal" else ""),
@@ -245,11 +279,11 @@ def gerar_resumo_dia_pdf(r: dict) -> bytes:
 
     # supervisores
     if r["por_supervisor"]:
-        linhas = [[s["nome"], s["visitas"], s["chamados_abertos"], s["chamados_finalizados"], s["diarias_lancadas"],
-                   formatar_moeda(s["custos_lancados"]), s["clientes_com_ocorrencia"]] for s in r["por_supervisor"]]
+        linhas = [[s["nome"], s["visitas"], s["visitas_comerciais"], s["chamados_abertos"], s["chamados_finalizados"],
+                   s["diarias_lancadas"], formatar_moeda(s["custos_lancados"]), s["clientes_com_ocorrencia"]] for s in r["por_supervisor"]]
         elementos.append(KeepTogether([_p("Atividade por supervisor", "secao"), _tabela(
-            ["Supervisor", "Visitas", "Chamados abertos", "Finalizados", "Diárias", "Custos", "Clientes c/ ocorrência"], linhas,
-            [4.4 * cm, 1.6 * cm, 2.4 * cm, 2 * cm, 1.6 * cm, 2.6 * cm, LARGURA_UTIL - 14.6 * cm])]))
+            ["Supervisor", "Visitas superv.", "Visitas comerc.", "Chamados abertos", "Finalizados", "Diárias", "Custos", "Clientes c/ ocorrência"], linhas,
+            [3.8 * cm, 1.7 * cm, 1.7 * cm, 2.1 * cm, 1.9 * cm, 1.5 * cm, 2.4 * cm, LARGURA_UTIL - 15.1 * cm])]))
 
     # linha do tempo
     if r["linha_do_tempo"]:
