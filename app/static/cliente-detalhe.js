@@ -9,6 +9,12 @@ function escaparHtml(texto) {
   return div.innerHTML;
 }
 
+function hojeIso() {
+  const agora = new Date();
+  agora.setMinutes(agora.getMinutes() - agora.getTimezoneOffset());
+  return agora.toISOString().slice(0, 10);
+}
+
 function formatarDataBR(isoString) {
   const [ano, mes, dia] = isoString.split('-');
   return `${dia}/${mes}/${ano}`;
@@ -185,6 +191,11 @@ function montarModalHorario() {
             <label for="horario-hora-fim">Fim</label>
             <input type="time" id="horario-hora-fim" required>
           </div>
+          <div class="field" id="horario-data-mudanca-campo" style="display: none;">
+            <label for="horario-data-mudanca">Data da troca / saída</label>
+            <input type="date" id="horario-data-mudanca">
+            <div class="meta" style="margin-top: 4px;">Ao trocar o colaborador ou remover o horário, o vínculo anterior é encerrado nesta data e fica guardado no histórico.</div>
+          </div>
           <div class="error-message" id="horario-modal-erro"></div>
           <div style="display: flex; gap: 10px;">
             <button type="submit" class="btn-primary" id="horario-modal-enviar" style="flex: 1;">Salvar</button>
@@ -274,7 +285,11 @@ async function abrirModalHorario(dia, turno, horarioId) {
     document.getElementById('horario-hora-inicio').value = registro.hora_inicio;
     document.getElementById('horario-hora-fim').value = registro.hora_fim;
     botaoRemover.hidden = false;
+    document.getElementById('horario-data-mudanca-campo').style.display = '';
+    document.getElementById('horario-data-mudanca').value = hojeIso();
+    document.getElementById('horario-data-mudanca').max = hojeIso();
   } else {
+    document.getElementById('horario-data-mudanca-campo').style.display = 'none';
     document.getElementById('horario-hora-inicio').value = '';
     document.getElementById('horario-hora-fim').value = '';
     botaoRemover.hidden = true;
@@ -307,6 +322,8 @@ async function salvarHorario(evento) {
 
   try {
     if (celulaEmEdicao.horarioId) {
+      const dataMudanca = document.getElementById('horario-data-mudanca').value;
+      if (dataMudanca) corpo.data_mudanca = dataMudanca;
       await Shell.chamarApi(`/horarios-servico/${celulaEmEdicao.horarioId}`, { method: 'PATCH', body: corpo });
     } else {
       await Shell.chamarApi('/horarios-servico', {
@@ -321,6 +338,7 @@ async function salvarHorario(evento) {
     }
     fecharModalHorario();
     carregarMapaServicos();
+    carregarHistoricoEquipe();
   } catch (erro) {
     erroBox.textContent = erro.detalhe || 'Não foi possível salvar agora.';
     erroBox.classList.add('visible');
@@ -329,14 +347,17 @@ async function salvarHorario(evento) {
 
 async function removerHorarioAtual() {
   if (!celulaEmEdicao.horarioId) return;
-  if (!confirm('Remover esse horário da agenda?')) return;
+  if (!confirm('Remover esse horário da agenda? O vínculo fica guardado no histórico.')) return;
 
+  const dataSaida = document.getElementById('horario-data-mudanca').value;
+  const parametro = dataSaida ? `?data_fim=${dataSaida}` : '';
   try {
-    await Shell.chamarApi(`/horarios-servico/${celulaEmEdicao.horarioId}`, { method: 'DELETE' });
+    await Shell.chamarApi(`/horarios-servico/${celulaEmEdicao.horarioId}${parametro}`, { method: 'DELETE' });
     fecharModalHorario();
     carregarMapaServicos();
+    carregarHistoricoEquipe();
   } catch (erro) {
-    alert('Não foi possível remover agora.');
+    alert(erro.detalhe || 'Não foi possível remover agora.');
   }
 }
 
@@ -740,6 +761,9 @@ async function iniciar() {
     renderizarResumo(chamados);
     renderizarTimeline(chamados);
     carregarMapaServicos();
+    carregarHistoricoEquipe();
+    montarFiltroHist('hist-equipe', carregarHistoricoEquipe);
+    ligarExpandirHist(document.getElementById('historico-equipe'));
     carregarHistoricoVisitas();
 
     montarModalCronograma();
@@ -1103,6 +1127,130 @@ async function salvarCronograma(evento) {
   } finally {
     botao.disabled = false;
     botao.textContent = 'Salvar cronograma';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Historico do mapa de servico (quem ja trabalhou neste cliente)
+// ---------------------------------------------------------------------------
+
+const DIAS_LABEL_HIST = {
+  segunda: 'Segunda', terca: 'Terça', quarta: 'Quarta', quinta: 'Quinta',
+  sexta: 'Sexta', sabado: 'Sábado', domingo: 'Domingo',
+};
+const TURNOS_LABEL_HIST = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
+
+function escaparHist(texto) {
+  const div = document.createElement('div');
+  div.textContent = texto == null ? '' : String(texto);
+  return div.innerHTML;
+}
+
+function dataBRHist(iso) {
+  if (!iso) return '—';
+  const [ano, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+function situacaoHistHtml(grupo) {
+  if (grupo.ativo) return '<span class="evento-tipo-badge cobertura">Atual</span>';
+  const ultimo = grupo.vinculos.find((v) => v.data_fim === grupo.data_fim);
+  const motivo = ultimo && ultimo.motivo_saida ? ` · ${escaparHist(ultimo.motivo_saida)}` : '';
+  return `<span class="evento-tipo-badge">Saiu</span><span class="meta" style="margin-left: 6px;">${motivo.replace(/^ · /, '')}</span>`;
+}
+
+function vinculosHistHtml(vinculos) {
+  return vinculos
+    .map((v) => {
+      const fim = v.ativo ? 'atual' : dataBRHist(v.data_fim);
+      const motivo = v.motivo_saida ? ` · ${escaparHist(v.motivo_saida)}` : '';
+      return `<div class="meta" style="padding: 3px 0;">
+        <strong>${DIAS_LABEL_HIST[v.dia_semana] || v.dia_semana} · ${TURNOS_LABEL_HIST[v.turno] || v.turno}</strong>
+        ${v.hora_inicio}-${v.hora_fim} — ${dataBRHist(v.data_inicio)} a ${fim} (${escaparHist(v.duracao_texto)})${motivo}
+      </div>`;
+    })
+    .join('');
+}
+
+function montarFiltroHist(prefixo, aoMudar) {
+  const inicio = document.getElementById(`${prefixo}-inicio`);
+  const fim = document.getElementById(`${prefixo}-fim`);
+  inicio.addEventListener('change', aoMudar);
+  fim.addEventListener('change', aoMudar);
+  document.getElementById(`${prefixo}-limpar`).addEventListener('click', () => {
+    inicio.value = '';
+    fim.value = '';
+    aoMudar();
+  });
+}
+
+function parametrosFiltroHist(prefixo) {
+  const params = new URLSearchParams();
+  const inicio = document.getElementById(`${prefixo}-inicio`).value;
+  const fim = document.getElementById(`${prefixo}-fim`).value;
+  if (inicio) params.set('inicio', inicio);
+  if (fim) params.set('fim', fim);
+  return params.toString();
+}
+
+function ligarExpandirHist(container) {
+  container.addEventListener('click', (evento) => {
+    const botao = evento.target.closest('.btn-hist-vinculos');
+    if (!botao) return;
+    const linha = document.getElementById(botao.dataset.alvo);
+    linha.hidden = !linha.hidden;
+    botao.textContent = linha.hidden ? 'Ver horários' : 'Ocultar';
+  });
+}
+
+async function carregarHistoricoEquipe() {
+  const container = document.getElementById('historico-equipe');
+  const kpis = document.getElementById('kpi-historico-equipe');
+  container.innerHTML = '<div class="loading-state">Carregando...</div>';
+  try {
+    const params = parametrosFiltroHist('hist-equipe');
+    const dados = await Shell.chamarApi(`/clientes-dados/${clienteId}/historico-colaboradores${params ? `?${params}` : ''}`);
+    if (dados === null) return;
+    const r = dados.resumo;
+    const filtrou = Boolean(params);
+    kpis.innerHTML = `
+      <div class="kpi-card"><div class="label">passaram pelo cliente${filtrou ? ' no período' : ''}</div><div class="value">${r.total_colaboradores}</div></div>
+      <div class="kpi-card"><div class="label">atendendo hoje</div><div class="value">${r.atuais}</div></div>
+      <div class="kpi-card"><div class="label">saíram / foram trocados${filtrou ? ' no período' : ''}</div><div class="value">${r.saidas}</div></div>
+      <div class="kpi-card"><div class="label">entraram${filtrou ? ' no período' : ''}</div><div class="value">${r.entradas}</div></div>
+    `;
+
+    if (dados.colaboradores.length === 0) {
+      container.innerHTML = '<div class="empty-state">Nenhum colaborador no histórico deste cliente para esse período.</div>';
+      return;
+    }
+
+    const linhas = dados.colaboradores
+      .map((g, i) => {
+        const registro = g.colaborador_registro ? ` <span class="meta">· reg. ${escaparHist(g.colaborador_registro)}</span>` : '';
+        const cargo = g.colaborador_cargo ? `<div class="meta">${escaparHist(g.colaborador_cargo)}</div>` : '';
+        return `
+        <tr>
+          <td><a href="/colaborador-detalhe?id=${g.colaborador_id}">${escaparHist(g.colaborador_nome)}</a>${registro}${cargo}</td>
+          <td>${dataBRHist(g.data_inicio)}</td>
+          <td>${g.ativo ? '—' : dataBRHist(g.data_fim)}</td>
+          <td>${escaparHist(g.duracao_texto)}</td>
+          <td>${situacaoHistHtml(g)}</td>
+          <td><button type="button" class="btn-ghost btn-hist-vinculos" data-alvo="hist-equipe-${i}" style="padding: 4px 10px; font-size: 12px;">Ver horários</button></td>
+        </tr>
+        <tr id="hist-equipe-${i}" hidden><td colspan="6">${vinculosHistHtml(g.vinculos)}</td></tr>
+      `;
+      })
+      .join('');
+
+    container.innerHTML = `
+      <div class="table-scroll-wrapper"><table class="table-list">
+        <thead><tr><th>Colaborador</th><th>Entrou</th><th>Saiu</th><th>Tempo no cliente</th><th>Situação</th><th></th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table></div>
+    `;
+  } catch (erro) {
+    container.innerHTML = `<div class="empty-state">${escaparHist(erro.detalhe || 'Não foi possível carregar o histórico agora.')}</div>`;
   }
 }
 

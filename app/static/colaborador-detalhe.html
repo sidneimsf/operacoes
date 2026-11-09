@@ -42,6 +42,26 @@
         <div class="loading-state">Carregando...</div>
       </div>
 
+      <div class="section-title" style="margin-top: 30px;">Locais onde trabalhou</div>
+      <div class="meta" style="margin-bottom: 12px;">Histórico do mapa de serviço: cada cliente onde este colaborador já trabalhou, com entrada, saída e motivo.</div>
+      <div class="filter-row" style="align-items: flex-end;">
+        <div class="field">
+          <label for="hist-locais-inicio">De</label>
+          <input type="date" id="hist-locais-inicio">
+        </div>
+        <div class="field">
+          <label for="hist-locais-fim">Até</label>
+          <input type="date" id="hist-locais-fim">
+        </div>
+        <div class="field">
+          <button type="button" class="btn-ghost" id="hist-locais-limpar">Todo o período</button>
+        </div>
+      </div>
+      <div class="kpi-grid" id="kpi-historico-locais"></div>
+      <div id="historico-locais">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
       <div class="avisos-header" style="margin-top: 30px;">
         <span class="section-title" style="margin: 0;">METLIFE (titular e dependentes)</span>
         <button class="btn-primary" id="btn-novo-metlife">+ Adicionar dependente</button>

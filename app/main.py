@@ -12,7 +12,7 @@ from fastapi import Body, Depends, FastAPI, File, Form, HTTPException, UploadFil
 from fastapi.responses import FileResponse, RedirectResponse, Response, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 import jwt
@@ -1941,8 +1941,10 @@ def editar_horario(
     horario = db.get(HorarioServico, horario_id)
     if horario is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario nao encontrado")
+    if horario.data_fim is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse vínculo já foi encerrado e faz parte do histórico - não pode mais ser editado")
 
-    campos = dados.model_dump(exclude_unset=True)
+    campos = {k: v for k, v in dados.model_dump(exclude_unset=True).items() if v is not None}
 
     novo_colaborador_id = campos.get("colaborador_id", horario.colaborador_id)
     novo_dia = campos.get("dia_semana", horario.dia_semana)
@@ -1957,33 +1959,39 @@ def editar_horario(
     if nova_hora_inicio >= nova_hora_fim:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A hora final deve ser depois da hora inicial")
 
-    if "cliente_id" in campos and campos["cliente_id"] != horario.cliente_id:
-        # Trocar de cliente = encerrar o vinculo atual e abrir um novo, para manter o historico limpo
-        if db.get(Cliente, campos["cliente_id"]) is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+    trocou_cliente = "cliente_id" in campos and campos["cliente_id"] != horario.cliente_id
+    trocou_colaborador = "colaborador_id" in campos and campos["colaborador_id"] != horario.colaborador_id
 
-        data_mudanca = date.today()
-        if campos.get("data_mudanca"):
-            try:
-                data_mudanca = date.fromisoformat(campos["data_mudanca"])
-            except ValueError:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data da mudança invalida")
-            if data_mudanca > date.today():
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data da mudança não pode ser no futuro")
-            if data_mudanca < horario.data_inicio:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"A data da mudança não pode ser antes de {horario.data_inicio.isoformat()} (início deste vínculo)",
-                )
+    if trocou_cliente:
+        cliente_novo = db.get(Cliente, campos["cliente_id"])
+        if cliente_novo is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente invalido")
+        if not cliente_novo.ativo:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cliente inativo nao pode receber colaborador no mapa de servico")
+    if trocou_colaborador and db.get(Colaborador, campos["colaborador_id"]) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
+
+    if trocou_cliente or trocou_colaborador:
+        # Trocar o colaborador do posto ou o cliente do colaborador = encerrar o
+        # vinculo atual e abrir um novo. Nunca sobrescrever a linha: e isso que
+        # guarda quem trabalhou onde e quando (historico trabalhista).
+        data_mudanca = _data_mudanca_do_vinculo(campos.get("data_mudanca"), horario)
 
         _checar_conflito_horario(db, novo_colaborador_id, novo_dia, nova_hora_inicio, nova_hora_fim, ignorar_id=horario_id)
 
+        if trocou_colaborador and trocou_cliente:
+            motivo = "Troca de colaborador e de cliente"
+        elif trocou_colaborador:
+            motivo = "Troca de colaborador"
+        else:
+            motivo = "Mudou de cliente"
+
         horario.data_fim = data_mudanca
-        _registrar_evento_mapa_servico(db, horario, "encerrado", usuario.id, motivo="Mudou de cliente")
+        _registrar_evento_mapa_servico(db, horario, "encerrado", usuario.id, motivo=motivo)
 
         novo_horario = HorarioServico(
             colaborador_id=novo_colaborador_id,
-            cliente_id=campos["cliente_id"],
+            cliente_id=campos.get("cliente_id", horario.cliente_id),
             dia_semana=novo_dia,
             turno=novo_turno,
             hora_inicio=nova_hora_inicio,
@@ -1992,31 +2000,26 @@ def editar_horario(
         )
         db.add(novo_horario)
         db.flush()
-        _registrar_evento_mapa_servico(db, novo_horario, "iniciado", usuario.id, motivo="Mudou de cliente")
+        _registrar_evento_mapa_servico(db, novo_horario, "iniciado", usuario.id, motivo=motivo)
         db.commit()
         db.refresh(novo_horario)
         return serializar_horario(novo_horario)
 
-    if (
-        "colaborador_id" in campos
-        or "dia_semana" in campos
-        or "hora_inicio" in campos
-        or "hora_fim" in campos
-    ):
-        _checar_conflito_horario(db, novo_colaborador_id, novo_dia, nova_hora_inicio, nova_hora_fim, ignorar_id=horario_id)
+    mudou_algo = (
+        novo_dia != horario.dia_semana
+        or novo_turno != horario.turno
+        or nova_hora_inicio != horario.hora_inicio
+        or nova_hora_fim != horario.hora_fim
+    )
+    if not mudou_algo:
+        return serializar_horario(horario)
 
-    if "colaborador_id" in campos:
-        if db.get(Colaborador, campos["colaborador_id"]) is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Colaborador invalido")
-        horario.colaborador_id = campos["colaborador_id"]
-    if "dia_semana" in campos:
-        horario.dia_semana = campos["dia_semana"]
-    if "turno" in campos:
-        horario.turno = campos["turno"]
-    if "hora_inicio" in campos:
-        horario.hora_inicio = campos["hora_inicio"]
-    if "hora_fim" in campos:
-        horario.hora_fim = campos["hora_fim"]
+    _checar_conflito_horario(db, novo_colaborador_id, novo_dia, nova_hora_inicio, nova_hora_fim, ignorar_id=horario_id)
+
+    horario.dia_semana = novo_dia
+    horario.turno = novo_turno
+    horario.hora_inicio = nova_hora_inicio
+    horario.hora_fim = nova_hora_fim
 
     db.flush()
     _registrar_evento_mapa_servico(db, horario, "editado", usuario.id)
@@ -2025,9 +2028,28 @@ def editar_horario(
     return serializar_horario(horario)
 
 
+def _data_mudanca_do_vinculo(valor: str | None, horario: HorarioServico) -> date:
+    """Data em que o vinculo terminou (troca ou remocao). Padrao: hoje."""
+    if not valor:
+        return date.today()
+    try:
+        data_mudanca = date.fromisoformat(valor)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data da mudança inválida")
+    if data_mudanca > date.today():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data da mudança não pode ser no futuro")
+    if data_mudanca < horario.data_inicio:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A data da mudança não pode ser antes de {horario.data_inicio.strftime('%d/%m/%Y')} (início deste vínculo)",
+        )
+    return data_mudanca
+
+
 @app.delete("/horarios-servico/{horario_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remover_horario(
     horario_id: int,
+    data_fim: str | None = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
@@ -2036,8 +2058,8 @@ def remover_horario(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario nao encontrado")
     if horario.data_fim is not None:
         return
-    horario.data_fim = date.today()
-    _registrar_evento_mapa_servico(db, horario, "encerrado", usuario.id)
+    horario.data_fim = _data_mudanca_do_vinculo(data_fim, horario)
+    _registrar_evento_mapa_servico(db, horario, "encerrado", usuario.id, motivo="Removido do mapa")
     db.commit()
 
 
@@ -4206,6 +4228,178 @@ def listar_eventos_horario(
         }
         for e in eventos
     ]
+
+
+def _motivos_de_saida(db: Session, horario_ids: list[int]) -> dict[int, str | None]:
+    """Motivo do evento 'encerrado' de cada vinculo (troca, desligamento, remocao...)."""
+    if not horario_ids:
+        return {}
+    eventos = (
+        db.query(HistoricoMapaServico)
+        .filter(
+            HistoricoMapaServico.horario_servico_id.in_(horario_ids),
+            HistoricoMapaServico.tipo_evento == "encerrado",
+        )
+        .order_by(HistoricoMapaServico.criado_em.asc())
+        .all()
+    )
+    return {e.horario_servico_id: e.motivo for e in eventos}
+
+
+def _serializar_vinculo_historico(h: HorarioServico, motivo_saida: str | None) -> dict:
+    dados = serializar_horario(h)
+    dias = _calcular_duracao_dias(h.data_inicio, h.data_fim)
+    dados.update(
+        {
+            "ativo": h.data_fim is None,
+            "duracao_dias": dias,
+            "duracao_texto": _formatar_duracao(dias),
+            "motivo_saida": motivo_saida if h.data_fim else None,
+        }
+    )
+    return dados
+
+
+def _agrupar_vinculos(registros: list[HorarioServico], motivos: dict[int, str | None], por: str) -> list[dict]:
+    """
+    Agrupa os vinculos do mapa por cliente (historico do colaborador) ou por
+    colaborador (historico do cliente). O periodo do grupo vai do primeiro
+    inicio ate o ultimo fim - ou ate hoje, se ainda tem vinculo ativo.
+    Ativos primeiro; depois quem saiu mais recentemente.
+    """
+    grupos: dict[int, list[HorarioServico]] = {}
+    for h in registros:
+        chave = h.cliente_id if por == "cliente" else h.colaborador_id
+        grupos.setdefault(chave, []).append(h)
+
+    ativos = []
+    encerrados = []
+    for vinculos in grupos.values():
+        vinculos.sort(key=lambda h: (h.data_fim is None, h.data_fim or date.max, h.data_inicio), reverse=True)
+        ativo = any(h.data_fim is None for h in vinculos)
+        inicio = min(h.data_inicio for h in vinculos)
+        fim = None if ativo else max(h.data_fim for h in vinculos)
+        dias = _calcular_duracao_dias(inicio, fim)
+        item = {
+            "ativo": ativo,
+            "data_inicio": inicio.isoformat(),
+            "data_fim": fim.isoformat() if fim else None,
+            "duracao_dias": dias,
+            "duracao_texto": _formatar_duracao(dias),
+            "vinculos": [_serializar_vinculo_historico(h, motivos.get(h.id)) for h in vinculos],
+        }
+        if por == "cliente":
+            cliente = vinculos[0].cliente
+            item.update({"cliente_id": cliente.id, "cliente_nome": cliente.nome, "empresa_nome": cliente.empresa.nome})
+        else:
+            colaborador = vinculos[0].colaborador
+            item.update(
+                {
+                    "colaborador_id": colaborador.id,
+                    "colaborador_nome": colaborador.nome,
+                    "colaborador_registro": colaborador.registro,
+                    "colaborador_cargo": colaborador.cargo,
+                    "colaborador_status": colaborador.status,
+                }
+            )
+        (ativos if ativo else encerrados).append(item)
+
+    ativos.sort(key=lambda g: g["data_inicio"])
+    encerrados.sort(key=lambda g: g["data_fim"], reverse=True)
+    return ativos + encerrados
+
+
+def _periodo_do_filtro(inicio: str | None, fim: str | None) -> tuple[date | None, date | None]:
+    try:
+        data_inicio = date.fromisoformat(inicio) if inicio else None
+        data_fim = date.fromisoformat(fim) if fim else None
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data do filtro inválida")
+    if data_inicio and data_fim and data_fim < data_inicio:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data final do filtro deve ser depois da inicial")
+    return data_inicio, data_fim
+
+
+def _filtrar_vinculos_no_periodo(query, data_inicio: date | None, data_fim: date | None):
+    """Mantem os vinculos que estiveram ativos em algum momento do periodo."""
+    if data_fim:
+        query = query.filter(HorarioServico.data_inicio <= data_fim)
+    if data_inicio:
+        query = query.filter(or_(HorarioServico.data_fim.is_(None), HorarioServico.data_fim >= data_inicio))
+    return query
+
+
+def _data_no_periodo(valor: str | None, data_inicio: date | None, data_fim: date | None) -> bool:
+    if valor is None:
+        return False
+    d = date.fromisoformat(valor)
+    return (data_inicio is None or d >= data_inicio) and (data_fim is None or d <= data_fim)
+
+
+@app.get("/colaboradores-dados/{colaborador_id}/historico-locais")
+def historico_locais_do_colaborador(
+    colaborador_id: int,
+    inicio: str | None = None,
+    fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Em quais clientes o colaborador trabalhou (mapa de servico), com periodo e motivo de saida."""
+    _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
+    data_inicio, data_fim = _periodo_do_filtro(inicio, fim)
+
+    query = db.query(HorarioServico).filter(HorarioServico.colaborador_id == colaborador_id)
+    registros = _filtrar_vinculos_no_periodo(query, data_inicio, data_fim).all()
+    motivos = _motivos_de_saida(db, [h.id for h in registros])
+    locais = _agrupar_vinculos(registros, motivos, por="cliente")
+
+    return {
+        "resumo": {
+            "total_locais": len(locais),
+            "locais_atuais": sum(1 for g in locais if g["ativo"]),
+            "locais_anteriores": sum(1 for g in locais if not g["ativo"]),
+            "desde": min((g["data_inicio"] for g in locais), default=None),
+        },
+        "locais": locais,
+    }
+
+
+@app.get("/clientes-dados/{cliente_id}/historico-colaboradores")
+def historico_colaboradores_do_cliente(
+    cliente_id: int,
+    inicio: str | None = None,
+    fim: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """
+    Quem ja trabalhou neste cliente (mapa de servico). "saidas" = colaboradores
+    que deixaram de atender o cliente (o ultimo vinculo deles aqui terminou)
+    dentro do periodo filtrado - e o numero de trocas de pessoal. O POSTO
+    VAGO nao conta como pessoa.
+    """
+    _cliente_da_carteira_ou_404(db, usuario, cliente_id)
+    data_inicio, data_fim = _periodo_do_filtro(inicio, fim)
+
+    query = (
+        db.query(HorarioServico)
+        .join(Colaborador, HorarioServico.colaborador_id == Colaborador.id)
+        .filter(HorarioServico.cliente_id == cliente_id, Colaborador.eh_posto_vago.is_(False))
+    )
+    registros = _filtrar_vinculos_no_periodo(query, data_inicio, data_fim).all()
+    motivos = _motivos_de_saida(db, [h.id for h in registros])
+    colaboradores = _agrupar_vinculos(registros, motivos, por="colaborador")
+
+    return {
+        "resumo": {
+            "total_colaboradores": len(colaboradores),
+            "atuais": sum(1 for g in colaboradores if g["ativo"]),
+            "saidas": sum(1 for g in colaboradores if _data_no_periodo(g["data_fim"], data_inicio, data_fim)),
+            "entradas": sum(1 for g in colaboradores if _data_no_periodo(g["data_inicio"], data_inicio, data_fim)),
+            "desde": min((g["data_inicio"] for g in colaboradores), default=None),
+        },
+        "colaboradores": colaboradores,
+    }
 
 
 @app.get("/relatorios-dados/horas-trabalhadas")

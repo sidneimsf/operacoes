@@ -42,6 +42,26 @@
         <div class="loading-state">Carregando...</div>
       </div>
 
+      <div class="section-title" style="margin-top: 30px;">Histórico de colaboradores neste cliente</div>
+      <div class="meta" style="margin-bottom: 12px;">Todos que já trabalharam aqui pelo mapa de serviço, com entrada, saída e motivo. Use o período para saber quantos foram trocados num intervalo.</div>
+      <div class="filter-row" style="align-items: flex-end;">
+        <div class="field">
+          <label for="hist-equipe-inicio">De</label>
+          <input type="date" id="hist-equipe-inicio">
+        </div>
+        <div class="field">
+          <label for="hist-equipe-fim">Até</label>
+          <input type="date" id="hist-equipe-fim">
+        </div>
+        <div class="field">
+          <button type="button" class="btn-ghost" id="hist-equipe-limpar">Todo o período</button>
+        </div>
+      </div>
+      <div class="kpi-grid" id="kpi-historico-equipe"></div>
+      <div id="historico-equipe">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
       <div class="section-title" style="margin-top: 30px;">
         Cronograma de atividades
         <button class="btn-ghost" id="btn-editar-cronograma" style="margin-left: 10px; padding: 5px 12px; font-size: 12.5px;">Editar cronograma digitado</button>
