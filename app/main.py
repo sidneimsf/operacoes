@@ -149,6 +149,58 @@ async def revalidar_arquivos_estaticos(request, call_next):
     return resposta
 
 
+# Cabecalhos de seguranca enviados em toda resposta.
+#
+# O principal e o Content-Security-Policy: o navegador so executa script que
+# venha deste proprio site (script-src 'self'). As telas montam HTML com
+# innerHTML a partir de texto digitado por usuarios (nome de anexo, observacao,
+# titulo...) e a sessao fica no localStorage; sem o CSP, um texto como
+# <img src=x onerror=...> gravado por um usuario rodaria no navegador de quem
+# abrisse a tela e levaria o token embora. Com o CSP esse codigo nao executa.
+#
+# Consequencia para quem mexe no frontend: nada de <script> com codigo dentro
+# do HTML nem onclick="..." em tag (use arquivo .js e addEventListener, como ja
+# e o padrao), e origem externa nova (CDN, mapa, fonte) precisa entrar na lista.
+# Hoje as unicas origens de fora sao o Google Fonts (style.css) e os quadros do
+# OpenStreetMap (Mapa de Clientes).
+CONTENT_SECURITY_POLICY = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://tile.openstreetmap.org",
+    "media-src 'self' blob:",
+    "connect-src 'self'",
+    "worker-src 'self'",
+    "manifest-src 'self'",
+    "frame-src 'self' blob:",
+    "object-src 'self' blob:",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+])
+CABECALHOS_SEGURANCA = {
+    "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000",
+}
+# o Swagger (/docs) carrega script de CDN e usa script inline - fica sem CSP
+ROTAS_SEM_CSP = ("/docs", "/redoc", "/openapi.json")
+
+
+@app.middleware("http")
+async def cabecalhos_de_seguranca(request, call_next):
+    resposta = await call_next(request)
+    sem_csp = request.url.path.startswith(ROTAS_SEM_CSP)
+    for nome, valor in CABECALHOS_SEGURANCA.items():
+        if sem_csp and nome == "Content-Security-Policy":
+            continue
+        resposta.headers.setdefault(nome, valor)
+    return resposta
+
+
 @app.get("/service-worker.js", include_in_schema=False)
 def service_worker():
     """

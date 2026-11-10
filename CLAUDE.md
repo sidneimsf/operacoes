@@ -79,6 +79,10 @@ The oldest and most load-bearing flow — three rules are enforced in the backen
 
 Every screen loads `app/static/shell.js` before its own script. `Shell.montar(paginaAtiva, titulo)` draws the sidebar (hiding nav items the user's role/module permissions can't see), topbar, and the "+ Abrir chamado" button, and redirects to `/login` if there's no session — call it first thing in every page's JS. `Shell.chamarApi(caminho, opcoes)` is the **only** sanctioned way to call the API: it attaches the bearer token, auto-logs-out on 401, and wraps errors as `Error` with `.status`/`.detalhe`. Session lives in `localStorage` under `operacoes_auth` (`access_token`, `id`, `nome`, `papel`), token valid 7 days (see `security.py`, `JWT_EXPIRA_HORAS`).
 
+### Security headers (CSP)
+
+The `cabecalhos_de_seguranca` middleware in `main.py` sends a Content-Security-Policy with `script-src 'self'` on every response (except `/docs`). It exists because the screens build HTML with `innerHTML` from user-typed text and the session token lives in `localStorage`: without it, a stored `<img onerror=...>` runs in whoever opens the screen. Consequences when touching the frontend: **no inline `<script>` code in HTML and no `onclick="..."` attributes** (use a `.js` file + `addEventListener`, already the convention), and any new external origin (CDN, map tiles, fonts) must be added to `CONTENT_SECURITY_POLICY`. The CSP is a safety net, not a substitute for escaping: new code should still pass user text through an `escaparHtml()` helper (see `avisos.js`) before putting it in a template string.
+
 ## Commands
 
 No test suite, no linter, no npm — everything runs in Docker.

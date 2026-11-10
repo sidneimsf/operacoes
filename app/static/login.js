@@ -69,3 +69,12 @@ form.addEventListener('submit', async (evento) => {
     btnEntrar.textContent = 'Entrar';
   }
 });
+
+// Registro do service worker (instalar como app). Fica aqui, e nao num <script>
+// dentro do login.html, porque o Content-Security-Policy do site bloqueia
+// script escrito direto no HTML.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+  });
+}
