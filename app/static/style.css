@@ -1205,6 +1205,17 @@ button {
   cursor: pointer;
 }
 
+.horario-celula.agendado {
+  opacity: 0.7;
+  border: 1px dashed var(--border);
+}
+
+.horario-celula .agenda {
+  display: block;
+  font-size: 11px;
+  color: var(--accent);
+}
+
 .horario-celula:hover {
   outline: 1px solid var(--accent);
 }

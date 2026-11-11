@@ -99,14 +99,23 @@ const DIAS_LABEL = {
 };
 const TURNOS_LABEL = { manha: 'Manhã', tarde: 'Tarde', noite: 'Noite' };
 
+// Troca agendada: o vinculo antigo vale ate a vespera de data_fim; o novo comeca em data_inicio
+function avisoAgendaHorario(registro) {
+  const [, mes, dia] = (registro.situacao === 'agendado' ? registro.data_inicio : registro.data_fim || '').split('-');
+  if (registro.situacao === 'agendado') return `<span class="agenda">a partir de ${dia}/${mes}</span>`;
+  if (registro.situacao === 'saindo') return `<span class="agenda">sai em ${dia}/${mes}</span>`;
+  return '';
+}
+
 function celulaHorarioHtml(registros, campoNome, dia, turno) {
   const lista = (registros || []).slice().sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
   const itensHtml = lista
     .map(
       (registro) => `
-      <div class="horario-celula" data-horario-id="${registro.id}">
+      <div class="horario-celula${registro.situacao === 'agendado' ? ' agendado' : ''}" data-horario-id="${registro.id}">
         <span class="nome">${registro[campoNome]}</span>
         <span class="hora">${registro.hora_inicio}-${registro.hora_fim}</span>
+        ${avisoAgendaHorario(registro)}
       </div>
     `
     )
@@ -194,7 +203,7 @@ function montarModalHorario() {
           <div class="field" id="horario-data-mudanca-campo" style="display: none;">
             <label for="horario-data-mudanca">Data da troca / saída</label>
             <input type="date" id="horario-data-mudanca">
-            <div class="meta" style="margin-top: 4px;">Ao trocar o colaborador ou remover o horário, o vínculo anterior é encerrado nesta data e fica guardado no histórico.</div>
+            <div class="meta" style="margin-top: 4px;">Ao trocar o colaborador ou remover o horário, o vínculo anterior é encerrado nesta data e fica guardado no histórico. Pode ser uma data futura: até lá o mapa continua mostrando o colaborador atual.</div>
           </div>
           <div class="error-message" id="horario-modal-erro"></div>
           <div style="display: flex; gap: 10px;">
@@ -286,8 +295,9 @@ async function abrirModalHorario(dia, turno, horarioId) {
     document.getElementById('horario-hora-fim').value = registro.hora_fim;
     botaoRemover.hidden = false;
     document.getElementById('horario-data-mudanca-campo').style.display = '';
-    document.getElementById('horario-data-mudanca').value = hojeIso();
-    document.getElementById('horario-data-mudanca').max = hojeIso();
+    const inicioVinculo = registro.data_inicio || '';
+    document.getElementById('horario-data-mudanca').value = inicioVinculo > hojeIso() ? inicioVinculo : hojeIso();
+    document.getElementById('horario-data-mudanca').min = inicioVinculo;
   } else {
     document.getElementById('horario-data-mudanca-campo').style.display = 'none';
     document.getElementById('horario-hora-inicio').value = '';
@@ -1153,6 +1163,8 @@ function dataBRHist(iso) {
 }
 
 function situacaoHistHtml(grupo) {
+  if (grupo.situacao === 'agendado') return `<span class="evento-tipo-badge">Começa em ${dataBRHist(grupo.data_inicio)}</span>`;
+  if (grupo.situacao === 'saindo') return `<span class="evento-tipo-badge cobertura">Atual</span><span class="meta" style="margin-left: 6px;">sai em ${dataBRHist(grupo.data_fim)}</span>`;
   if (grupo.ativo) return '<span class="evento-tipo-badge cobertura">Atual</span>';
   const ultimo = grupo.vinculos.find((v) => v.data_fim === grupo.data_fim);
   const motivo = ultimo && ultimo.motivo_saida ? ` · ${escaparHist(ultimo.motivo_saida)}` : '';
@@ -1162,7 +1174,7 @@ function situacaoHistHtml(grupo) {
 function vinculosHistHtml(vinculos) {
   return vinculos
     .map((v) => {
-      const fim = v.ativo ? 'atual' : dataBRHist(v.data_fim);
+      const fim = v.data_fim ? dataBRHist(v.data_fim) : 'atual';
       const motivo = v.motivo_saida ? ` · ${escaparHist(v.motivo_saida)}` : '';
       return `<div class="meta" style="padding: 3px 0;">
         <strong>${DIAS_LABEL_HIST[v.dia_semana] || v.dia_semana} · ${TURNOS_LABEL_HIST[v.turno] || v.turno}</strong>
@@ -1233,7 +1245,7 @@ async function carregarHistoricoEquipe() {
         <tr>
           <td><a href="/colaborador-detalhe?id=${g.colaborador_id}">${escaparHist(g.colaborador_nome)}</a>${registro}${cargo}</td>
           <td>${dataBRHist(g.data_inicio)}</td>
-          <td>${g.ativo ? '—' : dataBRHist(g.data_fim)}</td>
+          <td>${g.data_fim ? dataBRHist(g.data_fim) : '—'}</td>
           <td>${escaparHist(g.duracao_texto)}</td>
           <td>${situacaoHistHtml(g)}</td>
           <td><button type="button" class="btn-ghost btn-hist-vinculos" data-alvo="hist-equipe-${i}" style="padding: 4px 10px; font-size: 12px;">Ver horários</button></td>

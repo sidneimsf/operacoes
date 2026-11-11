@@ -279,7 +279,8 @@ def calcular_saude_carteira(db: Session, cliente_ids: list[int] | None = None) -
     turnos_vagos = dict(
         db.query(HorarioServico.cliente_id, func.count(HorarioServico.id))
         .filter(HorarioServico.cliente_id.in_(ids), HorarioServico.colaborador_id == posto_vago_id,
-                HorarioServico.data_fim.is_(None))
+                HorarioServico.data_inicio <= date.today(),
+                HorarioServico.data_fim.is_(None) | (HorarioServico.data_fim > date.today()))
         .group_by(HorarioServico.cliente_id)
         .all()
     )
@@ -287,7 +288,8 @@ def calcular_saude_carteira(db: Session, cliente_ids: list[int] | None = None) -
     colaboradores_efetivos = dict(
         db.query(HorarioServico.cliente_id, func.count(func.distinct(HorarioServico.colaborador_id)))
         .filter(HorarioServico.cliente_id.in_(ids), HorarioServico.colaborador_id != posto_vago_id,
-                HorarioServico.data_fim.is_(None))
+                HorarioServico.data_inicio <= date.today(),
+                HorarioServico.data_fim.is_(None) | (HorarioServico.data_fim > date.today()))
         .group_by(HorarioServico.cliente_id)
         .all()
     )

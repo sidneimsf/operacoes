@@ -570,7 +570,7 @@ def _filtrar_colaboradores_da_carteira(query, usuario: Usuario):
         return query
     clientes_da_carteira = select(Cliente.id).where(Cliente.supervisor_id == usuario.id)
     com_horario_na_carteira = select(HorarioServico.colaborador_id).where(
-        HorarioServico.data_fim.is_(None), HorarioServico.cliente_id.in_(clientes_da_carteira)
+        _vinculo_nao_encerrado(), HorarioServico.cliente_id.in_(clientes_da_carteira)
     )
     return query.filter(
         (Colaborador.supervisor_id == usuario.id)
@@ -1169,11 +1169,12 @@ def editar_cliente(
         if campos["ativo"] is False:
             horarios_ativos = (
                 db.query(HorarioServico)
-                .filter(HorarioServico.cliente_id == cliente.id, HorarioServico.data_fim.is_(None))
+                .filter(HorarioServico.cliente_id == cliente.id, _vinculo_nao_encerrado())
                 .all()
             )
             for h in horarios_ativos:
-                h.data_fim = date.today()
+                # vinculo agendado para o futuro termina no proprio dia de inicio (nao chegou a valer)
+                h.data_fim = max(date.today(), h.data_inicio)
                 _registrar_evento_mapa_servico(db, h, "encerrado", usuario.id, motivo="Cliente removido")
 
     db.commit()
@@ -1515,15 +1516,17 @@ def editar_colaborador(
         if campos["status"] in ("afastado", "desligado") and status_anterior == "ativo":
             horarios_ativos = (
                 db.query(HorarioServico)
-                .filter(HorarioServico.colaborador_id == colaborador.id, HorarioServico.data_fim.is_(None))
+                .filter(HorarioServico.colaborador_id == colaborador.id, _vinculo_nao_encerrado())
                 .all()
             )
             motivo = "Colaborador desligado" if campos["status"] == "desligado" else "Colaborador afastado"
             posto_vago = db.query(Colaborador).filter_by(eh_posto_vago=True).first()
             for h in horarios_ativos:
-                h.data_fim = date.today()
+                # se ja havia troca agendada (data_fim no futuro), o posto vago so cobre ate ela
+                fim_agendado = h.data_fim
+                h.data_fim = max(date.today(), h.data_inicio)
                 _registrar_evento_mapa_servico(db, h, "encerrado", usuario.id, motivo=motivo)
-                if posto_vago is not None:
+                if posto_vago is not None and (fim_agendado is None or fim_agendado > h.data_fim):
                     novo_horario = HorarioServico(
                         colaborador_id=posto_vago.id,
                         cliente_id=h.cliente_id,
@@ -1531,7 +1534,8 @@ def editar_colaborador(
                         turno=h.turno,
                         hora_inicio=h.hora_inicio,
                         hora_fim=h.hora_fim,
-                        data_inicio=date.today(),
+                        data_inicio=h.data_fim,
+                        data_fim=fim_agendado,
                     )
                     db.add(novo_horario)
                     db.flush()
@@ -1823,6 +1827,34 @@ def _horas_do_horario_no_periodo(horario: HorarioServico, periodo_inicio: date, 
     return ocorrencias * _horas_por_slot(horario.hora_inicio, horario.hora_fim)
 
 
+def _vinculo_vigente_em(dia: date):
+    """Filtro SQL: vinculo do mapa valendo naquele dia. data_fim e o dia em que
+    o proximo assume (troca agendada), entao o vinculo vale enquanto dia < data_fim."""
+    return (HorarioServico.data_inicio <= dia) & (
+        HorarioServico.data_fim.is_(None) | (HorarioServico.data_fim > dia)
+    )
+
+
+def _vinculo_vigente():
+    return _vinculo_vigente_em(date.today())
+
+
+def _vinculo_nao_encerrado():
+    """Filtro SQL: vinculo valendo hoje ou agendado (comeca ou termina no futuro)."""
+    return HorarioServico.data_fim.is_(None) | (HorarioServico.data_fim > date.today())
+
+
+def _situacao_vinculo(h: HorarioServico) -> str:
+    hoje = date.today()
+    if h.data_inicio and h.data_inicio > hoje:
+        return "agendado"
+    if h.data_fim is None:
+        return "atual"
+    if h.data_fim > hoje:
+        return "saindo"
+    return "encerrado"
+
+
 def serializar_horario(h: HorarioServico) -> dict:
     return {
         "id": h.id,
@@ -1837,6 +1869,7 @@ def serializar_horario(h: HorarioServico) -> dict:
         "hora_fim": h.hora_fim,
         "data_inicio": h.data_inicio.isoformat() if h.data_inicio else None,
         "data_fim": h.data_fim.isoformat() if h.data_fim else None,
+        "situacao": _situacao_vinculo(h),
     }
 
 
@@ -1849,7 +1882,7 @@ def horarios_do_colaborador(
     _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
     registros = (
         db.query(HorarioServico)
-        .filter(HorarioServico.colaborador_id == colaborador_id, HorarioServico.data_fim.is_(None))
+        .filter(HorarioServico.colaborador_id == colaborador_id, _vinculo_nao_encerrado())
         .all()
     )
     registros.sort(key=lambda h: (DIAS_SEMANA_ORDEM.index(h.dia_semana), h.turno))
@@ -1865,7 +1898,7 @@ def horarios_do_cliente(
     _cliente_da_carteira_ou_404(db, usuario, cliente_id)
     registros = (
         db.query(HorarioServico)
-        .filter(HorarioServico.cliente_id == cliente_id, HorarioServico.data_fim.is_(None))
+        .filter(HorarioServico.cliente_id == cliente_id, _vinculo_nao_encerrado())
         .all()
     )
     registros.sort(key=lambda h: (DIAS_SEMANA_ORDEM.index(h.dia_semana), h.turno))
@@ -1905,7 +1938,7 @@ def _checar_conflito_horario(
     query = db.query(HorarioServico).filter(
         HorarioServico.colaborador_id == colaborador_id,
         HorarioServico.dia_semana == dia_semana,
-        HorarioServico.data_fim.is_(None),
+        _vinculo_nao_encerrado(),
     )
     if ignorar_id is not None:
         query = query.filter(HorarioServico.id != ignorar_id)
@@ -1993,6 +2026,11 @@ def editar_horario(
     horario = db.get(HorarioServico, horario_id)
     if horario is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Horario nao encontrado")
+    if horario.data_fim is not None and horario.data_fim > date.today():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Esse vínculo já tem troca agendada para {horario.data_fim.strftime('%d/%m/%Y')} - edite o novo vínculo (que aparece como \"a partir de\") se precisar mudar algo",
+        )
     if horario.data_fim is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse vínculo já foi encerrado e faz parte do histórico - não pode mais ser editado")
 
@@ -2081,15 +2119,16 @@ def editar_horario(
 
 
 def _data_mudanca_do_vinculo(valor: str | None, horario: HorarioServico) -> date:
-    """Data em que o vinculo terminou (troca ou remocao). Padrao: hoje."""
+    """Data em que o vinculo termina (troca ou remocao). Padrao: hoje. Pode ser
+    futura: a troca fica agendada e o mapa so muda nesse dia (ver _vinculo_vigente)."""
     if not valor:
         return date.today()
     try:
         data_mudanca = date.fromisoformat(valor)
     except ValueError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Data da mudança inválida")
-    if data_mudanca > date.today():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data da mudança não pode ser no futuro")
+    if data_mudanca > date.today() + timedelta(days=366):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A data da mudança não pode ser mais de um ano no futuro")
     if data_mudanca < horario.data_inicio:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -3428,7 +3467,7 @@ def relatorio_por_cliente(
 
     horarios = (
         db.query(HorarioServico)
-        .filter(HorarioServico.cliente_id == cliente_id, HorarioServico.data_fim.is_(None))
+        .filter(HorarioServico.cliente_id == cliente_id, _vinculo_vigente())
         .all()
     )
     quem_atende = sorted({h.colaborador.nome for h in horarios})
@@ -4185,7 +4224,7 @@ def excluir_metlife(
 
 def _calcular_duracao_dias(data_inicio: date, data_fim: date | None) -> int:
     fim = data_fim or date.today()
-    return (fim - data_inicio).days
+    return max(0, (fim - data_inicio).days)
 
 
 def _formatar_duracao(dias: int) -> str:
@@ -4220,9 +4259,9 @@ def listar_historico_mapa_servico(
     if cliente_id is not None:
         query = query.filter(HorarioServico.cliente_id == cliente_id)
     if status_vinculo == "ativos":
-        query = query.filter(HorarioServico.data_fim.is_(None))
+        query = query.filter(_vinculo_nao_encerrado())
     elif status_vinculo == "encerrados":
-        query = query.filter(HorarioServico.data_fim.isnot(None))
+        query = query.filter(HorarioServico.data_fim <= date.today())
 
     registros = query.order_by(HorarioServico.data_inicio.desc()).all()
 
@@ -4243,7 +4282,8 @@ def listar_historico_mapa_servico(
                 "hora_fim": h.hora_fim,
                 "data_inicio": h.data_inicio.isoformat(),
                 "data_fim": h.data_fim.isoformat() if h.data_fim else None,
-                "ativo": h.data_fim is None,
+                "ativo": _situacao_vinculo(h) in ("atual", "saindo"),
+                "situacao": _situacao_vinculo(h),
                 "duracao_dias": dias,
                 "duracao_texto": _formatar_duracao(dias),
             }
@@ -4301,9 +4341,11 @@ def _motivos_de_saida(db: Session, horario_ids: list[int]) -> dict[int, str | No
 def _serializar_vinculo_historico(h: HorarioServico, motivo_saida: str | None) -> dict:
     dados = serializar_horario(h)
     dias = _calcular_duracao_dias(h.data_inicio, h.data_fim)
+    situacao = _situacao_vinculo(h)
     dados.update(
         {
-            "ativo": h.data_fim is None,
+            "ativo": situacao != "encerrado",
+            "situacao": situacao,
             "duracao_dias": dias,
             "duracao_texto": _formatar_duracao(dias),
             "motivo_saida": motivo_saida if h.data_fim else None,
@@ -4328,12 +4370,20 @@ def _agrupar_vinculos(registros: list[HorarioServico], motivos: dict[int, str | 
     encerrados = []
     for vinculos in grupos.values():
         vinculos.sort(key=lambda h: (h.data_fim is None, h.data_fim or date.max, h.data_inicio), reverse=True)
-        ativo = any(h.data_fim is None for h in vinculos)
+        situacoes = {_situacao_vinculo(h) for h in vinculos} - {"encerrado"}
+        ativo = bool(situacoes)
+        # situacao do grupo: "agendado" (ainda vai comecar), "saindo" (troca/saida
+        # agendada), "atual" ou "encerrado"
+        situacao = situacoes.pop() if len(situacoes) == 1 else ("atual" if ativo else "encerrado")
         inicio = min(h.data_inicio for h in vinculos)
-        fim = None if ativo else max(h.data_fim for h in vinculos)
-        dias = _calcular_duracao_dias(inicio, fim)
+        if any(h.data_fim is None for h in vinculos):
+            fim = None
+        else:
+            fim = max(h.data_fim for h in vinculos)
+        dias = _calcular_duracao_dias(inicio, min(fim, date.today()) if fim else None)
         item = {
             "ativo": ativo,
+            "situacao": situacao,
             "data_inicio": inicio.isoformat(),
             "data_fim": fim.isoformat() if fim else None,
             "duracao_dias": dias,
@@ -4408,7 +4458,7 @@ def historico_locais_do_colaborador(
     return {
         "resumo": {
             "total_locais": len(locais),
-            "locais_atuais": sum(1 for g in locais if g["ativo"]),
+            "locais_atuais": sum(1 for g in locais if g["situacao"] in ("atual", "saindo")),
             "locais_anteriores": sum(1 for g in locais if not g["ativo"]),
             "desde": min((g["data_inicio"] for g in locais), default=None),
         },
@@ -4445,7 +4495,7 @@ def historico_colaboradores_do_cliente(
     return {
         "resumo": {
             "total_colaboradores": len(colaboradores),
-            "atuais": sum(1 for g in colaboradores if g["ativo"]),
+            "atuais": sum(1 for g in colaboradores if g["situacao"] in ("atual", "saindo")),
             "saidas": sum(1 for g in colaboradores if _data_no_periodo(g["data_fim"], data_inicio, data_fim)),
             "entradas": sum(1 for g in colaboradores if _data_no_periodo(g["data_inicio"], data_inicio, data_fim)),
             "desde": min((g["data_inicio"] for g in colaboradores), default=None),
@@ -5255,7 +5305,7 @@ def relatorio_postos_vagos(
 
     query_horarios = (
         db.query(HorarioServico)
-        .filter(HorarioServico.colaborador_id == posto_vago.id, HorarioServico.data_fim.is_(None))
+        .filter(HorarioServico.colaborador_id == posto_vago.id, _vinculo_vigente())
         .join(Cliente)
         .filter(Cliente.ativo.is_(True))
     )
@@ -5309,7 +5359,7 @@ def alerta_postos_vagos_amanha(db: Session = Depends(get_db), usuario: Usuario =
         db.query(HorarioServico)
         .filter(
             HorarioServico.colaborador_id == posto_vago.id,
-            HorarioServico.data_fim.is_(None),
+            _vinculo_vigente_em(amanha),
             HorarioServico.dia_semana == dia_semana_amanha,
         )
         .join(Cliente)
@@ -6471,7 +6521,7 @@ def crm_ficha_cliente(cliente_id: int, db: Session = Depends(get_db), usuario: U
     for h in (
         db.query(HorarioServico)
         .join(Colaborador, HorarioServico.colaborador_id == Colaborador.id)
-        .filter(HorarioServico.cliente_id == cliente_id, HorarioServico.data_fim.is_(None),
+        .filter(HorarioServico.cliente_id == cliente_id, _vinculo_vigente(),
                 Colaborador.eh_posto_vago.is_(False))
         .all()
     ):
