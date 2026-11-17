@@ -114,6 +114,13 @@ def _nome_aba(nome: str, usados: set) -> str:
     return nome_final
 
 
+def _titulo_competencia(painel: dict) -> str:
+    """'Outubro/2026' ou 'Outubro/2026 · CORDSUL' quando filtrado por empresa."""
+    if painel.get("empresa_nome"):
+        return f"{painel['nome']} · {painel['empresa_nome']}"
+    return painel["nome"]
+
+
 def gerar_excel(painel: dict, gerado_em: str) -> bytes:
     documentos = painel["documentos"]
     blocos = montar_relatorio(painel)
@@ -121,7 +128,7 @@ def gerar_excel(painel: dict, gerado_em: str) -> bytes:
 
     resumo = wb.active
     resumo.title = "Resumo"
-    resumo.append([f"Retorno de documentos · {painel['nome']}"])
+    resumo.append([f"Retorno de documentos · {_titulo_competencia(painel)}"])
     resumo["A1"].font = Font(bold=True, size=14, color="17354F")
     resumo.append([f"Gerado em {gerado_em}" + ("" if painel["encerrada"] else " · mês ainda em andamento")])
     resumo["A2"].font = Font(italic=True, color="5B6B82")
@@ -148,7 +155,7 @@ def gerar_excel(painel: dict, gerado_em: str) -> bytes:
     n_col = len(cabecalho)
     for b in blocos:
         ws = wb.create_sheet(_nome_aba(b["supervisor"], usados))
-        ws.append([f"Retorno de documentos · {painel['nome']} · {b['supervisor']}"])
+        ws.append([f"Retorno de documentos · {_titulo_competencia(painel)} · {b['supervisor']}"])
         ws["A1"].font = Font(bold=True, size=13, color="17354F")
         ws.append([f"{b['total']} colaboradores · {len(b['em_dia'])} em dia · {len(b['a_entregar'])} com documento a entregar"])
         ws["A2"].font = Font(color="5B6B82")
@@ -281,7 +288,7 @@ def gerar_pdf(painel: dict, gerado_em: str) -> bytes:
     documentos = painel["documentos"]
     blocos = montar_relatorio(painel)
     buffer = io.BytesIO()
-    competencia = painel["nome"]
+    competencia = _titulo_competencia(painel)
 
     def moldura(canvas, doc):
         canvas.saveState()

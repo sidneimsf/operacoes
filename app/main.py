@@ -7395,6 +7395,7 @@ def _linha_retorno_do_mes(c: Colaborador, registros: list[RetornoDocumento], ano
         "nome": c.nome,
         "cargo": c.cargo,
         "status": c.status,
+        "empresa_id": c.empresa_id,
         "celulas": celulas,
         "em_falta_mes": em_falta_mes,
         "em_falta_total": retorno_documentos.contar_em_falta(c, registros, hoje),
@@ -7416,6 +7417,7 @@ def retorno_documentos_do_mes(
     ano: int | None = None,
     mes: int | None = None,
     supervisor_id: int | None = None,
+    empresa_id: int | None = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
@@ -7424,12 +7426,18 @@ def retorno_documentos_do_mes(
     trabalharam na competencia, agrupados por supervisor, com a situacao
     de cada documento. Sem ano/mes abre a competencia sendo recolhida agora.
     """
-    return _montar_painel_retorno(db, usuario, ano, mes, supervisor_id)
+    return _montar_painel_retorno(db, usuario, ano, mes, supervisor_id, empresa_id)
 
 
-def _painel_retorno_para_relatorio(db: Session, usuario: Usuario, ano: int, mes: int, supervisor: str | None) -> dict:
-    """Painel do mes filtrado pelo nome do grupo (o mesmo valor do filtro Supervisor da tela)."""
-    painel = _montar_painel_retorno(db, usuario, ano, mes, None)
+def _painel_retorno_para_relatorio(db: Session, usuario: Usuario, ano: int, mes: int, supervisor: str | None, empresa_id: int | None) -> dict:
+    """Painel do mes filtrado pela empresa e pelo nome do grupo (os mesmos valores dos filtros da tela)."""
+    painel = _montar_painel_retorno(db, usuario, ano, mes, None, empresa_id)
+    painel["empresa_nome"] = None
+    if empresa_id is not None:
+        empresa = db.get(Empresa, empresa_id)
+        if empresa is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Empresa não encontrada")
+        painel["empresa_nome"] = empresa.nome
     if supervisor:
         painel["grupos"] = [g for g in painel["grupos"] if g["supervisor_nome"] == supervisor]
         if not painel["grupos"]:
@@ -7437,9 +7445,12 @@ def _painel_retorno_para_relatorio(db: Session, usuario: Usuario, ano: int, mes:
     return painel
 
 
-def _nome_arquivo_retorno(ano: int, mes: int, supervisor: str | None, extensao: str) -> str:
-    sufixo = f"-{re.sub(r'[^a-z0-9]+', '-', retorno_documentos.normalizar(supervisor).lower()).strip('-')}" if supervisor else ""
-    return f"retorno-documentos-{ano}-{mes:02d}{sufixo}.{extensao}"
+def _nome_arquivo_retorno(painel: dict, supervisor: str | None, extensao: str) -> str:
+    partes = [f"retorno-documentos-{painel['ano']}-{painel['mes']:02d}"]
+    for nome in (painel["empresa_nome"], supervisor):
+        if nome:
+            partes.append(re.sub(r"[^a-z0-9]+", "-", retorno_documentos.normalizar(nome).lower()).strip("-"))
+    return "-".join(partes) + f".{extensao}"
 
 
 @app.get("/retorno-documentos-dados/excel")
@@ -7447,16 +7458,17 @@ def retorno_documentos_excel(
     ano: int,
     mes: int,
     supervisor: str | None = None,
+    empresa_id: int | None = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
     """Relatorio do mes em Excel: aba Resumo + uma aba por supervisor (em dia / a entregar)."""
-    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor)
+    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor, empresa_id)
     gerado_em = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
     return Response(
         content=retorno_documentos_relatorio.gerar_excel(painel, gerado_em),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{_nome_arquivo_retorno(ano, mes, supervisor, "xlsx")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{_nome_arquivo_retorno(painel, supervisor, "xlsx")}"'},
     )
 
 
@@ -7465,20 +7477,23 @@ def retorno_documentos_pdf(
     ano: int,
     mes: int,
     supervisor: str | None = None,
+    empresa_id: int | None = None,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
     """Relatorio do mes em PDF, uma pagina por supervisor, pra imprimir e entregar."""
-    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor)
+    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor, empresa_id)
     gerado_em = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
     return Response(
         content=retorno_documentos_relatorio.gerar_pdf(painel, gerado_em),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{_nome_arquivo_retorno(ano, mes, supervisor, "pdf")}"'},
+        headers={"Content-Disposition": f'attachment; filename="{_nome_arquivo_retorno(painel, supervisor, "pdf")}"'},
     )
 
 
-def _montar_painel_retorno(db: Session, usuario: Usuario, ano: int | None, mes: int | None, supervisor_id: int | None) -> dict:
+def _montar_painel_retorno(
+    db: Session, usuario: Usuario, ano: int | None, mes: int | None, supervisor_id: int | None, empresa_id: int | None = None,
+) -> dict:
     hoje = hoje_brasilia()
     if ano is None or mes is None:
         ano, mes = retorno_documentos.ultima_competencia_encerrada(hoje)
@@ -7487,6 +7502,8 @@ def _montar_painel_retorno(db: Session, usuario: Usuario, ano: int | None, mes: 
     query = _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario).filter(Colaborador.eh_posto_vago.is_(False))
     if supervisor_id is not None:
         query = query.filter(Colaborador.supervisor_id == supervisor_id)
+    if empresa_id is not None:
+        query = query.filter(Colaborador.empresa_id == empresa_id)
     candidatos = query.order_by(Colaborador.nome).all()
     registros = _registros_retorno_por_colaborador(db, [c.id for c in candidatos])
 

@@ -120,11 +120,30 @@ function renderizar() {
   container.innerHTML = blocos || '<div class="empty-state">Nenhum colaborador com esses filtros.</div>';
 }
 
+async function carregarEmpresas() {
+  try {
+    const empresas = await Shell.chamarApi('/empresas');
+    if (!empresas) return;
+    document.getElementById('ret-filtro-empresa').innerHTML = '<option value="">Todas</option>' + empresas
+      .map((e) => `<option value="${e.id}">${RetornoDoc.escapar(e.nome)}</option>`)
+      .join('');
+  } catch (_) {
+    // sem a lista de empresas o painel continua funcionando, so sem esse filtro
+  }
+}
+
 async function carregar(ano, mes) {
   const container = document.getElementById('ret-conteudo');
   container.innerHTML = '<div class="loading-state">Carregando...</div>';
   try {
-    const query = ano ? `?ano=${ano}&mes=${mes}` : '';
+    const params = new URLSearchParams();
+    if (ano) {
+      params.set('ano', ano);
+      params.set('mes', mes);
+    }
+    const empresa = document.getElementById('ret-filtro-empresa').value;
+    if (empresa) params.set('empresa_id', empresa);
+    const query = params.toString() ? `?${params}` : '';
     const dados = await Shell.chamarApi(`/retorno-documentos-dados${query}`);
     if (dados === null) return;
     dadosMes = dados;
@@ -166,7 +185,9 @@ async function baixarRelatorio(formato, botao) {
   const auth = Shell.autenticacao();
   if (!auth || !dadosMes) return;
   const supervisor = document.getElementById('ret-filtro-supervisor').value;
+  const empresa = document.getElementById('ret-filtro-empresa').value;
   const params = new URLSearchParams({ ano: dadosMes.ano, mes: dadosMes.mes });
+  if (empresa) params.set('empresa_id', empresa);
   if (supervisor) params.set('supervisor', supervisor);
   const textoOriginal = botao.textContent;
   botao.disabled = true;
@@ -316,6 +337,9 @@ function iniciar() {
     const [ano, mes] = evento.target.value.split('-').map(Number);
     carregar(ano, mes);
   });
+  document.getElementById('ret-filtro-empresa').addEventListener('change', () => {
+    carregar(dadosMes ? dadosMes.ano : null, dadosMes ? dadosMes.mes : null);
+  });
   ['ret-filtro-supervisor', 'ret-filtro-falta'].forEach((id) => {
     document.getElementById(id).addEventListener('change', renderizar);
   });
@@ -365,6 +389,7 @@ function iniciar() {
     document.getElementById('ret-importar-enviar').textContent = 'Conferir planilha';
   });
 
+  carregarEmpresas();
   carregar();
 }
 
