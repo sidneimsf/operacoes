@@ -461,3 +461,19 @@ class MovimentacaoLinhaDados(BaseModel):
 class MovimentacaoNumerar(BaseModel):
     numero_inicial: int
     remessa: int | None = None
+
+
+class RetornoDocumentoMarcar(BaseModel):
+    colaborador_id: int
+    ano: int
+    mes: int
+    documento: str
+    situacao: str | None = None  # None volta pra pendente
+    observacao: str | None = None
+
+
+class RetornoDocumentoMarcarTodos(BaseModel):
+    colaborador_id: int
+    ano: int
+    mes: int
+    situacao: str = "ok"

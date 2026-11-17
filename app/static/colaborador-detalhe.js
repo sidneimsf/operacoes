@@ -1295,6 +1295,8 @@ async function iniciar() {
     ligarExpandirHist(document.getElementById('historico-locais'));
     carregarTimeline();
     carregarMetlife();
+    ligarRetornoDocumentos();
+    carregarRetornoDocumentos();
   } catch (erro) {
     document.getElementById('colaborador-header').innerHTML =
       '<div class="empty-state">Não foi possível carregar os dados agora.</div>';
@@ -1425,3 +1427,129 @@ async function carregarHistoricoLocais() {
 }
 
 iniciar();
+
+// ---------------------------------------------------------------------------
+// Retorno de documentos (ponto, holerite, VA/VT, ficha de EPI de cada mes)
+// ---------------------------------------------------------------------------
+
+// colunas fixas da tabela; o 13o so existe em novembro e dezembro
+const RETORNO_COLUNAS = [
+  { chave: 'ponto', label: 'Ponto' },
+  { chave: 'holerite', label: 'Holerite' },
+  { chave: 'holerite_13', label: 'Holerite 13º' },
+  { chave: 'va_vt', label: 'VA/VT' },
+  { chave: 'ficha_epi', label: 'Ficha EPI' },
+];
+// sem pendencia, mostra so os meses mais recentes; o resto fica no "Ver todos"
+const RETORNO_MESES_RECENTES = 3;
+
+let retornoAtual = null;
+let retornoMostrarTodos = false;
+
+function renderizarRetornoDocumentos() {
+  const container = document.getElementById('retorno-documentos');
+  const botaoTodos = document.getElementById('btn-retorno-todos-meses');
+  const { meses, em_falta: emFalta, pode_marcar: podeMarcar } = retornoAtual;
+
+  if (meses.length === 0) {
+    botaoTodos.hidden = true;
+    container.innerHTML = '<div class="empty-state">Nenhum mês de documentos para este colaborador ainda.</div>';
+    return;
+  }
+
+  const visiveis = retornoMostrarTodos
+    ? meses
+    : meses.filter((m, indice) => indice < RETORNO_MESES_RECENTES || m.em_falta > 0);
+  botaoTodos.hidden = visiveis.length === meses.length && !retornoMostrarTodos;
+  botaoTodos.textContent = retornoMostrarTodos ? 'Só recentes e pendentes' : `Ver todos os meses (${meses.length})`;
+
+  const tem13 = visiveis.some((m) => m.documentos.some((d) => d.chave === 'holerite_13'));
+  const colunas = RETORNO_COLUNAS.filter((col) => col.chave !== 'holerite_13' || tem13);
+  const supervisor = (colaboradorAtual && colaboradorAtual.supervisor_nome) || 'Administrativo';
+
+  const linhas = visiveis
+    .map((m) => {
+      const porChave = Object.fromEntries(m.documentos.map((d) => [d.chave, d]));
+      const celulas = colunas
+        .map((col) => {
+          const doc = porChave[col.chave];
+          if (!doc) return '<td class="ret-celula"><span class="ret-nao-tem">·</span></td>';
+          const etiqueta = RetornoDoc.etiquetaHtml(doc.label, doc, { ano: m.ano, mes: m.mes, documento: doc.chave }, podeMarcar);
+          const obs = doc.observacao ? `<div class="ret-obs">${RetornoDoc.escapar(doc.observacao)}</div>` : '';
+          return `<td class="ret-celula">${etiqueta}${obs}</td>`;
+        })
+        .join('');
+      const temPendente = m.documentos.some((d) => !d.situacao);
+      const acao = podeMarcar && temPendente
+        ? `<button class="btn-ghost mov-btn-mini btn-retorno-tudo" data-ano="${m.ano}" data-mes="${m.mes}">Tudo entregue</button>`
+        : '';
+      const situacaoMes = m.em_falta > 0
+        ? `<span class="evento-tipo-badge falta">${m.em_falta} em falta</span>`
+        : m.documentos.every((d) => d.situacao) ? '<span class="evento-tipo-badge cobertura">Completo</span>' : '';
+      return `<tr><td><strong>${m.nome}</strong>${m.encerrada ? '' : ' <span class="meta">(adiantado)</span>'}</td>${celulas}<td>${situacaoMes}</td><td>${acao}</td></tr>`;
+    })
+    .join('');
+
+  const alerta = emFalta > 0
+    ? `<div class="ret-alerta">⚠ ${emFalta} documento${emFalta > 1 ? 's' : ''} em falta · supervisor: ${RetornoDoc.escapar(supervisor)}</div>`
+    : '<div class="ret-alerta ret-alerta-ok">Todos os documentos em dia.</div>';
+
+  container.innerHTML = `
+    ${alerta}
+    <div class="table-scroll-wrapper"><table class="table-list ret-tabela">
+      <thead><tr><th>Mês</th>${colunas.map((c) => `<th>${c.label}</th>`).join('')}<th>Situação</th><th></th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table></div>
+  `;
+}
+
+async function carregarRetornoDocumentos() {
+  const container = document.getElementById('retorno-documentos');
+  try {
+    const dados = await Shell.chamarApi(`/colaboradores-dados/${colaboradorId}/retorno-documentos`);
+    if (dados === null) return;
+    retornoAtual = dados;
+    renderizarRetornoDocumentos();
+  } catch (erro) {
+    container.innerHTML = '<div class="empty-state">Não foi possível carregar os documentos agora.</div>';
+  }
+}
+
+function aplicarResumoRetorno(resposta) {
+  retornoAtual.meses = resposta.meses;
+  retornoAtual.em_falta = resposta.meses.reduce((soma, m) => soma + m.em_falta, 0);
+  renderizarRetornoDocumentos();
+}
+
+function ligarRetornoDocumentos() {
+  document.getElementById('btn-retorno-todos-meses').addEventListener('click', () => {
+    retornoMostrarTodos = !retornoMostrarTodos;
+    renderizarRetornoDocumentos();
+  });
+  document.getElementById('retorno-documentos').addEventListener('click', async (evento) => {
+    const etiqueta = evento.target.closest('.ret-chip[data-documento]');
+    if (etiqueta && !etiqueta.disabled) {
+      const mes = retornoAtual.meses.find((m) => m.ano === Number(etiqueta.dataset.ano) && m.mes === Number(etiqueta.dataset.mes));
+      const doc = mes.documentos.find((d) => d.chave === etiqueta.dataset.documento);
+      RetornoDoc.abrir(
+        {
+          colaboradorId, colaboradorNome: colaboradorAtual.nome,
+          ano: mes.ano, mes: mes.mes, documento: doc.chave, documentoLabel: doc.label, celula: doc,
+        },
+        aplicarResumoRetorno
+      );
+      return;
+    }
+    const botaoTudo = evento.target.closest('.btn-retorno-tudo');
+    if (botaoTudo) {
+      botaoTudo.disabled = true;
+      try {
+        const resposta = await RetornoDoc.marcarTodos(colaboradorId, botaoTudo.dataset.ano, botaoTudo.dataset.mes);
+        if (resposta) aplicarResumoRetorno(resposta);
+      } catch (erro) {
+        botaoTudo.disabled = false;
+        alert(erro.detalhe || 'Não foi possível marcar agora.');
+      }
+    }
+  });
+}

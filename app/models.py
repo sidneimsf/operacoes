@@ -945,3 +945,33 @@ class MovimentacaoLinha(Base):
 
     def __repr__(self) -> str:
         return f"<MovimentacaoLinha mes={self.mes_id} {self.nome_cliente}>"
+
+
+class RetornoDocumento(Base):
+    """
+    Retorno de documentos (antes a planilha "Retorno de documentos.xlsx"):
+    um documento de um colaborador numa competencia (mes do ponto) que o
+    supervisor trouxe de volta assinado. Sem linha = pendente. As regras
+    (quais documentos cada mes tem, o que conta como em falta) estao em
+    retorno_documentos.py.
+    """
+    __tablename__ = "retorno_documentos"
+    __table_args__ = (
+        UniqueConstraint("colaborador_id", "ano", "mes", "documento", name="uq_retorno_documento"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    colaborador_id: Mapped[int] = mapped_column(ForeignKey("colaboradores.id"), nullable=False, index=True)
+    ano: Mapped[int] = mapped_column(Integer, nullable=False)
+    mes: Mapped[int] = mapped_column(Integer, nullable=False)
+    documento: Mapped[str] = mapped_column(String(20), nullable=False)  # ponto | holerite | holerite_13 | va_vt | ficha_epi
+    situacao: Mapped[str] = mapped_column(String(20), nullable=False)  # ok | faltando | nao_se_aplica
+    observacao: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    atualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuarios.id"), nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=agora_utc)
+
+    colaborador: Mapped["Colaborador"] = relationship()
+    atualizado_por: Mapped["Usuario | None"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<RetornoDocumento colaborador={self.colaborador_id} {self.mes:02d}/{self.ano} {self.documento}>"

@@ -4360,3 +4360,149 @@ button {
     --crm-atencao: #a8760a;
   }
 }
+
+/* ---------- Retorno de documentos (colaborador e painel do mes) ---------- */
+
+.ret-acoes-topo {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ret-tabela th,
+.ret-tabela td.ret-celula {
+  text-align: center;
+}
+
+.ret-tabela th:first-child {
+  text-align: left;
+}
+
+.ret-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ret-chip:disabled {
+  cursor: default;
+}
+
+.ret-chip:not(:disabled):hover {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ret-chip.ret-ok {
+  background: rgba(31, 107, 65, 0.14);
+  border-color: transparent;
+  color: var(--success);
+}
+
+.ret-chip.ret-faltando {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.ret-chip.ret-nao_se_aplica {
+  background: var(--surface-2);
+  border-color: transparent;
+  color: var(--text-muted);
+}
+
+.ret-chip.ret-pendente {
+  border-style: dashed;
+}
+
+.ret-chip.ret-pendente.ret-em-falta {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.ret-nao-tem {
+  color: var(--text-muted);
+}
+
+.ret-obs {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  max-width: 150px;
+  margin-left: auto;
+  margin-right: auto;
+  overflow-wrap: anywhere;
+}
+
+.ret-alerta {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.ret-alerta.ret-alerta-ok {
+  background: rgba(31, 107, 65, 0.12);
+  color: var(--success);
+  font-weight: 500;
+}
+
+.ret-selo {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.ret-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ret-opcao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.ret-opcao input {
+  width: auto;
+  margin: 0;
+}
+
+.ret-opcao:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.ret-opcao .ret-chip {
+  cursor: inherit;
+}

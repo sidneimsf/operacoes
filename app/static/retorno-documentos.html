@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retorno de Documentos · operações</title>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#17354f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Operações">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="app-shell" id="app-shell">
+  <div class="main-area">
+    <div class="topbar" id="topbar">
+      <h1 id="topbar-title"></h1>
+    </div>
+    <div class="content">
+
+      <div class="filter-row" style="align-items: flex-end;">
+        <div class="field">
+          <label for="ret-filtro-mes">Mês (competência do ponto)</label>
+          <select id="ret-filtro-mes"></select>
+        </div>
+        <div class="field">
+          <label for="ret-filtro-supervisor">Supervisor</label>
+          <select id="ret-filtro-supervisor"><option value="">Todos</option></select>
+        </div>
+        <div class="field">
+          <label for="ret-filtro-busca">Buscar colaborador</label>
+          <input type="text" id="ret-filtro-busca" placeholder="Nome...">
+        </div>
+        <div class="field">
+          <label><input type="checkbox" id="ret-filtro-falta" style="width: auto; margin-right: 6px;">Só quem tem algo em falta</label>
+        </div>
+        <div class="field ret-acoes-topo">
+          <button class="btn-ghost" id="ret-btn-importar" hidden>Importar planilha</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="ret-kpis">
+        <div class="kpi-card"><div class="label">colaboradores no mês</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">completos</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">com falta</div><div class="value">—</div></div>
+        <div class="kpi-card"><div class="label">documentos em falta</div><div class="value">—</div></div>
+      </div>
+
+      <div class="meta" id="ret-legenda" style="margin-bottom: 14px;"></div>
+
+      <div id="ret-conteudo">
+        <div class="loading-state">Carregando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- importar a planilha antiga -->
+<div class="modal-overlay" id="ret-importar-overlay" hidden>
+  <div class="modal modal-largo">
+    <div class="modal-header">
+      <h3>Importar planilha de retorno</h3>
+      <button class="modal-close" id="ret-importar-fechar" aria-label="Fechar">&times;</button>
+    </div>
+    <p class="importar-ajuda">Envie a planilha antiga "Retorno de documentos" (uma aba por mês: Nov2025, Dez2025...). Os colaboradores são encontrados pelo nome. Nada é gravado antes de você conferir, e o que já foi marcado no sistema não é substituído.</p>
+    <form id="ret-importar-form">
+      <div class="field">
+        <label for="ret-importar-arquivo">Planilha (.xlsx)</label>
+        <input type="file" id="ret-importar-arquivo" accept=".xlsx" required>
+      </div>
+      <div id="ret-importar-conferencia"></div>
+      <div class="error-message" id="ret-importar-erro"></div>
+      <button type="submit" class="btn-primary" id="ret-importar-enviar">Conferir planilha</button>
+    </form>
+  </div>
+</div>
+
+<script src="/static/shell.js"></script>
+<script src="/static/retorno-documentos-comum.js"></script>
+<script src="/static/retorno-documentos.js"></script>
+</body>
+</html>

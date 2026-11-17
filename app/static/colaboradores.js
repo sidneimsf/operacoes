@@ -92,6 +92,15 @@ function montarQueryString() {
   return params.toString();
 }
 
+// {colaborador_id: documentos em falta} do Retorno de documentos
+let pendenciasDocumentos = {};
+
+function seloDocumentosHtml(colaboradorId) {
+  const total = pendenciasDocumentos[colaboradorId];
+  if (!total) return '';
+  return ` <a class="ret-selo" href="/colaborador-detalhe?id=${colaboradorId}" title="Retorno de documentos: ${total} em falta">${total} doc${total > 1 ? 's' : ''} em falta</a>`;
+}
+
 function renderizarTabela(colaboradores) {
   const container = document.getElementById('lista-colaboradores');
 
@@ -105,7 +114,7 @@ function renderizarTabela(colaboradores) {
       (c) => `
       <tr>
         <td>${c.registro || '—'}</td>
-        <td><a href="/colaborador-detalhe?id=${c.id}">${c.nome}</a></td>
+        <td><a href="/colaborador-detalhe?id=${c.id}">${c.nome}</a>${seloDocumentosHtml(c.id)}</td>
         <td>${c.cargo || '—'}</td>
         <td>${celulaContatoHtml(c.contato)}</td>
         <td>${formatarData(c.data_admissao)}</td>
@@ -138,8 +147,13 @@ async function carregarLista() {
   const container = document.getElementById('lista-colaboradores');
   container.innerHTML = '<div class="loading-state">Carregando colaboradores...</div>';
   try {
-    const colaboradores = await Shell.chamarApi(`/colaboradores-dados?${montarQueryString()}`);
+    const [colaboradores, pendencias] = await Promise.all([
+      Shell.chamarApi(`/colaboradores-dados?${montarQueryString()}`),
+      // o selo e um extra: se falhar, a lista aparece sem ele
+      Shell.chamarApi('/retorno-documentos-dados/pendencias').catch(() => ({})),
+    ]);
     if (colaboradores === null) return;
+    pendenciasDocumentos = pendencias || {};
     renderizarTabela(colaboradores);
   } catch (erro) {
     container.innerHTML = '<div class="empty-state">Não foi possível carregar os dados agora.</div>';

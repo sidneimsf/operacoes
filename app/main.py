@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
@@ -71,6 +72,7 @@ from models import (
     MovimentacaoLinha,
     MovimentacaoMes,
     PesquisaSatisfacao,
+    RetornoDocumento,
     Usuario,
     UsuarioPermissao,
     Veiculo,
@@ -83,6 +85,7 @@ from importar_enderecos import casar_com_clientes, ler_planilha, mudancas_da_lin
 from resumo_dia import hoje_brasilia, montar_resumo_dia
 from resumo_dia_pdf import gerar_resumo_dia_pdf
 import movimentacao
+import retorno_documentos
 from movimentacao_pdf import gerar_movimentacao_pdf
 from schemas import (
     AvisoCreate,
@@ -125,6 +128,8 @@ from schemas import (
     MovimentacaoNumerar,
     PermissaoUpdate,
     PesquisaSatisfacaoCreate,
+    RetornoDocumentoMarcar,
+    RetornoDocumentoMarcarTodos,
     TokenResponse,
     UsuarioAcessoUpdate,
     UsuarioCreate,
@@ -479,6 +484,7 @@ MODULOS_PERMISSAO = [
     {"chave": "mapa_servico", "label": "Histórico do Mapa de Serviço", "padrao_escritorio_apenas": True},
     {"chave": "excluir_registros", "label": "Excluir custos, chamados e lançamentos", "padrao_escritorio_apenas": True},
     {"chave": "crm", "label": "CRM (carteira, contratos e satisfação)", "padrao_escritorio_apenas": True},
+    {"chave": "retorno_documentos", "label": "Retorno de documentos (marcar entregas)", "padrao_escritorio_apenas": True},
 ]
 CHAVES_MODULOS_VALIDAS = {m["chave"] for m in MODULOS_PERMISSAO}
 
@@ -785,6 +791,11 @@ def pagina_crm_cliente():
 @app.get("/gerencia", include_in_schema=False)
 def pagina_gerencia():
     return FileResponse("static/gerencia.html")
+
+
+@app.get("/retorno-documentos", include_in_schema=False)
+def pagina_retorno_documentos():
+    return FileResponse("static/retorno-documentos.html")
 
 
 @app.get("/ponto", include_in_schema=False)
@@ -7324,3 +7335,345 @@ def movimentacao_importar(
         importadas.append({"empresa": empresa.nome, "linhas": len(aba["linhas"])})
     db.commit()
     return {"importadas": importadas, "ignoradas": ignoradas}
+
+
+# ---------------------------------------------------------------------------
+# Retorno de documentos (ponto, holerite, VA/VT e ficha de EPI assinados que
+# o supervisor traz de volta todo mes - antes a planilha "Retorno de
+# documentos.xlsx"). Regras em retorno_documentos.py.
+# ---------------------------------------------------------------------------
+
+def _validar_competencia_retorno(ano: int, mes: int) -> None:
+    if not 1 <= mes <= 12:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mês inválido")
+    hoje = hoje_brasilia()
+    if (ano, mes) < retorno_documentos.INICIO_ACOMPANHAMENTO:
+        inicio_ano, inicio_mes = retorno_documentos.INICIO_ACOMPANHAMENTO
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"O acompanhamento começa em {retorno_documentos.nome_competencia(inicio_ano, inicio_mes)}",
+        )
+    if (ano, mes) > retorno_documentos.competencia_de(hoje):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse mês ainda não chegou")
+
+
+def _registros_retorno_por_colaborador(db: Session, ids: list[int]) -> dict[int, list[RetornoDocumento]]:
+    por_colaborador: dict[int, list[RetornoDocumento]] = {i: [] for i in ids}
+    if ids:
+        for r in db.query(RetornoDocumento).filter(RetornoDocumento.colaborador_id.in_(ids)).all():
+            por_colaborador[r.colaborador_id].append(r)
+    return por_colaborador
+
+
+def serializar_retorno_celula(r: RetornoDocumento | None, em_falta: bool) -> dict:
+    return {
+        "situacao": r.situacao if r else None,
+        "observacao": r.observacao if r else None,
+        "em_falta": em_falta,
+        "atualizado_por": r.atualizado_por.nome if r and r.atualizado_por else None,
+        "atualizado_em": r.atualizado_em.isoformat() if r and r.atualizado_em else None,
+    }
+
+
+def _linha_retorno_do_mes(c: Colaborador, registros: list[RetornoDocumento], ano: int, mes: int, hoje: date) -> dict:
+    """Uma linha do painel do mes: as celulas da competencia e o total em falta do colaborador."""
+    por_celula = {(r.ano, r.mes, r.documento): r for r in registros}
+    primeiro = min(((r.ano, r.mes) for r in registros), default=None)
+    inicio = retorno_documentos.inicio_acompanhamento(c, primeiro, hoje)
+    conta_pendente = inicio <= (ano, mes) <= retorno_documentos.ultima_competencia_encerrada(hoje)
+    celulas = {}
+    em_falta_mes = 0
+    for chave in retorno_documentos.chaves_documentos(ano, mes):
+        r = por_celula.get((ano, mes, chave))
+        falta = (r is not None and r.situacao == "faltando") or (r is None and conta_pendente)
+        em_falta_mes += 1 if falta else 0
+        celulas[chave] = serializar_retorno_celula(r, falta)
+    return {
+        "id": c.id,
+        "nome": c.nome,
+        "cargo": c.cargo,
+        "status": c.status,
+        "celulas": celulas,
+        "em_falta_mes": em_falta_mes,
+        "em_falta_total": retorno_documentos.contar_em_falta(c, registros, hoje),
+    }
+
+
+def _resumo_retorno_colaborador(db: Session, c: Colaborador, ano: int, mes: int) -> dict:
+    """Devolvido depois de marcar: a linha do mes atualizada (painel) e os meses do colaborador (tela dele)."""
+    hoje = hoje_brasilia()
+    registros = _registros_retorno_por_colaborador(db, [c.id])[c.id]
+    return {
+        "linha": _linha_retorno_do_mes(c, registros, ano, mes, hoje),
+        "meses": retorno_documentos.montar_meses_do_colaborador(c, registros, hoje),
+    }
+
+
+@app.get("/retorno-documentos-dados")
+def retorno_documentos_do_mes(
+    ano: int | None = None,
+    mes: int | None = None,
+    supervisor_id: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """
+    Painel do mes (a antiga aba da planilha): os colaboradores que
+    trabalharam na competencia, agrupados por supervisor, com a situacao
+    de cada documento. Sem ano/mes abre a competencia sendo recolhida agora.
+    """
+    hoje = hoje_brasilia()
+    if ano is None or mes is None:
+        ano, mes = retorno_documentos.ultima_competencia_encerrada(hoje)
+    _validar_competencia_retorno(ano, mes)
+
+    query = _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario).filter(Colaborador.eh_posto_vago.is_(False))
+    if supervisor_id is not None:
+        query = query.filter(Colaborador.supervisor_id == supervisor_id)
+    candidatos = query.order_by(Colaborador.nome).all()
+    registros = _registros_retorno_por_colaborador(db, [c.id for c in candidatos])
+
+    grupos: dict[str, dict] = {}
+    for c in candidatos:
+        marcado_no_mes = any(r.ano == ano and r.mes == mes for r in registros[c.id])
+        if not marcado_no_mes and not retorno_documentos.colaborador_no_mes(c, ano, mes):
+            continue
+        nome_grupo = c.supervisor.nome if c.supervisor else "Administrativo"
+        grupo = grupos.setdefault(nome_grupo, {"supervisor_id": c.supervisor_id, "supervisor_nome": nome_grupo, "colaboradores": []})
+        grupo["colaboradores"].append(_linha_retorno_do_mes(c, registros[c.id], ano, mes, hoje))
+
+    # Administrativo por ultimo, como na planilha
+    lista_grupos = sorted(grupos.values(), key=lambda g: (g["supervisor_id"] is None, g["supervisor_nome"]))
+    linhas = [linha for g in lista_grupos for linha in g["colaboradores"]]
+    encerrada = retorno_documentos.ultima_competencia_encerrada(hoje)
+    return {
+        "ano": ano,
+        "mes": mes,
+        "nome": retorno_documentos.nome_competencia(ano, mes),
+        "encerrada": (ano, mes) <= encerrada,
+        "competencia_atual": {"ano": encerrada[0], "mes": encerrada[1]},
+        "inicio": dict(zip(("ano", "mes"), retorno_documentos.INICIO_ACOMPANHAMENTO)),
+        "documentos": retorno_documentos.documentos_da_competencia(ano, mes),
+        "situacoes": retorno_documentos.SITUACOES,
+        "pode_marcar": tem_permissao(db, usuario, "retorno_documentos"),
+        "grupos": lista_grupos,
+        "resumo": {
+            "colaboradores": len(linhas),
+            "completos": sum(1 for l in linhas if l["em_falta_mes"] == 0),
+            "com_falta": sum(1 for l in linhas if l["em_falta_mes"] > 0),
+            "documentos_em_falta": sum(l["em_falta_mes"] for l in linhas),
+        },
+    }
+
+
+@app.get("/retorno-documentos-dados/pendencias")
+def retorno_documentos_pendencias(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """{colaborador_id: documentos em falta} so de quem tem algo em falta - pro selo na lista de colaboradores."""
+    hoje = hoje_brasilia()
+    colaboradores = (
+        _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario)
+        .filter(Colaborador.eh_posto_vago.is_(False))
+        .all()
+    )
+    registros = _registros_retorno_por_colaborador(db, [c.id for c in colaboradores])
+    pendencias = {}
+    for c in colaboradores:
+        total = retorno_documentos.contar_em_falta(c, registros[c.id], hoje)
+        if total:
+            pendencias[str(c.id)] = total
+    return pendencias
+
+
+@app.get("/colaboradores-dados/{colaborador_id}/retorno-documentos")
+def retorno_documentos_do_colaborador(
+    colaborador_id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    c = _colaborador_da_carteira_ou_404(db, usuario, colaborador_id)
+    registros = _registros_retorno_por_colaborador(db, [c.id])[c.id]
+    meses = retorno_documentos.montar_meses_do_colaborador(c, registros, hoje_brasilia())
+    return {
+        "meses": meses,
+        "em_falta": sum(m["em_falta"] for m in meses),
+        "situacoes": retorno_documentos.SITUACOES,
+        "pode_marcar": tem_permissao(db, usuario, "retorno_documentos"),
+    }
+
+
+@app.put("/retorno-documentos-dados/marcar")
+def retorno_documentos_marcar(
+    dados: RetornoDocumentoMarcar,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("retorno_documentos")),
+):
+    """Marca um documento (ok / faltando / nao_se_aplica) ou, com situacao vazia, volta ele pra pendente."""
+    c = _colaborador_da_carteira_ou_404(db, usuario, dados.colaborador_id)
+    _validar_competencia_retorno(dados.ano, dados.mes)
+    if dados.documento not in retorno_documentos.chaves_documentos(dados.ano, dados.mes):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esse documento não existe nesse mês")
+    if dados.situacao is not None and dados.situacao not in retorno_documentos.CHAVES_SITUACAO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Situação inválida")
+    observacao = (dados.observacao or "").strip()[:300] or None
+
+    registro = (
+        db.query(RetornoDocumento)
+        .filter_by(colaborador_id=c.id, ano=dados.ano, mes=dados.mes, documento=dados.documento)
+        .first()
+    )
+    if dados.situacao is None:
+        if registro is not None:
+            db.delete(registro)
+    else:
+        if registro is None:
+            registro = RetornoDocumento(colaborador_id=c.id, ano=dados.ano, mes=dados.mes, documento=dados.documento)
+            db.add(registro)
+        registro.situacao = dados.situacao
+        registro.observacao = observacao
+        registro.atualizado_por_id = usuario.id
+        registro.atualizado_em = datetime.now(timezone.utc)
+    db.commit()
+    return _resumo_retorno_colaborador(db, c, dados.ano, dados.mes)
+
+
+@app.post("/retorno-documentos-dados/marcar-todos")
+def retorno_documentos_marcar_todos(
+    dados: RetornoDocumentoMarcarTodos,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("retorno_documentos")),
+):
+    """'Tudo entregue' de um colaborador num mes: marca so os documentos ainda pendentes (nao mexe no que ja tem marcacao)."""
+    c = _colaborador_da_carteira_ou_404(db, usuario, dados.colaborador_id)
+    _validar_competencia_retorno(dados.ano, dados.mes)
+    if dados.situacao not in retorno_documentos.CHAVES_SITUACAO:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Situação inválida")
+    ja_marcados = {
+        r.documento
+        for r in db.query(RetornoDocumento).filter_by(colaborador_id=c.id, ano=dados.ano, mes=dados.mes).all()
+    }
+    for chave in retorno_documentos.chaves_documentos(dados.ano, dados.mes):
+        if chave not in ja_marcados:
+            db.add(RetornoDocumento(
+                colaborador_id=c.id, ano=dados.ano, mes=dados.mes, documento=chave,
+                situacao=dados.situacao, atualizado_por_id=usuario.id,
+            ))
+    db.commit()
+    return _resumo_retorno_colaborador(db, c, dados.ano, dados.mes)
+
+
+@app.post("/retorno-documentos-dados/importar")
+def retorno_documentos_importar(
+    arquivo: UploadFile = File(...),
+    aplicar: bool = Form(False),
+    vinculos: str | None = Form(None),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(exigir_modulo("retorno_documentos")),
+):
+    """
+    Importa o historico da planilha antiga (uma aba por mes). Sem 'aplicar'
+    so devolve a conferencia: quem casou pelo nome, quem nao casou (com uma
+    sugestao de nome parecido) e quantas marcacoes entrariam. Com
+    'aplicar' grava; 'vinculos' e um JSON {nome da planilha: colaborador_id}
+    com as sugestoes que o escritorio aceitou. Nunca sobrescreve uma
+    marcacao que ja existe no sistema. A planilha nao e guardada.
+    """
+    if usuario.papel != "escritorio":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Só o escritório pode importar a planilha")
+    if Path(arquivo.filename or "").suffix.lower() != ".xlsx":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Envie a planilha no formato Excel (.xlsx)")
+    conteudo = _ler_arquivo_limitado(arquivo, TAMANHO_MAXIMO_ARQUIVO, "Arquivo maior que 10MB")
+    try:
+        linhas = retorno_documentos.ler_planilha(conteudo)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Não foi possível ler a planilha. Confira se é um arquivo Excel válido.")
+    hoje = hoje_brasilia()
+    linhas = [
+        l for l in linhas
+        if retorno_documentos.INICIO_ACOMPANHAMENTO <= (l["ano"], l["mes"]) <= retorno_documentos.competencia_de(hoje)
+    ]
+    if not linhas:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nenhum mês encontrado na planilha. As abas precisam se chamar como Nov2025, Dez2025... e ter a coluna \"Funcionário\".",
+        )
+
+    colaboradores = db.query(Colaborador).all()
+    por_id = {c.id: c for c in colaboradores}
+    casados, nao_casados = retorno_documentos.casar_nomes([l["nome"] for l in linhas], colaboradores)
+
+    aceitos: dict[str, Colaborador] = {}
+    if vinculos:
+        try:
+            escolhas = json.loads(vinculos)
+        except ValueError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vínculos inválidos")
+        for nome, colaborador_id in (escolhas or {}).items():
+            c = por_id.get(int(colaborador_id)) if str(colaborador_id).isdigit() else None
+            if c is not None:
+                aceitos[retorno_documentos.normalizar(nome)] = c
+    vinculo_final = {**casados, **aceitos}
+
+    existentes = {
+        (r.colaborador_id, r.ano, r.mes, r.documento)
+        for r in db.query(RetornoDocumento).filter(
+            RetornoDocumento.colaborador_id.in_({c.id for c in vinculo_final.values()} or {0})
+        ).all()
+    }
+    novas, ja_marcadas, sem_vinculo = [], 0, 0
+    vistas = set()
+    for l in linhas:
+        c = vinculo_final.get(retorno_documentos.normalizar(l["nome"]))
+        if c is None:
+            sem_vinculo += len(l["celulas"])
+            continue
+        for documento, (situacao, observacao) in l["celulas"].items():
+            if documento not in retorno_documentos.chaves_documentos(l["ano"], l["mes"]):
+                continue
+            chave = (c.id, l["ano"], l["mes"], documento)
+            if chave in existentes or chave in vistas:
+                ja_marcadas += 1
+                continue
+            vistas.add(chave)
+            novas.append((chave, situacao, observacao))
+
+    if not aplicar:
+        abas_por_nome: dict[str, set] = {}
+        for l in linhas:
+            abas_por_nome.setdefault(retorno_documentos.normalizar(l["nome"]), set()).add(l["aba"])
+        sugestoes = []
+        for item in nao_casados:
+            sugerido, semelhanca = retorno_documentos.sugerir_colaborador(item["nome"], colaboradores)
+            sugestoes.append({
+                **item,
+                "abas": sorted(abas_por_nome.get(retorno_documentos.normalizar(item["nome"]), [])),
+                "sugestao": (
+                    {"id": sugerido.id, "nome": sugerido.nome, "status": sugerido.status, "semelhanca": semelhanca}
+                    if sugerido else None
+                ),
+            })
+        competencias = sorted({(l["ano"], l["mes"]) for l in linhas})
+        return {
+            "meses": [retorno_documentos.nome_competencia(a, m) for a, m in competencias],
+            "nomes_planilha": len({retorno_documentos.normalizar(l["nome"]) for l in linhas}),
+            "casados": len(casados),
+            "nao_casados": sugestoes,
+            "marcacoes_novas": len(novas),
+            "marcacoes_ja_existentes": ja_marcadas,
+            "marcacoes_sem_colaborador": sem_vinculo,
+        }
+
+    agora = datetime.now(timezone.utc)
+    for (colaborador_id, ano, mes, documento), situacao, observacao in novas:
+        db.add(RetornoDocumento(
+            colaborador_id=colaborador_id, ano=ano, mes=mes, documento=documento, situacao=situacao,
+            observacao=observacao, atualizado_por_id=usuario.id, atualizado_em=agora,
+        ))
+    db.commit()
+    return {
+        "marcacoes_gravadas": len(novas),
+        "marcacoes_ja_existentes": ja_marcadas,
+        "marcacoes_sem_colaborador": sem_vinculo,
+    }

@@ -22,6 +22,7 @@ const Shell = (() => {
     'mapa-servico': '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8 7h6a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4H8"/>',
     crm: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8Z"/><path d="M3.5 12h4l2-3 3 6 2-3h6"/>',
     'mapa-clientes': '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>',
+    'retorno-documentos': '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5"/><path d="m9 14 2 2 4-4"/>',
     gerencia: '<path d="M4 4h16v16H4z"/><path d="M4 9h16M9 9v11M13 13h4M13 17h4"/>',
     empresas: '<path d="M3 21h18M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16M9 8h1M13 8h1M9 12h1M13 12h1M9 16h1M13 16h1M14 21v-6h4a1 1 0 0 1 1 1v5"/>',
   };
@@ -31,6 +32,7 @@ const Shell = (() => {
     { key: 'clientes', label: 'Clientes', href: '/clientes' },
     { key: 'mapa-clientes', label: 'Mapa de Clientes', href: '/mapa-clientes', submenu: true },
     { key: 'colaboradores', label: 'Colaboradores', href: '/colaboradores' },
+    { key: 'retorno-documentos', label: 'Retorno de Documentos', href: '/retorno-documentos', submenu: true },
     { key: 'ocorrencias', label: 'Ocorrências', href: '/ocorrencias' },
     { key: 'avisos', label: 'Avisos', href: '/avisos' },
     { key: 'vagas', label: 'Vagas Abertas', href: '/vagas' },
