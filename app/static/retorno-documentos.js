@@ -159,6 +159,50 @@ function acharLinha(colaboradorId) {
 }
 
 // ---------------------------------------------------------------------------
+// Relatorio em Excel / PDF (respeita o mes e o filtro de supervisor)
+// ---------------------------------------------------------------------------
+
+async function baixarRelatorio(formato, botao) {
+  const auth = Shell.autenticacao();
+  if (!auth || !dadosMes) return;
+  const supervisor = document.getElementById('ret-filtro-supervisor').value;
+  const params = new URLSearchParams({ ano: dadosMes.ano, mes: dadosMes.mes });
+  if (supervisor) params.set('supervisor', supervisor);
+  const textoOriginal = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = 'Gerando...';
+  try {
+    const resposta = await fetch(`/retorno-documentos-dados/${formato}?${params}`, {
+      headers: { Authorization: `Bearer ${auth.access_token}` },
+    });
+    if (resposta.status === 401) {
+      Shell.sair();
+      return;
+    }
+    if (!resposta.ok) {
+      const corpo = await resposta.json().catch(() => ({}));
+      alert(corpo.detail || 'Não foi possível gerar o relatório agora.');
+      return;
+    }
+    const nome = (resposta.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/);
+    const blob = await resposta.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nome ? nome[1] : `retorno-documentos.${formato === 'pdf' ? 'pdf' : 'xlsx'}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (erro) {
+    alert('Não foi possível gerar o relatório agora.');
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Importar a planilha antiga
 // ---------------------------------------------------------------------------
 
@@ -303,6 +347,9 @@ function iniciar() {
       }
     }
   });
+
+  document.getElementById('ret-btn-excel').addEventListener('click', (evento) => baixarRelatorio('excel', evento.currentTarget));
+  document.getElementById('ret-btn-pdf').addEventListener('click', (evento) => baixarRelatorio('pdf', evento.currentTarget));
 
   const overlay = document.getElementById('ret-importar-overlay');
   document.getElementById('ret-btn-importar').addEventListener('click', abrirImportar);

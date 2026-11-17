@@ -1,4 +1,5 @@
 import json
+import re
 import os
 import uuid
 from datetime import date, datetime, time, timedelta, timezone
@@ -86,6 +87,7 @@ from resumo_dia import hoje_brasilia, montar_resumo_dia
 from resumo_dia_pdf import gerar_resumo_dia_pdf
 import movimentacao
 import retorno_documentos
+import retorno_documentos_relatorio
 from movimentacao_pdf import gerar_movimentacao_pdf
 from schemas import (
     AvisoCreate,
@@ -7422,6 +7424,61 @@ def retorno_documentos_do_mes(
     trabalharam na competencia, agrupados por supervisor, com a situacao
     de cada documento. Sem ano/mes abre a competencia sendo recolhida agora.
     """
+    return _montar_painel_retorno(db, usuario, ano, mes, supervisor_id)
+
+
+def _painel_retorno_para_relatorio(db: Session, usuario: Usuario, ano: int, mes: int, supervisor: str | None) -> dict:
+    """Painel do mes filtrado pelo nome do grupo (o mesmo valor do filtro Supervisor da tela)."""
+    painel = _montar_painel_retorno(db, usuario, ano, mes, None)
+    if supervisor:
+        painel["grupos"] = [g for g in painel["grupos"] if g["supervisor_nome"] == supervisor]
+        if not painel["grupos"]:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esse supervisor não tem colaboradores nesse mês")
+    return painel
+
+
+def _nome_arquivo_retorno(ano: int, mes: int, supervisor: str | None, extensao: str) -> str:
+    sufixo = f"-{re.sub(r'[^a-z0-9]+', '-', retorno_documentos.normalizar(supervisor).lower()).strip('-')}" if supervisor else ""
+    return f"retorno-documentos-{ano}-{mes:02d}{sufixo}.{extensao}"
+
+
+@app.get("/retorno-documentos-dados/excel")
+def retorno_documentos_excel(
+    ano: int,
+    mes: int,
+    supervisor: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Relatorio do mes em Excel: aba Resumo + uma aba por supervisor (em dia / a entregar)."""
+    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor)
+    gerado_em = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
+    return Response(
+        content=retorno_documentos_relatorio.gerar_excel(painel, gerado_em),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{_nome_arquivo_retorno(ano, mes, supervisor, "xlsx")}"'},
+    )
+
+
+@app.get("/retorno-documentos-dados/pdf")
+def retorno_documentos_pdf(
+    ano: int,
+    mes: int,
+    supervisor: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Relatorio do mes em PDF, uma pagina por supervisor, pra imprimir e entregar."""
+    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor)
+    gerado_em = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
+    return Response(
+        content=retorno_documentos_relatorio.gerar_pdf(painel, gerado_em),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{_nome_arquivo_retorno(ano, mes, supervisor, "pdf")}"'},
+    )
+
+
+def _montar_painel_retorno(db: Session, usuario: Usuario, ano: int | None, mes: int | None, supervisor_id: int | None) -> dict:
     hoje = hoje_brasilia()
     if ano is None or mes is None:
         ano, mes = retorno_documentos.ultima_competencia_encerrada(hoje)
