@@ -7499,7 +7499,10 @@ def _montar_painel_retorno(
         ano, mes = retorno_documentos.ultima_competencia_encerrada(hoje)
     _validar_competencia_retorno(ano, mes)
 
-    query = _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario).filter(Colaborador.eh_posto_vago.is_(False))
+    # afastados e desligados nao entram no painel (nem nos relatorios Excel/PDF)
+    query = _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario).filter(
+        Colaborador.eh_posto_vago.is_(False), Colaborador.status == "ativo",
+    )
     if supervisor_id is not None:
         query = query.filter(Colaborador.supervisor_id == supervisor_id)
     if empresa_id is not None:
