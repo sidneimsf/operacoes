@@ -7418,6 +7418,7 @@ def retorno_documentos_do_mes(
     mes: int | None = None,
     supervisor_id: int | None = None,
     empresa_id: int | None = None,
+    todos: bool = False,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
@@ -7425,13 +7426,24 @@ def retorno_documentos_do_mes(
     Painel do mes (a antiga aba da planilha): os colaboradores que
     trabalharam na competencia, agrupados por supervisor, com a situacao
     de cada documento. Sem ano/mes abre a competencia sendo recolhida agora.
+    Com todos=true: tudo o que esta em falta em qualquer mes, uma linha por
+    colaborador e mes (ano/mes sao ignorados).
     """
+    if todos:
+        return _montar_painel_retorno_todos(db, usuario, supervisor_id, empresa_id)
     return _montar_painel_retorno(db, usuario, ano, mes, supervisor_id, empresa_id)
 
 
-def _painel_retorno_para_relatorio(db: Session, usuario: Usuario, ano: int, mes: int, supervisor: str | None, empresa_id: int | None) -> dict:
-    """Painel do mes filtrado pela empresa e pelo nome do grupo (os mesmos valores dos filtros da tela)."""
-    painel = _montar_painel_retorno(db, usuario, ano, mes, None, empresa_id)
+def _painel_retorno_para_relatorio(
+    db: Session, usuario: Usuario, ano: int | None, mes: int | None, supervisor: str | None, empresa_id: int | None, todos: bool = False,
+) -> dict:
+    """Painel do mes (ou de todos os meses) filtrado pela empresa e pelo nome do grupo (os mesmos valores dos filtros da tela)."""
+    if todos:
+        painel = _montar_painel_retorno_todos(db, usuario, None, empresa_id)
+    else:
+        if ano is None or mes is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Escolha o mês do relatório")
+        painel = _montar_painel_retorno(db, usuario, ano, mes, None, empresa_id)
     painel["empresa_nome"] = None
     if empresa_id is not None:
         empresa = db.get(Empresa, empresa_id)
@@ -7441,12 +7453,19 @@ def _painel_retorno_para_relatorio(db: Session, usuario: Usuario, ano: int, mes:
     if supervisor:
         painel["grupos"] = [g for g in painel["grupos"] if g["supervisor_nome"] == supervisor]
         if not painel["grupos"]:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Esse supervisor não tem colaboradores nesse mês")
+            detalhe = (
+                "Esse supervisor não tem documentos em falta"
+                if todos else "Esse supervisor não tem colaboradores nesse mês"
+            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detalhe)
     return painel
 
 
 def _nome_arquivo_retorno(painel: dict, supervisor: str | None, extensao: str) -> str:
-    partes = [f"retorno-documentos-{painel['ano']}-{painel['mes']:02d}"]
+    if painel.get("todos_meses"):
+        partes = ["retorno-documentos-todos-os-meses"]
+    else:
+        partes = [f"retorno-documentos-{painel['ano']}-{painel['mes']:02d}"]
     for nome in (painel["empresa_nome"], supervisor):
         if nome:
             partes.append(re.sub(r"[^a-z0-9]+", "-", retorno_documentos.normalizar(nome).lower()).strip("-"))
@@ -7455,15 +7474,16 @@ def _nome_arquivo_retorno(painel: dict, supervisor: str | None, extensao: str) -
 
 @app.get("/retorno-documentos-dados/excel")
 def retorno_documentos_excel(
-    ano: int,
-    mes: int,
+    ano: int | None = None,
+    mes: int | None = None,
     supervisor: str | None = None,
     empresa_id: int | None = None,
+    todos: bool = False,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    """Relatorio do mes em Excel: aba Resumo + uma aba por supervisor (em dia / a entregar)."""
-    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor, empresa_id)
+    """Relatorio do mes (ou de todos os meses) em Excel: aba Resumo + uma aba por supervisor (em dia / a entregar)."""
+    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor, empresa_id, todos)
     gerado_em = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
     return Response(
         content=retorno_documentos_relatorio.gerar_excel(painel, gerado_em),
@@ -7474,15 +7494,16 @@ def retorno_documentos_excel(
 
 @app.get("/retorno-documentos-dados/pdf")
 def retorno_documentos_pdf(
-    ano: int,
-    mes: int,
+    ano: int | None = None,
+    mes: int | None = None,
     supervisor: str | None = None,
     empresa_id: int | None = None,
+    todos: bool = False,
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(usuario_atual),
 ):
-    """Relatorio do mes em PDF, uma pagina por supervisor, pra imprimir e entregar."""
-    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor, empresa_id)
+    """Relatorio do mes (ou de todos os meses) em PDF, uma pagina por supervisor, pra imprimir e entregar."""
+    painel = _painel_retorno_para_relatorio(db, usuario, ano, mes, supervisor, empresa_id, todos)
     gerado_em = datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M")
     return Response(
         content=retorno_documentos_relatorio.gerar_pdf(painel, gerado_em),
@@ -7524,6 +7545,7 @@ def _montar_painel_retorno(
     linhas = [linha for g in lista_grupos for linha in g["colaboradores"]]
     encerrada = retorno_documentos.ultima_competencia_encerrada(hoje)
     return {
+        "todos_meses": False,
         "ano": ano,
         "mes": mes,
         "nome": retorno_documentos.nome_competencia(ano, mes),
@@ -7538,6 +7560,98 @@ def _montar_painel_retorno(
             "colaboradores": len(linhas),
             "completos": sum(1 for l in linhas if l["em_falta_mes"] == 0),
             "com_falta": sum(1 for l in linhas if l["em_falta_mes"] > 0),
+            "documentos_em_falta": sum(l["em_falta_mes"] for l in linhas),
+        },
+    }
+
+
+def _linhas_retorno_em_falta(c: Colaborador, meses: list[dict]) -> list[dict]:
+    """
+    Painel "todos os meses": uma linha por mes do colaborador que tem algo
+    em falta (mais antigo primeiro). As celulas trazem o label do mes
+    ('Ponto 10/2026'); documento que nao existe no mes (13o) nao vem.
+    """
+    total = sum(m["em_falta"] for m in meses)
+    linhas = []
+    for m in reversed(meses):
+        if not m["em_falta"]:
+            continue
+        linhas.append({
+            "id": c.id,
+            "nome": c.nome,
+            "cargo": c.cargo,
+            "status": c.status,
+            "empresa_id": c.empresa_id,
+            "ano": m["ano"],
+            "mes": m["mes"],
+            "competencia": m["nome"],
+            "encerrada": m["encerrada"],
+            "celulas": {
+                d["chave"]: {
+                    "label": d["label"],
+                    "situacao": d["situacao"],
+                    "observacao": d["observacao"],
+                    "em_falta": d["em_falta"],
+                    "atualizado_por": d["atualizado_por"],
+                    "atualizado_em": d["atualizado_em"],
+                }
+                for d in m["documentos"]
+            },
+            "em_falta_mes": m["em_falta"],
+            "em_falta_total": total,
+        })
+    return linhas
+
+
+def _montar_painel_retorno_todos(db: Session, usuario: Usuario, supervisor_id: int | None, empresa_id: int | None = None) -> dict:
+    """Tudo o que esta em falta, de todos os meses de uma vez, agrupado por supervisor (mesmo formato do painel do mes)."""
+    hoje = hoje_brasilia()
+    query = _filtrar_colaboradores_da_carteira(db.query(Colaborador), usuario).filter(
+        Colaborador.eh_posto_vago.is_(False), Colaborador.status == "ativo",
+    )
+    if supervisor_id is not None:
+        query = query.filter(Colaborador.supervisor_id == supervisor_id)
+    if empresa_id is not None:
+        query = query.filter(Colaborador.empresa_id == empresa_id)
+    candidatos = query.order_by(Colaborador.nome).all()
+    registros = _registros_retorno_por_colaborador(db, [c.id for c in candidatos])
+
+    grupos: dict[str, dict] = {}
+    for c in candidatos:
+        meses = retorno_documentos.montar_meses_do_colaborador(c, registros[c.id], hoje)
+        linhas_colaborador = _linhas_retorno_em_falta(c, meses)
+        if not linhas_colaborador:
+            continue
+        nome_grupo = c.supervisor.nome if c.supervisor else "Administrativo"
+        grupo = grupos.setdefault(nome_grupo, {"supervisor_id": c.supervisor_id, "supervisor_nome": nome_grupo, "colaboradores": []})
+        grupo["colaboradores"].extend(linhas_colaborador)
+
+    lista_grupos = sorted(grupos.values(), key=lambda g: (g["supervisor_id"] is None, g["supervisor_nome"]))
+    linhas = [linha for g in lista_grupos for linha in g["colaboradores"]]
+    # a coluna do 13o so aparece se algum mes listado tiver esse documento
+    documentos = [
+        d for d in retorno_documentos.DOCUMENTOS_TODOS_MESES
+        if d["chave"] != "holerite_13" or any("holerite_13" in l["celulas"] for l in linhas)
+    ]
+    encerrada = retorno_documentos.ultima_competencia_encerrada(hoje)
+    return {
+        "todos_meses": True,
+        "ano": None,
+        "mes": None,
+        "nome": "Todos os meses",
+        "encerrada": True,
+        "competencia_atual": {"ano": encerrada[0], "mes": encerrada[1]},
+        "inicio": dict(zip(("ano", "mes"), retorno_documentos.INICIO_ACOMPANHAMENTO)),
+        "documentos": documentos,
+        "situacoes": retorno_documentos.SITUACOES,
+        "pode_marcar": tem_permissao(db, usuario, "retorno_documentos"),
+        "grupos": lista_grupos,
+        "resumo": {
+            "colaboradores": len({l["id"] for l in linhas}),
+            "meses_com_falta": len(linhas),
+            "faltando_parte": sum(
+                1 for l in linhas for cel in l["celulas"].values() if cel["situacao"] == "faltando"
+            ),
             "documentos_em_falta": sum(l["em_falta_mes"] for l in linhas),
         },
     }

@@ -2,7 +2,9 @@
 Relatorio do Retorno de documentos de um mes, por supervisor, em Excel e
 PDF - pra imprimir e entregar/mandar a cada supervisor quem ja esta em dia
 e o que ainda falta trazer. Recebe o dicionario do painel do mes
-(main._montar_painel_retorno), o mesmo que a tela usa.
+(main._montar_painel_retorno), o mesmo que a tela usa - ou o de todos os
+meses (main._montar_painel_retorno_todos, painel["todos_meses"]): ai cada
+linha e um mes de um colaborador e entra a coluna "Mes".
 """
 
 import io
@@ -30,7 +32,9 @@ def _a_entregar(celula: dict, encerrada: bool) -> bool:
     return celula["situacao"] is None and (celula["em_falta"] or not encerrada)
 
 
-def _sigla(celula: dict) -> str:
+def _sigla(celula: dict | None) -> str:
+    if celula is None:
+        return ""  # documento que nao existe nesse mes (13o fora de nov/dez)
     return SIGLAS.get(celula["situacao"], "—")
 
 
@@ -45,23 +49,28 @@ def montar_relatorio(painel: dict) -> list[dict]:
     com a lista do que falta (e a observacao, quando tem).
     """
     documentos = painel["documentos"]
+    todos = painel.get("todos_meses", False)
     blocos = []
     for grupo in painel["grupos"]:
         em_dia, a_entregar = [], []
         for linha in grupo["colaboradores"]:
             faltas = []
+            encerrada = linha.get("encerrada", painel["encerrada"])
             for doc in documentos:
-                celula = linha["celulas"][doc["chave"]]
-                if _a_entregar(celula, painel["encerrada"]):
-                    texto = doc["label"]
+                celula = linha["celulas"].get(doc["chave"])
+                if celula is None:
+                    continue
+                if _a_entregar(celula, encerrada):
+                    texto = celula.get("label") or doc["label"]
                     if celula["situacao"] == "faltando":
                         texto += f" (faltando parte{': ' + celula['observacao'] if celula['observacao'] else ''})"
                     faltas.append(texto)
-            outros = linha["em_falta_total"] - linha["em_falta_mes"]
+            outros = 0 if todos else linha["em_falta_total"] - linha["em_falta_mes"]
             item = {
                 "nome": linha["nome"],
                 "status": linha["status"],
-                "siglas": [_sigla(linha["celulas"][d["chave"]]) for d in documentos],
+                "competencia": linha.get("competencia"),
+                "siglas": [_sigla(linha["celulas"].get(d["chave"])) for d in documentos],
                 "faltas": faltas,
                 "outros_meses": max(outros, 0),
             }
@@ -70,7 +79,8 @@ def montar_relatorio(painel: dict) -> list[dict]:
             "supervisor": grupo["supervisor_nome"],
             "em_dia": em_dia,
             "a_entregar": a_entregar,
-            "total": len(em_dia) + len(a_entregar),
+            # todos os meses: conta pessoas, nao linhas (uma pessoa pode ter varios meses)
+            "total": len({l["id"] for l in grupo["colaboradores"]}) if todos else len(em_dia) + len(a_entregar),
         })
     return blocos
 
@@ -114,6 +124,12 @@ def _nome_aba(nome: str, usados: set) -> str:
     return nome_final
 
 
+def _subtitulo_bloco(painel: dict, b: dict) -> str:
+    if painel.get("todos_meses"):
+        return f"{b['total']} colaboradores com documento em falta · {len(b['a_entregar']) + len(b['em_dia'])} meses em aberto"
+    return f"{b['total']} colaboradores · {len(b['em_dia'])} em dia · {len(b['a_entregar'])} com documento a entregar"
+
+
 def _titulo_competencia(painel: dict) -> str:
     """'Outubro/2026' ou 'Outubro/2026 · CORDSUL' quando filtrado por empresa."""
     if painel.get("empresa_nome"):
@@ -123,6 +139,7 @@ def _titulo_competencia(painel: dict) -> str:
 
 def gerar_excel(painel: dict, gerado_em: str) -> bytes:
     documentos = painel["documentos"]
+    todos = painel.get("todos_meses", False)
     blocos = montar_relatorio(painel)
     wb = Workbook()
 
@@ -133,31 +150,32 @@ def gerar_excel(painel: dict, gerado_em: str) -> bytes:
     resumo.append([f"Gerado em {gerado_em}" + ("" if painel["encerrada"] else " · mês ainda em andamento")])
     resumo["A2"].font = Font(italic=True, color="5B6B82")
     resumo.append([])
-    resumo.append(["Supervisor", "Colaboradores", "Em dia", "A entregar", "% em dia"])
-    for celula in resumo[4]:
-        celula.font = Font(bold=True, color="FFFFFF")
-        celula.fill = _FILL_CAB
-    for b in blocos:
-        pct = len(b["em_dia"]) / b["total"] if b["total"] else 0
-        resumo.append([b["supervisor"], b["total"], len(b["em_dia"]), len(b["a_entregar"]), pct])
-        resumo.cell(row=resumo.max_row, column=5).number_format = "0%"
-    total = sum(b["total"] for b in blocos)
-    em_dia = sum(len(b["em_dia"]) for b in blocos)
-    resumo.append(["Total", total, em_dia, total - em_dia, em_dia / total if total else 0])
-    for celula in resumo[resumo.max_row]:
-        celula.font = Font(bold=True)
-    resumo.cell(row=resumo.max_row, column=5).number_format = "0%"
-    for i, largura in enumerate([34, 14, 10, 12, 10], start=1):
+    if todos:
+        resumo.append(["Supervisor", "Colaboradores com falta", "Meses em aberto"])
+        for celula in resumo[4]:
+            celula.font = Font(bold=True, color="FFFFFF")
+            celula.fill = _FILL_CAB
+        for b in blocos:
+            resumo.append([b["supervisor"], b["total"], len(b["a_entregar"]) + len(b["em_dia"])])
+        resumo.append([
+            "Total", sum(b["total"] for b in blocos), sum(len(b["a_entregar"]) + len(b["em_dia"]) for b in blocos),
+        ])
+        for celula in resumo[resumo.max_row]:
+            celula.font = Font(bold=True)
+    else:
+        _resumo_excel_do_mes(resumo, blocos)
+    for i, largura in enumerate([34, 22, 16, 12, 10], start=1):
         resumo.column_dimensions[get_column_letter(i)].width = largura
 
     usados = {"resumo"}
-    cabecalho = ["Funcionário"] + [d["label"] for d in documentos] + ["Situação"]
+    cabecalho = ["Funcionário"] + (["Mês"] if todos else []) + [d["label"] for d in documentos] + ["Situação"]
+    primeira_sigla = 3 if todos else 2
     n_col = len(cabecalho)
     for b in blocos:
         ws = wb.create_sheet(_nome_aba(b["supervisor"], usados))
         ws.append([f"Retorno de documentos · {_titulo_competencia(painel)} · {b['supervisor']}"])
         ws["A1"].font = Font(bold=True, size=13, color="17354F")
-        ws.append([f"{b['total']} colaboradores · {len(b['em_dia'])} em dia · {len(b['a_entregar'])} com documento a entregar"])
+        ws.append([_subtitulo_bloco(painel, b)])
         ws["A2"].font = Font(color="5B6B82")
         ws.append(["OK = entregue · F = faltando parte · X = não se aplica · — = não entregue"])
         ws["A3"].font = Font(italic=True, size=9, color="5B6B82")
@@ -177,9 +195,10 @@ def gerar_excel(painel: dict, gerado_em: str) -> bytes:
                 celula.fill = _FILL_CAB
                 celula.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             for item in itens:
-                ws.append([_nome_com_status(item)] + item["siglas"] + [_situacao_texto(item)])
+                mes = [item["competencia"]] if todos else []
+                ws.append([_nome_com_status(item)] + mes + item["siglas"] + [_situacao_texto(item)])
                 r = ws.max_row
-                for col in range(2, n_col):
+                for col in range(primeira_sigla, n_col):
                     ws.cell(row=r, column=col).alignment = Alignment(horizontal="center")
                 situacao = ws.cell(row=r, column=n_col)
                 situacao.fill = fill
@@ -200,6 +219,23 @@ def gerar_excel(painel: dict, gerado_em: str) -> bytes:
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
+
+
+def _resumo_excel_do_mes(resumo, blocos: list[dict]) -> None:
+    resumo.append(["Supervisor", "Colaboradores", "Em dia", "A entregar", "% em dia"])
+    for celula in resumo[4]:
+        celula.font = Font(bold=True, color="FFFFFF")
+        celula.fill = _FILL_CAB
+    for b in blocos:
+        pct = len(b["em_dia"]) / b["total"] if b["total"] else 0
+        resumo.append([b["supervisor"], b["total"], len(b["em_dia"]), len(b["a_entregar"]), pct])
+        resumo.cell(row=resumo.max_row, column=5).number_format = "0%"
+    total = sum(b["total"] for b in blocos)
+    em_dia = sum(len(b["em_dia"]) for b in blocos)
+    resumo.append(["Total", total, em_dia, total - em_dia, em_dia / total if total else 0])
+    for celula in resumo[resumo.max_row]:
+        celula.font = Font(bold=True)
+    resumo.cell(row=resumo.max_row, column=5).number_format = "0%"
 
 
 # ---------------------------------------------------------------------------
@@ -239,12 +275,17 @@ def _p(texto, estilo="normal") -> Paragraph:
     return Paragraph(escape(str(texto)) if texto is not None else "", ESTILOS[estilo])
 
 
-def _tabela_colaboradores(itens: list[dict], documentos: list[dict], cor_fundo, mostrar_situacao: bool) -> Table:
+def _tabela_colaboradores(itens: list[dict], documentos: list[dict], cor_fundo, mostrar_situacao: bool, com_mes: bool = False) -> Table:
     n_docs = len(documentos)
     largura_doc = 1.75 * cm
-    largura_nome = 7 * cm if mostrar_situacao else LARGURA_UTIL - n_docs * largura_doc - 2.2 * cm
-    larguras = [largura_nome] + [largura_doc] * n_docs
-    cabecalho = [_p("Funcionário", "celula_cab_esq")] + [_p(_rotulo_curto(d["label"]), "celula_cab") for d in documentos]
+    largura_mes = 2.6 * cm if com_mes else 0
+    largura_nome = 7 * cm if mostrar_situacao else LARGURA_UTIL - n_docs * largura_doc - 2.2 * cm - largura_mes
+    larguras = [largura_nome] + ([largura_mes] if com_mes else []) + [largura_doc] * n_docs
+    cabecalho = (
+        [_p("Funcionário", "celula_cab_esq")]
+        + ([_p("Mês", "celula_cab_esq")] if com_mes else [])
+        + [_p(_rotulo_curto(d["label"]), "celula_cab") for d in documentos]
+    )
     if mostrar_situacao:
         larguras.append(LARGURA_UTIL - sum(larguras))
         cabecalho.append(_p("O que falta trazer", "celula_cab_esq"))
@@ -255,7 +296,12 @@ def _tabela_colaboradores(itens: list[dict], documentos: list[dict], cor_fundo, 
     dados = [cabecalho]
     for item in itens:
         linha = [_p(_nome_com_status(item), "celula")]
+        if com_mes:
+            linha.append(_p(item["competencia"], "celula"))
         for sigla in item["siglas"]:
+            if not sigla:
+                linha.append(_p("", "sigla"))
+                continue
             linha.append(Paragraph(f'<font color="{COR_SIGLA[sigla]}">{sigla}</font>', ESTILOS["sigla"]))
         if mostrar_situacao:
             texto = escape(" · ".join(item["faltas"]))
@@ -286,6 +332,7 @@ def _tabela_colaboradores(itens: list[dict], documentos: list[dict], cor_fundo, 
 
 def gerar_pdf(painel: dict, gerado_em: str) -> bytes:
     documentos = painel["documentos"]
+    todos = painel.get("todos_meses", False)
     blocos = montar_relatorio(painel)
     buffer = io.BytesIO()
     competencia = _titulo_competencia(painel)
@@ -301,7 +348,10 @@ def gerar_pdf(painel: dict, gerado_em: str) -> bytes:
         canvas.drawRightString(largura - 1.5 * cm, altura - 1.35 * cm, "Retorno de documentos")
         canvas.setFont("Helvetica", 9.5)
         canvas.setFillColor(CINZA)
-        canvas.drawRightString(largura - 1.5 * cm, altura - 1.85 * cm, f"Competência {competencia}")
+        canvas.drawRightString(
+            largura - 1.5 * cm, altura - 1.85 * cm,
+            f"{competencia} · só o que está em falta" if todos else f"Competência {competencia}",
+        )
         canvas.setStrokeColor(DOURADO)
         canvas.setLineWidth(1.4)
         canvas.line(1.5 * cm, altura - 2.3 * cm, largura - 1.5 * cm, altura - 2.3 * cm)
@@ -323,22 +373,22 @@ def gerar_pdf(painel: dict, gerado_em: str) -> bytes:
         if i:
             elementos.append(PageBreak())
         elementos.append(_p(f"Supervisor: {b['supervisor']}", "titulo"))
-        elementos.append(_p(
-            f"{b['total']} colaboradores · {len(b['em_dia'])} em dia · {len(b['a_entregar'])} com documento a entregar",
-            "sub",
-        ))
+        elementos.append(_p(_subtitulo_bloco(painel, b), "sub"))
         elementos.append(_p(legenda, "pequeno"))
         elementos.append(Spacer(1, 6))
         elementos.append(_p("Recebido por (supervisor): ______________________________    Data: ____/____/______", "normal"))
         elementos.append(Spacer(1, 2))
         if b["a_entregar"]:
             elementos.append(Paragraph(f'<font color="#c13327">A entregar ({len(b["a_entregar"])})</font>', ESTILOS["secao"]))
-            elementos.append(_tabela_colaboradores(b["a_entregar"], documentos, FUNDO_VERMELHO, True))
+            elementos.append(_tabela_colaboradores(b["a_entregar"], documentos, FUNDO_VERMELHO, True, todos))
         if b["em_dia"]:
             elementos.append(Paragraph(f'<font color="#1f6b41">Em dia ({len(b["em_dia"])})</font>', ESTILOS["secao"]))
-            elementos.append(_tabela_colaboradores(b["em_dia"], documentos, FUNDO_VERDE, False))
+            elementos.append(_tabela_colaboradores(b["em_dia"], documentos, FUNDO_VERDE, False, todos))
 
     if not elementos:
-        elementos.append(_p("Nenhum colaborador nesse mês com esses filtros.", "normal"))
+        elementos.append(_p(
+            "Nenhum documento em falta com esses filtros." if todos else "Nenhum colaborador nesse mês com esses filtros.",
+            "normal",
+        ))
     doc.build(elementos, onFirstPage=moldura, onLaterPages=moldura)
     return buffer.getvalue()

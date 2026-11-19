@@ -84,6 +84,16 @@ def documentos_da_competencia(ano: int, mes: int) -> list[dict]:
     return documentos
 
 
+# colunas do painel "todos os meses" (cada linha e um mes; o 13o so existe em nov/dez)
+DOCUMENTOS_TODOS_MESES = [
+    {"chave": "ponto", "label": "Ponto"},
+    {"chave": "holerite", "label": "Holerite"},
+    {"chave": "holerite_13", "label": "Holerite 13º"},
+    {"chave": "va_vt", "label": "VA/VT"},
+    {"chave": "ficha_epi", "label": "Ficha EPI"},
+]
+
+
 def chaves_documentos(ano: int, mes: int) -> list[str]:
     return [d["chave"] for d in documentos_da_competencia(ano, mes)]
 

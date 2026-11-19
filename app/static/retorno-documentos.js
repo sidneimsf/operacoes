@@ -1,5 +1,7 @@
 // Painel do mes do Retorno de documentos: a antiga aba da planilha, um
 // bloco por supervisor, uma linha por colaborador, uma coluna por documento.
+// Na opcao "Todos os meses" vem so o que esta em falta, de todos os meses de
+// uma vez: uma linha por colaborador e mes (coluna "Mês" a mais).
 Shell.montar('retorno-documentos', 'Retorno de Documentos');
 
 const MESES_NOME = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -22,12 +24,16 @@ function popularSelectMes(inicio, atual) {
     [ano, mes] = proximoMes(ano, mes);
   }
   opcoes.reverse();
-  select.innerHTML = opcoes
+  select.innerHTML = '<option value="todos">Todos os meses (só o que está em falta)</option>' + opcoes
     .map((o) => {
       const recolhendo = o.valor === `${atual.ano}-${atual.mes}` ? ' · recolhendo agora' : '';
       return `<option value="${o.valor}">${o.label}${recolhendo}</option>`;
     })
     .join('');
+}
+
+function modoTodos() {
+  return Boolean(dadosMes && dadosMes.todos_meses);
 }
 
 function popularSelectSupervisor(grupos) {
@@ -41,15 +47,40 @@ function popularSelectSupervisor(grupos) {
 
 function atualizarKpis() {
   const r = dadosMes.resumo;
+  const rotulos = document.querySelectorAll('#ret-kpis .kpi-card .label');
   const valores = document.querySelectorAll('#ret-kpis .kpi-card .value');
-  valores[0].textContent = r.colaboradores;
-  valores[1].textContent = r.completos;
-  valores[2].textContent = r.com_falta;
-  valores[3].textContent = r.documentos_em_falta;
+  const cartoes = modoTodos()
+    ? [
+      ['colaboradores com falta', r.colaboradores],
+      ['meses em aberto', r.meses_com_falta],
+      ['faltando parte (F)', r.faltando_parte],
+      ['documentos em falta', r.documentos_em_falta],
+    ]
+    : [
+      ['colaboradores no mês', r.colaboradores],
+      ['completos', r.completos],
+      ['com falta', r.com_falta],
+      ['documentos em falta', r.documentos_em_falta],
+    ];
+  cartoes.forEach(([rotulo, valor], i) => {
+    rotulos[i].textContent = rotulo;
+    valores[i].textContent = valor;
+  });
 }
 
 function recalcularResumo() {
   const linhas = dadosMes.grupos.flatMap((g) => g.colaboradores);
+  if (modoTodos()) {
+    dadosMes.resumo = {
+      colaboradores: new Set(linhas.filter((l) => l.em_falta_mes > 0).map((l) => l.id)).size,
+      meses_com_falta: linhas.filter((l) => l.em_falta_mes > 0).length,
+      faltando_parte: linhas.reduce(
+        (soma, l) => soma + Object.values(l.celulas).filter((c) => c.situacao === 'faltando').length, 0
+      ),
+      documentos_em_falta: linhas.reduce((soma, l) => soma + l.em_falta_mes, 0),
+    };
+    return;
+  }
   dadosMes.resumo = {
     colaboradores: linhas.length,
     completos: linhas.filter((l) => l.em_falta_mes === 0).length,
@@ -58,30 +89,42 @@ function recalcularResumo() {
   };
 }
 
+// ano/mes da linha: no modo "todos os meses" cada linha e um mes; no painel do mes, o mes escolhido
+function anoMesDaLinha(linha) {
+  return modoTodos() ? [linha.ano, linha.mes] : [dadosMes.ano, dadosMes.mes];
+}
+
 function linhaHtml(linha) {
-  const { documentos, pode_marcar: podeMarcar, ano, mes } = dadosMes;
+  const { documentos, pode_marcar: podeMarcar } = dadosMes;
+  const todos = modoTodos();
+  const [ano, mes] = anoMesDaLinha(linha);
   const celulas = documentos
     .map((doc) => {
       const celula = linha.celulas[doc.chave];
-      const etiqueta = RetornoDoc.etiquetaHtml(doc.label, celula, { colaborador: linha.id, documento: doc.chave }, podeMarcar);
+      if (!celula) return '<td class="ret-celula"><span class="ret-nao-tem">·</span></td>';
+      const etiqueta = RetornoDoc.etiquetaHtml(
+        celula.label || doc.label, celula, { colaborador: linha.id, ano, mes, documento: doc.chave }, podeMarcar
+      );
       const obs = celula.observacao ? `<div class="ret-obs">${RetornoDoc.escapar(celula.observacao)}</div>` : '';
       return `<td class="ret-celula">${etiqueta}${obs}</td>`;
     })
     .join('');
-  const temPendente = documentos.some((doc) => !linha.celulas[doc.chave].situacao);
+  const temPendente = Object.values(linha.celulas).some((c) => !c.situacao);
   const acao = podeMarcar && temPendente
-    ? `<button class="btn-ghost mov-btn-mini ret-btn-tudo" data-colaborador="${linha.id}">Tudo entregue</button>`
+    ? `<button class="btn-ghost mov-btn-mini ret-btn-tudo" data-colaborador="${linha.id}" data-ano="${ano}" data-mes="${mes}">Tudo entregue</button>`
     : '';
   const outrosMeses = linha.em_falta_total - linha.em_falta_mes;
-  const total = outrosMeses > 0
+  const total = !todos && outrosMeses > 0
     ? `<span class="evento-tipo-badge falta" title="Em falta em outros meses">+${outrosMeses} outros meses</span>`
     : '';
   const status = linha.status !== 'ativo' ? ` <span class="badge-inativo">${linha.status === 'afastado' ? 'Afastado' : 'Desligado'}</span>` : '';
+  const colunaMes = todos ? `<td>${RetornoDoc.escapar(linha.competencia)}</td>` : '';
   return `
     <tr data-linha="${linha.id}">
       <td><a href="/colaborador-detalhe?id=${linha.id}">${RetornoDoc.escapar(linha.nome)}</a>${status}</td>
+      ${colunaMes}
       ${celulas}
-      <td>${total}</td>
+      ${todos ? '' : `<td>${total}</td>`}
       <td>${acao}</td>
     </tr>`;
 }
@@ -92,32 +135,50 @@ function renderizar() {
   const busca = document.getElementById('ret-filtro-busca').value.trim().toLowerCase();
   const soFalta = document.getElementById('ret-filtro-falta').checked;
 
+  const todos = modoTodos();
   atualizarKpis();
-  document.getElementById('ret-legenda').textContent = dadosMes.encerrada
-    ? `${dadosMes.nome}: OK entregue · F faltando parte · X não se aplica · ! pendente (em falta) · clique para marcar`
-    : `${dadosMes.nome} ainda está em andamento: o que estiver em branco não conta como falta até o mês acabar.`;
+  let legenda;
+  if (todos) {
+    legenda = 'Todos os meses: só os meses com documento em falta, do mais antigo para o mais novo · OK entregue · F faltando parte · X não se aplica · ! pendente (em falta) · clique para marcar';
+  } else if (dadosMes.encerrada) {
+    legenda = `${dadosMes.nome}: OK entregue · F faltando parte · X não se aplica · ! pendente (em falta) · clique para marcar`;
+  } else {
+    legenda = `${dadosMes.nome} ainda está em andamento: o que estiver em branco não conta como falta até o mês acabar.`;
+  }
+  document.getElementById('ret-legenda').textContent = legenda;
 
   const blocos = dadosMes.grupos
     .filter((g) => !filtroSupervisor || g.supervisor_nome === filtroSupervisor)
     .map((g) => {
       const linhas = g.colaboradores.filter(
-        (l) => (!busca || l.nome.toLowerCase().includes(busca)) && (!soFalta || l.em_falta_total > 0)
+        (l) => (!busca || l.nome.toLowerCase().includes(busca))
+          && (!soFalta || (todos ? l.em_falta_mes > 0 : l.em_falta_total > 0))
       );
       if (linhas.length === 0) return '';
-      const comFalta = g.colaboradores.filter((l) => l.em_falta_mes > 0).length;
+      let resumoGrupo;
+      if (todos) {
+        const pessoas = new Set(g.colaboradores.map((l) => l.id)).size;
+        const docs = g.colaboradores.reduce((soma, l) => soma + l.em_falta_mes, 0);
+        resumoGrupo = `${pessoas} colaboradores · ${docs ? `<span class="badge-inativo">${docs} documentos em falta</span>` : 'tudo em dia'}`;
+      } else {
+        const comFalta = g.colaboradores.filter((l) => l.em_falta_mes > 0).length;
+        resumoGrupo = `${g.colaboradores.length} colaboradores${comFalta ? ` · <span class="badge-inativo">${comFalta} com falta</span>` : ' · tudo em dia'}`;
+      }
+      const cabecalho = `<th>Funcionário</th>${todos ? '<th>Mês</th>' : ''}${dadosMes.documentos.map((d) => `<th>${d.label}</th>`).join('')}${todos ? '' : '<th></th>'}<th></th>`;
       return `
         <div class="avisos-header" style="margin-top: 22px;">
           <span class="section-title" style="margin: 0;">${RetornoDoc.escapar(g.supervisor_nome)}</span>
-          <span class="meta">${g.colaboradores.length} colaboradores${comFalta ? ` · <span class="badge-inativo">${comFalta} com falta</span>` : ' · tudo em dia'}</span>
+          <span class="meta">${resumoGrupo}</span>
         </div>
         <div class="table-scroll-wrapper"><table class="table-list ret-tabela">
-          <thead><tr><th>Funcionário</th>${dadosMes.documentos.map((d) => `<th>${d.label}</th>`).join('')}<th></th><th></th></tr></thead>
+          <thead><tr>${cabecalho}</tr></thead>
           <tbody>${linhas.map(linhaHtml).join('')}</tbody>
         </table></div>`;
     })
     .join('');
 
-  container.innerHTML = blocos || '<div class="empty-state">Nenhum colaborador com esses filtros.</div>';
+  const vazio = todos ? 'Nenhum documento em falta com esses filtros.' : 'Nenhum colaborador com esses filtros.';
+  container.innerHTML = blocos || `<div class="empty-state">${vazio}</div>`;
 }
 
 async function carregarEmpresas() {
@@ -132,12 +193,16 @@ async function carregarEmpresas() {
   }
 }
 
-async function carregar(ano, mes) {
+// competencia = 'todos', 'ano-mes' ou vazio (abre o mes sendo recolhido agora)
+async function carregar(competencia) {
   const container = document.getElementById('ret-conteudo');
   container.innerHTML = '<div class="loading-state">Carregando...</div>';
   try {
     const params = new URLSearchParams();
-    if (ano) {
+    if (competencia === 'todos') {
+      params.set('todos', 'true');
+    } else if (competencia) {
+      const [ano, mes] = competencia.split('-');
       params.set('ano', ano);
       params.set('mes', mes);
     }
@@ -150,7 +215,7 @@ async function carregar(ano, mes) {
     if (!document.getElementById('ret-filtro-mes').options.length) {
       popularSelectMes(dados.inicio, dados.competencia_atual);
     }
-    document.getElementById('ret-filtro-mes').value = `${dados.ano}-${dados.mes}`;
+    document.getElementById('ret-filtro-mes').value = dados.todos_meses ? 'todos' : `${dados.ano}-${dados.mes}`;
     document.getElementById('ret-btn-importar').hidden = !dados.pode_marcar || Shell.autenticacao().papel !== 'escritorio';
     popularSelectSupervisor(dados.grupos);
     renderizar();
@@ -161,17 +226,46 @@ async function carregar(ano, mes) {
 
 // troca a linha do colaborador pela que o servidor devolveu depois de marcar
 function aplicarResposta(resposta) {
-  const nova = resposta.linha;
-  dadosMes.grupos.forEach((g) => {
-    g.colaboradores = g.colaboradores.map((l) => (l.id === nova.id ? nova : l));
-  });
+  if (modoTodos()) {
+    aplicarRespostaTodos(resposta);
+  } else {
+    const nova = resposta.linha;
+    dadosMes.grupos.forEach((g) => {
+      g.colaboradores = g.colaboradores.map((l) => (l.id === nova.id ? nova : l));
+    });
+  }
   recalcularResumo();
   renderizar();
 }
 
-function acharLinha(colaboradorId) {
+// modo "todos os meses": refaz as linhas ja mostradas do colaborador com os
+// meses que voltaram (a linha que ficou completa continua ate recarregar)
+function aplicarRespostaTodos(resposta) {
+  const id = resposta.linha.id;
+  const porMes = new Map(resposta.meses.map((m) => [`${m.ano}-${m.mes}`, m]));
+  const emFaltaTotal = resposta.meses.reduce((soma, m) => soma + m.em_falta, 0);
+  dadosMes.grupos.forEach((g) => {
+    g.colaboradores = g.colaboradores.map((l) => {
+      if (l.id !== id) return l;
+      const m = porMes.get(`${l.ano}-${l.mes}`);
+      if (!m) return { ...l, em_falta_total: emFaltaTotal };
+      const celulas = {};
+      m.documentos.forEach((d) => {
+        celulas[d.chave] = {
+          label: d.label, situacao: d.situacao, observacao: d.observacao, em_falta: d.em_falta,
+          atualizado_por: d.atualizado_por, atualizado_em: d.atualizado_em,
+        };
+      });
+      return { ...l, celulas, encerrada: m.encerrada, em_falta_mes: m.em_falta, em_falta_total: emFaltaTotal };
+    });
+  });
+}
+
+function acharLinha(colaboradorId, ano, mes) {
   for (const g of dadosMes.grupos) {
-    const linha = g.colaboradores.find((l) => l.id === Number(colaboradorId));
+    const linha = g.colaboradores.find(
+      (l) => l.id === Number(colaboradorId) && (!modoTodos() || (l.ano === Number(ano) && l.mes === Number(mes)))
+    );
     if (linha) return linha;
   }
   return null;
@@ -186,7 +280,7 @@ async function baixarRelatorio(formato, botao) {
   if (!auth || !dadosMes) return;
   const supervisor = document.getElementById('ret-filtro-supervisor').value;
   const empresa = document.getElementById('ret-filtro-empresa').value;
-  const params = new URLSearchParams({ ano: dadosMes.ano, mes: dadosMes.mes });
+  const params = new URLSearchParams(modoTodos() ? { todos: 'true' } : { ano: dadosMes.ano, mes: dadosMes.mes });
   if (empresa) params.set('empresa_id', empresa);
   if (supervisor) params.set('supervisor', supervisor);
   const textoOriginal = botao.textContent;
@@ -322,7 +416,7 @@ async function enviarImportar(evento) {
     if (resultado === null) return;
     document.getElementById('ret-importar-overlay').hidden = true;
     alert(`${resultado.marcacoes_gravadas} marcações importadas.`);
-    carregar(dadosMes.ano, dadosMes.mes);
+    carregar(document.getElementById('ret-filtro-mes').value);
   } catch (erro) {
     botao.textContent = textoOriginal;
     erroBox.textContent = erro.detalhe || 'Não foi possível ler a planilha agora.';
@@ -334,11 +428,10 @@ async function enviarImportar(evento) {
 
 function iniciar() {
   document.getElementById('ret-filtro-mes').addEventListener('change', (evento) => {
-    const [ano, mes] = evento.target.value.split('-').map(Number);
-    carregar(ano, mes);
+    carregar(evento.target.value);
   });
   document.getElementById('ret-filtro-empresa').addEventListener('change', () => {
-    carregar(dadosMes ? dadosMes.ano : null, dadosMes ? dadosMes.mes : null);
+    carregar(document.getElementById('ret-filtro-mes').value);
   });
   ['ret-filtro-supervisor', 'ret-filtro-falta'].forEach((id) => {
     document.getElementById(id).addEventListener('change', renderizar);
@@ -348,12 +441,15 @@ function iniciar() {
   document.getElementById('ret-conteudo').addEventListener('click', async (evento) => {
     const etiqueta = evento.target.closest('.ret-chip[data-documento]');
     if (etiqueta && !etiqueta.disabled) {
-      const linha = acharLinha(etiqueta.dataset.colaborador);
-      const doc = dadosMes.documentos.find((d) => d.chave === etiqueta.dataset.documento);
+      const { colaborador, ano, mes, documento } = etiqueta.dataset;
+      const linha = acharLinha(colaborador, ano, mes);
+      const doc = dadosMes.documentos.find((d) => d.chave === documento);
+      const celula = linha.celulas[doc.chave];
+      const nomeMes = modoTodos() ? ` · ${linha.competencia}` : '';
       RetornoDoc.abrir(
         {
-          colaboradorId: linha.id, colaboradorNome: linha.nome, ano: dadosMes.ano, mes: dadosMes.mes,
-          documento: doc.chave, documentoLabel: doc.label, celula: linha.celulas[doc.chave],
+          colaboradorId: linha.id, colaboradorNome: `${linha.nome}${nomeMes}`, ano: Number(ano), mes: Number(mes),
+          documento: doc.chave, documentoLabel: celula.label || doc.label, celula,
         },
         aplicarResposta
       );
@@ -363,7 +459,7 @@ function iniciar() {
     if (botaoTudo) {
       botaoTudo.disabled = true;
       try {
-        const resposta = await RetornoDoc.marcarTodos(botaoTudo.dataset.colaborador, dadosMes.ano, dadosMes.mes);
+        const resposta = await RetornoDoc.marcarTodos(botaoTudo.dataset.colaborador, botaoTudo.dataset.ano, botaoTudo.dataset.mes);
         if (resposta) aplicarResposta(resposta);
       } catch (erro) {
         botaoTudo.disabled = false;
